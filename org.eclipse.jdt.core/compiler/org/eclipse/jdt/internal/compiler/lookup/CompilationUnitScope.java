@@ -101,15 +101,14 @@ void buildTypeBindings(AccessRestriction accessRestriction) {
 		}
 	}
 	if (this.currentPackageName == CharOperation.NO_CHAR_CHAR) {
-		// environment default package is never null
-		this.fPackage = this.environment.defaultPackage;
+		if ((this.fPackage = this.environment.defaultPackage) == null) {
+			problemReporter().mustSpecifyPackage(this.referenceContext);
+			return;
+		}
 	} else {
 		if ((this.fPackage = this.environment.createPackage(this.currentPackageName)) == null) {
-			if (this.referenceContext.currentPackage != null) {
+			if (this.referenceContext.currentPackage != null)
 				problemReporter().packageCollidesWithType(this.referenceContext); // only report when the unit has a package statement
-			}
-			// ensure fPackage is not null
-			this.fPackage = this.environment.defaultPackage;
 			return;
 		} else if (this.referenceContext.isPackageInfo()) {
 			// resolve package annotations now if this is "package-info.java".

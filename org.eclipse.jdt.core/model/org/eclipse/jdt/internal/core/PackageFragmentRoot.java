@@ -221,18 +221,14 @@ protected void computeFolderChildren(IContainer folder, boolean isIncluded, Stri
 		vChildren.add(pkg);
 	}
 	try {
+		JavaProject javaProject = (JavaProject)getJavaProject();
+		JavaModelManager manager = JavaModelManager.getJavaModelManager();
 		IResource[] members = folder.members();
 		boolean hasIncluded = isIncluded;
 		int length = members.length;
 		if (length > 0) {
-			// if package fragment root refers to folder in another IProject, then
-			// folder.getProject() is different than getJavaProject().getProject()
-			// use the other java project's options to verify the name
-			IJavaProject otherJavaProject = JavaCore.create(folder.getProject());
-			String sourceLevel = otherJavaProject.getOption(JavaCore.COMPILER_SOURCE, true);
-			String complianceLevel = otherJavaProject.getOption(JavaCore.COMPILER_COMPLIANCE, true);
-			JavaProject javaProject = (JavaProject) getJavaProject();
-			JavaModelManager manager = JavaModelManager.getJavaModelManager();
+			String sourceLevel = javaProject.getOption(JavaCore.COMPILER_SOURCE, true);
+			String complianceLevel = javaProject.getOption(JavaCore.COMPILER_COMPLIANCE, true);
 			for (int i = 0; i < length; i++) {
 				IResource member = members[i];
 				String memberName = member.getName();
@@ -494,7 +490,7 @@ int internalKind() throws JavaModelException {
 	JavaModelManager manager = JavaModelManager.getJavaModelManager();
 	PackageFragmentRootInfo info = (PackageFragmentRootInfo) manager.peekAtInfo(this);
 	if (info == null) {
-		info = (PackageFragmentRootInfo) openWhenClosed(createElementInfo(), false, null);
+		info = (PackageFragmentRootInfo) openWhenClosed(createElementInfo(), null);
 	}
 	return info.getRootKind();
 }

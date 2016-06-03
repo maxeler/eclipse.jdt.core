@@ -42,6 +42,8 @@ public class ConditionalExpression extends OperatorExpression {
 	public Constant optimizedBooleanConstant;
 	public Constant optimizedIfTrueConstant;
 	public Constant optimizedIfFalseConstant;
+	public MethodBinding appropriateMethodForOverload = null;
+	public MethodBinding syntheticAccessor = null;
 
 	// for local variables table attributes
 	int trueInitStateIndex = -1;
@@ -52,7 +54,7 @@ public class ConditionalExpression extends OperatorExpression {
 	private int nullStatus = FlowInfo.UNKNOWN;
 	int ifFalseNullStatus;
 	int ifTrueNullStatus;
-	private TypeBinding expectedType;
+	private TypeBinding expectedType = null;
 	private ExpressionContext expressionContext = VANILLA_CONTEXT;
 	private boolean isPolyExpression = false;
 	private TypeBinding originalValueIfTrueType;
@@ -73,6 +75,15 @@ public class ConditionalExpression extends OperatorExpression {
 public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 			FlowInfo flowInfo) {
 		int initialComplaintLevel = (flowInfo.reachMode() & FlowInfo.UNREACHABLE) != 0 ? Statement.COMPLAINED_FAKE_REACHABLE : Statement.NOT_COMPLAINED;
+
+		if(this.appropriateMethodForOverload != null){
+			MethodBinding original = this.appropriateMethodForOverload.original();
+			if(original.isPrivate()){
+				this.syntheticAccessor = ((SourceTypeBinding)original.declaringClass).addSyntheticMethod(original, false /* not super access there */);
+				currentScope.problemReporter().needToEmulateMethodAccess(original, this);
+			}
+		}
+		
 		Constant cst = this.condition.optimizedBooleanConstant();
 		boolean isConditionOptimizedTrue = cst != Constant.NotAConstant && cst.booleanValue() == true;
 		boolean isConditionOptimizedFalse = cst != Constant.NotAConstant && cst.booleanValue() == false;
@@ -244,6 +255,11 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		CodeStream codeStream,
 		boolean valueRequired) {
 
+		if (this.appropriateMethodForOverload != null && this.appropriateMethodForOverload.isValidBinding()) {
+			this.generateOperatorOverloadCode(currentScope, codeStream, valueRequired);
+			return;
+		}
+		
 		int pc = codeStream.position;
 		BranchLabel endifLabel, falseLabel;
 		if (this.constant != Constant.NotAConstant) {
@@ -438,6 +454,68 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 
 	public TypeBinding resolveType(BlockScope scope) {
 		// JLS3 15.25
+		this.constant = Constant.NotAConstant;
+		
+		MethodBinding mb2 = this.getMethodBindingForOverload(scope);
+//		boolean allow = this.checkOverloadBinding(this.condition.resolvedType);
+		if ((mb2 != null) && (mb2.isValidBinding())) {
+			this.resolvedType = mb2.returnType;
+			this.appropriateMethodForOverload = mb2;
+			if (isMethodUseDeprecated(this.appropriateMethodForOverload, scope, true))
+				scope.problemReporter().deprecatedMethod(this.appropriateMethodForOverload, this);
+			this.setExpectedType(this.resolvedType);
+			this.condition.computeConversion(scope, this.condition.resolvedType, this.condition.resolvedType);
+			this.valueIfTrue.computeConversion(scope, mb2.parameters[0], this.valueIfTrue.resolvedType);
+			this.valueIfFalse.computeConversion(scope, mb2.parameters[1], this.valueIfFalse.resolvedType);
+			return mb2.returnType;
+		} else { // enforce BOOLEAN
+						
+			TypeBinding expectedTypeLocal = TypeBinding.BOOLEAN;
+			this.condition.setExpectedType(expectedTypeLocal); // needed in case of generic method invocation
+			TypeBinding expressionType = this.condition.resolvedType;
+			if(expressionType == null)
+				expressionType = this.condition.resolveType(scope);
+			if (expressionType == null) {
+				scope.problemReporter().typeMismatchError(TypeBinding.VOID, expectedTypeLocal, this, null);
+				return null;
+			}
+			
+			if (TypeBinding.notEquals(expressionType, expectedTypeLocal)) {
+
+				if (!expressionType.isCompatibleWith(expectedTypeLocal)) {
+					if (scope.isBoxingCompatibleWith(expressionType, expectedTypeLocal)) {
+						this.condition.computeConversion(scope, expectedTypeLocal, expressionType);
+					} else {
+						if (mb2 != null) {
+							scope.problemReporter().abortDueToInternalError("Type " + this.condition.resolvedType.debugName() +  //$NON-NLS-1$
+									" needs to implement a method called ternaryIf with argument types (" + this.valueIfTrue.resolvedType.debugName()  //$NON-NLS-1$
+									+ "," + this.valueIfFalse.resolvedType.debugName() + ")", this); //$NON-NLS-1$ //$NON-NLS-2$
+							return null;
+						}
+
+						scope.problemReporter().typeMismatchError(expressionType, expectedTypeLocal, this, null);
+						return null;
+					}
+				}
+			}
+		}
+
+		/*
+		 * Using == or != for object is error. Print warning if "Expr eq(Expr expre){}" exist.
+		 */
+		
+		//conditions is EqualExpression 
+		//exist eq function
+		if(this.condition instanceof EqualExpression 
+			&& !((EqualExpression) this.condition).right.isThis() //without warning if statement is a == this 
+			&& !(((EqualExpression) this.condition).right instanceof NullLiteral) //without warning if statement is a == null 
+			){
+			MethodBinding eqMethod = existEqFunction(scope,(EqualExpression)this.condition);
+			//print warning
+			if(eqMethod != null && eqMethod.isValidBinding())
+				scope.problemReporter().wrongTernaryIfEqualityExpression((EqualExpression)this.condition, eqMethod);
+		}
+
 		LookupEnvironment env = scope.environment();
 		final long sourceLevel = scope.compilerOptions().sourceLevel;
 		boolean use15specifics = sourceLevel >= ClassFileConstants.JDK1_5;
@@ -452,36 +530,23 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 			}
 		}
 		
-		if (this.constant != Constant.NotAConstant) {
-			this.constant = Constant.NotAConstant;
+		TypeBinding conditionType = this.condition.resolvedType;
+		this.condition.computeConversion(scope, TypeBinding.BOOLEAN, conditionType);
 
-			TypeBinding conditionType = this.condition.resolveTypeExpecting(scope, TypeBinding.BOOLEAN);
-			this.condition.computeConversion(scope, TypeBinding.BOOLEAN, conditionType);
+		if (this.valueIfTrue instanceof CastExpression) this.valueIfTrue.bits |= DisableUnnecessaryCastCheck; // will check later on
+		this.originalValueIfTrueType = this.valueIfTrue.resolvedType;
 
-			if (this.valueIfTrue instanceof CastExpression) this.valueIfTrue.bits |= DisableUnnecessaryCastCheck; // will check later on
-			this.originalValueIfTrueType = this.valueIfTrue.resolveType(scope);
+		if (this.valueIfFalse instanceof CastExpression) this.valueIfFalse.bits |= DisableUnnecessaryCastCheck; // will check later on
+		this.originalValueIfFalseType = this.valueIfFalse.resolvedType;
 
-			if (this.valueIfFalse instanceof CastExpression) this.valueIfFalse.bits |= DisableUnnecessaryCastCheck; // will check later on
-			this.originalValueIfFalseType = this.valueIfFalse.resolveType(scope);
-
-			if (isPolyExpression()) {
-				if (this.expectedType == null) {
-					this.polyExpressionScope = scope; // preserve for eventual resolution/error reporting.
-				}
+		if (isPolyExpression()) {
+			if (this.expectedType == null) {
+				this.polyExpressionScope = scope; // preserve for eventual resolution/error reporting.
 			}
-
-			if (conditionType == null || this.originalValueIfTrueType == null || this.originalValueIfFalseType == null)
-				return null;
-		} else {
-			/* Not reached as of now as we don't evaluate conditional expressions multiple times, left in for now.
-			   If in future, we change things so control reaches here, a precondition is that this.expectedType is
-			   the final target type.
-			*/
-			if (this.originalValueIfTrueType.kind() == Binding.POLY_TYPE)
-				this.originalValueIfTrueType = this.valueIfTrue.resolveType(scope);
-			if (this.originalValueIfFalseType.kind() == Binding.POLY_TYPE)
-				this.originalValueIfFalseType = this.valueIfFalse.resolveType(scope);
 		}
+
+		if (conditionType == null || this.originalValueIfTrueType == null || this.originalValueIfFalseType == null)
+			return null;
 		if (isPolyExpression()) {
 			if (this.expectedType == null) {
 				this.polyExpressionScope = scope; // preserve for eventual resolution/error reporting.
@@ -800,5 +865,185 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		}
 		visitor.endVisit(this, scope);
 	}
-}
 
+
+	public String getMethodName() {
+		return "ternaryIf"; //$NON-NLS-1$
+	}
+
+	public MethodBinding getMethodBindingForOverload(BlockScope scope) {
+		TypeBinding tb_cond = null;
+		TypeBinding tb_right = null; 
+		TypeBinding tb_left = null;
+		
+		if(this.valueIfTrue.resolvedType == null)
+			tb_left = this.valueIfTrue.resolveType(scope);
+		else
+			tb_left = this.valueIfTrue.resolvedType;
+		
+		if(this.valueIfFalse.resolvedType == null)
+			tb_right = this.valueIfFalse.resolveType(scope);
+		else
+			tb_right = this.valueIfFalse.resolvedType;
+		
+		if(this.condition.resolvedType == null)
+			tb_cond = this.condition.resolveType(scope);
+		else
+			tb_cond = this.condition.resolvedType;
+
+		final TypeBinding expectedTypeLocal = this.expectedType;
+		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
+			public TypeBinding[] genericTypeArguments() { return null; }
+			public boolean isSuperAccess(){ return false; }
+			public boolean isTypeAccess() { return true; }
+			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
+			public void setDepth(int depth) { /* ignore */}
+			public void setFieldIndex(int depth){ /* ignore */}
+			public int sourceStart() { return 0; }
+			public int sourceEnd() { return 0; }
+			public TypeBinding getExpectedType() {
+				return expectedTypeLocal;
+			}
+			public TypeBinding expectedType() {
+				return getExpectedType();
+			}
+			@Override
+			public TypeBinding invocationTargetType() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return null;
+			}
+			@Override
+			public boolean receiverIsImplicitThis() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return false;
+			}
+			@Override
+			public InferenceContext18 freshInferenceContext(Scope scope) {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return null;
+			}
+			@Override
+			public ExpressionContext getExpressionContext() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return null;
+			}
+		};
+
+		String ms = getMethodName();
+		
+		MethodBinding mb2 = null;
+		if ((tb_cond != null) && (tb_left!=null) && (tb_right!=null)) {
+			mb2 = scope.getMethod(tb_cond, ms.toCharArray(), new TypeBinding[]{tb_left, tb_right},  fakeInvocationSite);
+		}
+		return mb2;
+	}
+
+	
+	private MethodBinding existEqFunction(BlockScope scope, EqualExpression localCondition) {
+		TypeBinding tb_right = null; 
+		TypeBinding tb_left = null;
+		
+		if(localCondition.left.resolvedType == null)
+			tb_left = localCondition.left.resolveType(scope);
+		else
+			tb_left = localCondition.left.resolvedType;
+		
+		if(localCondition.right.resolvedType == null)
+			tb_right = localCondition.right.resolveType(scope);
+		else
+			tb_right = localCondition.right.resolvedType;
+		
+		final TypeBinding expectedTypeLocal = this.expectedType;
+		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
+			public TypeBinding[] genericTypeArguments() { return null; }
+			public boolean isSuperAccess(){ return false; }
+			public boolean isTypeAccess() { return true; }
+			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
+			public void setDepth(int depth) { /* ignore */}
+			public void setFieldIndex(int depth){ /* ignore */}
+			public int sourceStart() { return 0; }
+			public int sourceEnd() { return 0; }
+			public TypeBinding getExpectedType() {
+				return expectedTypeLocal;
+			}
+			public TypeBinding expectedType() {
+				return getExpectedType();
+			}
+			@Override
+			public TypeBinding invocationTargetType() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return null;
+			}
+			@Override
+			public boolean receiverIsImplicitThis() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return false;
+			}
+			@Override
+			public InferenceContext18 freshInferenceContext(Scope scope) {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return null;
+			}
+			@Override
+			public ExpressionContext getExpressionContext() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+//				return null;
+			}
+		};
+
+		String ms = "eq"; //$NON-NLS-1$
+		
+		MethodBinding mb2 = null;
+		if ((tb_left!=null) && (tb_right!=null) /*&& (tb_left.id == tb_right.id)*/) {
+			mb2 = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right},  fakeInvocationSite);
+			if(mb2 == null || !mb2.isValidBinding() || tb_left.id != mb2.returnType.id){
+				return null;
+			}
+			return mb2;
+		
+		}
+		return null;
+	}
+
+
+	public void generateOperatorOverloadCode(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+		if(this.appropriateMethodForOverload != null){
+			this.condition.generateCode(currentScope, codeStream,true);
+			this.valueIfTrue.generateCode(currentScope, codeStream, true);
+			this.valueIfFalse.generateCode(currentScope, codeStream, true);
+			if (this.appropriateMethodForOverload.hasSubstitutedParameters() || this.appropriateMethodForOverload.hasSubstitutedReturnType()) { 
+				TypeBinding tbo = this.appropriateMethodForOverload.returnType;
+				MethodBinding mb3 = this.appropriateMethodForOverload.original();
+				MethodBinding final_mb = mb3;
+				// TODO remove for real?
+				//final_mb.returnType = final_mb.returnType.erasure();
+				codeStream.invoke((final_mb.declaringClass.isInterface()) ? Opcodes.OPC_invokeinterface : Opcodes.OPC_invokevirtual, final_mb, final_mb.declaringClass.erasure());
+		
+				if (tbo.erasure().isProvablyDistinct(final_mb.returnType.erasure())) {
+					codeStream.checkcast(tbo);
+				}
+			} else {
+				MethodBinding original = this.appropriateMethodForOverload.original();
+				if(original.isPrivate()){
+					codeStream.invoke(Opcodes.OPC_invokestatic, this.syntheticAccessor, null /* default declaringClass */);
+				}
+				else{
+					codeStream.invoke((original.declaringClass.isInterface()) ? Opcodes.OPC_invokeinterface : Opcodes.OPC_invokevirtual, original, original.declaringClass);
+				}
+				if (!this.appropriateMethodForOverload.returnType.isBaseType()) codeStream.checkcast(this.appropriateMethodForOverload.returnType);
+
+			}
+			if (valueRequired) {
+				codeStream.generateImplicitConversion(this.implicitConversion);
+			}
+		}
+	}	
+}

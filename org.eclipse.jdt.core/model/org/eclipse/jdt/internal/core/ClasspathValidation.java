@@ -12,7 +12,6 @@ package org.eclipse.jdt.internal.core;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaModelStatus;
 import org.eclipse.jdt.core.JavaModelException;
@@ -38,7 +37,7 @@ public class ClasspathValidation {
 			// project doesn't exist
 			IProject resource = this.project.getProject();
 			if (resource.isAccessible()) {
-				this.project.flushClasspathProblemMarkers(true/*flush cycle markers*/, true/*flush classpath format markers*/, true /*flush overlapping output markers*/);
+				this.project.flushClasspathProblemMarkers(true/*flush cycle markers*/, true/*flush classpath format markers*/);
 
 				// remove problems and tasks created  by the builder
 				JavaBuilder.removeProblemsAndTasksFor(resource);
@@ -57,15 +56,12 @@ public class ClasspathValidation {
 		}
 
 		// update classpath format problems
-		this.project.flushClasspathProblemMarkers(false/*cycle*/, true/*format*/, false/*overlapping*/);
+		this.project.flushClasspathProblemMarkers(false/*cycle*/, true/*format*/);
 		if (!status.isOK())
 			this.project.createClasspathProblemMarker(status);
 
-		// update overlapping output problem markers 
-		this.project.flushClasspathProblemMarkers(false/*cycle*/, false/*format*/, true/*overlapping*/);
-		
 		// update resolved classpath problems
-		this.project.flushClasspathProblemMarkers(false/*cycle*/, false/*format*/, false/*overlapping*/);
+		this.project.flushClasspathProblemMarkers(false/*cycle*/, false/*format*/);
 
 		if (rawClasspath != JavaProject.INVALID_CLASSPATH && outputLocation != null) {
 		 	for (int i = 0; i < rawClasspath.length; i++) {
@@ -75,7 +71,7 @@ public class ClasspathValidation {
 				}
 			 }
 			status = ClasspathEntry.validateClasspath(this.project, rawClasspath, outputLocation);
-			if (status.getCode() != IStatus.OK)
+			if (!status.isOK())
 				this.project.createClasspathProblemMarker(status);
 		 }
 	}

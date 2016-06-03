@@ -15,7 +15,12 @@ package org.eclipse.jdt.internal.core;
 
 import java.io.File;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.eclipse.core.resources.IBuildConfiguration;
 import org.eclipse.core.resources.IContainer;
@@ -30,9 +35,24 @@ import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.IWorkspaceRunnable;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.resources.WorkspaceJob;
-import org.eclipse.core.runtime.*;
-import org.eclipse.jdt.core.*;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.ISafeRunnable;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.PerformanceStats;
+import org.eclipse.core.runtime.SafeRunner;
+import org.eclipse.jdt.core.ElementChangedEvent;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IElementChangedListener;
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaElementDelta;
+import org.eclipse.jdt.core.IJavaModel;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.SourceElementParser;
 import org.eclipse.jdt.internal.core.JavaModelManager.PerProjectInfo;
@@ -41,7 +61,6 @@ import org.eclipse.jdt.internal.core.hierarchy.TypeHierarchy;
 import org.eclipse.jdt.internal.core.search.AbstractSearchScope;
 import org.eclipse.jdt.internal.core.search.JavaWorkspaceScope;
 import org.eclipse.jdt.internal.core.search.indexing.IndexManager;
-import org.eclipse.jdt.internal.core.util.Messages;
 import org.eclipse.jdt.internal.core.util.Util;
 
 /**
@@ -771,15 +790,11 @@ public class DeltaProcessor {
 		this.currentElement = (Openable)element;
 		return this.currentElement;
 	}
-	
-	public void checkExternalArchiveChanges(IJavaElement[] elementsScope,  IProgressMonitor monitor) throws JavaModelException {
-		checkExternalArchiveChanges(elementsScope, false, monitor);
-	}
 	/*
 	 * Check all external archive (referenced by given roots, projects or model) status and issue a corresponding root delta.
 	 * Also triggers index updates
 	 */
-	private void checkExternalArchiveChanges(IJavaElement[] elementsScope, boolean asynchronous, IProgressMonitor monitor) throws JavaModelException {
+	public void checkExternalArchiveChanges(IJavaElement[] elementsScope, IProgressMonitor monitor) throws JavaModelException {
 		if (monitor != null && monitor.isCanceled())
 			throw new OperationCanceledException();
 		try {
@@ -813,36 +828,13 @@ public class DeltaProcessor {
 					JavaProject javaProject = (JavaProject)delta.getElement();
 					projectsToTouch[i] = javaProject.getProject();
 				}
-				if (projectsToTouch.length > 0) {
-					if (asynchronous){
-						WorkspaceJob touchJob = new WorkspaceJob(Messages.updating_external_archives_jobName) {
 							
-							public IStatus runInWorkspace(IProgressMonitor progressMonitor) throws CoreException {
-								try {
-									if (progressMonitor != null)
-										progressMonitor.beginTask("", projectsToTouch.length); //$NON-NLS-1$
-									touchProjects(projectsToTouch, progressMonitor);
-								}
-								finally {
-									if (progressMonitor != null)
-										progressMonitor.done();
-								}
-								return Status.OK_STATUS;
-							}
-							
-							public boolean belongsTo(Object family) {
-								return ResourcesPlugin.FAMILY_MANUAL_REFRESH == family;
-							}
-						};
-						touchJob.schedule();
-					}
-					else {
 						// touch the projects to force them to be recompiled while taking the workspace lock
 						//	 so that there is no concurrency with the Java builder
 						// see https://bugs.eclipse.org/bugs/show_bug.cgi?id=96575
 						IWorkspaceRunnable runnable = new IWorkspaceRunnable() {
 							public void run(IProgressMonitor progressMonitor) throws CoreException {
-								for (int i = 0; i < projectsToTouch.length; i++) {
+						for (int i = 0; i < length; i++) {
 									IProject project = projectsToTouch[i];
 
 									// touch to force a build of this project
@@ -857,8 +849,6 @@ public class DeltaProcessor {
 						} catch (CoreException e) {
 							throw new JavaModelException(e);
 						}
-					}
-				}
 
 				if (this.currentDelta != null) { // if delta has not been fired while creating markers
 					fire(this.currentDelta, DEFAULT_CHANGE_EVENT);
@@ -872,19 +862,6 @@ public class DeltaProcessor {
 			if (monitor != null) monitor.done();
 		}
 	}
-
-	protected void touchProjects(final IProject[] projectsToTouch, IProgressMonitor progressMonitor)
-			throws CoreException {
-		for (int i = 0; i < projectsToTouch.length; i++) {
-			IProgressMonitor monitor = progressMonitor == null ? null: new SubProgressMonitor(progressMonitor, 1);
-			IProject project = projectsToTouch[i];
-			// touch to force a build of this project
-			if (JavaBuilder.DEBUG)
-				System.out.println("Touching project " + project.getName() + " due to external jar file change"); //$NON-NLS-1$ //$NON-NLS-2$
-			project.touch(monitor);
-		}
-	}
-
 	/*
 	 * Check if external archives have changed for the given elements and create the corresponding deltas.
 	 * Returns whether at least one delta was created.
@@ -2027,17 +2004,6 @@ public class DeltaProcessor {
 				//https://bugs.eclipse.org/bugs/show_bug.cgi?id=302295
 				// Refresh all project references together in a single job
 				JavaModelManager.getExternalManager().refreshReferences(projects, null);
-				
-				IJavaProject[] javaElements = new IJavaProject[projects.length];
-				for (int index = 0; index < projects.length; index++) {
-					javaElements[index] = JavaCore.create(projects[index]);
-				}
-				try {
-					checkExternalArchiveChanges(javaElements, true, null);
-				} catch (JavaModelException e) {
-		        	if (!e.isDoesNotExist())
-		        		Util.log(e, "Exception while updating external archives"); //$NON-NLS-1$
-				}
 				return;
 
 			case IResourceChangeEvent.POST_CHANGE :

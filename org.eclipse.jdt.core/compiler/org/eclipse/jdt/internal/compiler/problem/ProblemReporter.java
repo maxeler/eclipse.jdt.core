@@ -72,6 +72,7 @@ import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
+import org.eclipse.jdt.core.dom.InfixExpression.Operator;
 import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
@@ -87,6 +88,7 @@ import org.eclipse.jdt.internal.compiler.ast.ArrayInitializer;
 import org.eclipse.jdt.internal.compiler.ast.ArrayQualifiedTypeReference;
 import org.eclipse.jdt.internal.compiler.ast.ArrayReference;
 import org.eclipse.jdt.internal.compiler.ast.ArrayTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.AssertStatement;
 import org.eclipse.jdt.internal.compiler.ast.Assignment;
 import org.eclipse.jdt.internal.compiler.ast.BinaryExpression;
 import org.eclipse.jdt.internal.compiler.ast.Block;
@@ -95,8 +97,10 @@ import org.eclipse.jdt.internal.compiler.ast.CaseStatement;
 import org.eclipse.jdt.internal.compiler.ast.CastExpression;
 import org.eclipse.jdt.internal.compiler.ast.ClassLiteralAccess;
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.CompositeArrayReference;
 import org.eclipse.jdt.internal.compiler.ast.CompoundAssignment;
 import org.eclipse.jdt.internal.compiler.ast.ConditionalExpression;
+import org.eclipse.jdt.internal.compiler.ast.ConnectCompoundAssignment;
 import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.EqualExpression;
 import org.eclipse.jdt.internal.compiler.ast.ExplicitConstructorCall;
@@ -118,6 +122,7 @@ import org.eclipse.jdt.internal.compiler.ast.MethodDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.NameReference;
 import org.eclipse.jdt.internal.compiler.ast.NullAnnotationMatching;
 import org.eclipse.jdt.internal.compiler.ast.NullLiteral;
+import org.eclipse.jdt.internal.compiler.ast.OperatorIds;
 import org.eclipse.jdt.internal.compiler.ast.ParameterizedQualifiedTypeReference;
 import org.eclipse.jdt.internal.compiler.ast.ParameterizedSingleTypeReference;
 import org.eclipse.jdt.internal.compiler.ast.QualifiedAllocationExpression;
@@ -307,6 +312,12 @@ public static int getIrritant(int problemID) {
 
 		case IProblem.UnnecessaryElse:
 			return CompilerOptions.UnnecessaryElse;
+
+		case IProblem.MaxelerAssertStatement:
+			return CompilerOptions.MaxelerAssertStatement;
+			
+		case IProblem.MaxelerInvalidOverloadedPut:
+			return CompilerOptions.MaxelerOverloadedPut;
 
 		case IProblem.UnsafeRawConstructorInvocation:
 		case IProblem.UnsafeRawMethodInvocation:
@@ -534,6 +545,7 @@ public static int getIrritant(int problemID) {
 		case IProblem.RedundantSuperinterface:
 			return CompilerOptions.RedundantSuperinterface;
 
+		case IProblem.WrongTernaryIfEqualityExpression:
 		case IProblem.ComparingIdentical:
 			return CompilerOptions.ComparingIdentical;
 			
@@ -4328,7 +4340,218 @@ public void invalidOperator(BinaryExpression expression, TypeBinding leftType, T
 		expression.sourceStart,
 		expression.sourceEnd);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+  // #1169
+
+  // Handling ambiguous overloaded operator error
+public void ambiguousOperator(BinaryExpression expression, TypeBinding leftType, TypeBinding rightType) {
+	String leftName = new String(leftType.readableName());
+	String rightName = new String(rightType.readableName());
+	String leftShortName = new String(leftType.shortReadableName());
+	String rightShortName = new String(rightType.shortReadableName());
+	if (leftShortName.equals(rightShortName)){
+		leftShortName = leftName;
+		rightShortName = rightName;
+	}
+	this.handle(
+		IProblem.AmbigousOperator,
+		new String[] {
+			expression.operatorToString(),
+			leftName, rightName},
+		new String[] {
+			expression.operatorToString(),
+			leftShortName, rightShortName},
+		expression.sourceStart,
+		expression.sourceEnd);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// #Milan
+
+// Handling missing overloaded operator error
+public void invalidOrMissingOverloadedOperator(Statement statement, String statementString, TypeBinding condition) {
+	String conditionName = new String(condition.readableName());
+	String conditionShortName = new String(condition.shortReadableName());
+	this.handle(
+		IProblem.InvalidOrMissingOverloadedOperator2P,
+		new String[] {
+			statementString,
+			conditionName},
+		new String[] {
+			statementString,
+			conditionShortName},
+		statement.sourceStart,
+		statement.sourceEnd);
+}
+
+public void invalidOrMissingOverloadedOperator(Expression expression, String expressionString, TypeBinding condition) {
+	String conditionName = new String(condition.readableName());
+	String conditionShortName = new String(condition.shortReadableName());
+	this.handle(
+		IProblem.InvalidOrMissingOverloadedOperator2P,
+		new String[] {
+			expressionString,
+			conditionName},
+		new String[] {
+			expressionString,
+			conditionShortName},
+		expression.sourceStart,
+		expression.sourceEnd);
+}
+
+public void invalidOrMissingOverloadedOperator(ConnectCompoundAssignment assignment, TypeBinding expression) {
+	String conditionName = new String(expression.readableName());
+	String conditionShortName = new String(expression.shortReadableName());
+	this.handle(
+		IProblem.InvalidOrMissingOverloadedOperator2P,
+		new String[] {
+			assignment.assignmentToString(),
+			conditionName},
+		new String[] {
+			assignment.assignmentToString(),
+			conditionShortName},
+		assignment.sourceStart,
+		assignment.sourceEnd);
+}
+
+public void invalidOrMissingOverloadedOperator(Reference reference, String referenceString, TypeBinding boundOne, TypeBinding boundTwo, TypeBinding assignment) {
+	String boundOneName = new String(boundOne.readableName());
+	String boundOneShortName = new String(boundOne.shortReadableName());
+	String boundTwoName = new String(boundTwo.readableName());
+	String boundTwoShortName = new String(boundTwo.shortReadableName());
+	String assignmentName = new String(assignment.readableName());
+	String assignmentShortName = new String(assignment.shortReadableName());
+	this.handle(
+		IProblem.InvalidOrMissingOverloadedOperator4P,
+		new String[] {
+			referenceString,
+			boundOneName,
+			boundTwoName,
+			assignmentName},
+		new String[] {
+			referenceString,
+			boundOneShortName,
+			boundTwoShortName,
+			assignmentShortName},
+		reference.sourceStart,
+		reference.sourceEnd);
+}
+
+public void invalidOrMissingOverloadedOperator(Reference reference, String referenceString, TypeBinding boundOne, TypeBinding boundTwo) {
+	String boundOneName = new String(boundOne.readableName());
+	String boundOneShortName = new String(boundOne.shortReadableName());
+	String boundTwoName = new String(boundTwo.readableName());
+	String boundTwoShortName = new String(boundTwo.shortReadableName());
+	this.handle(
+		IProblem.InvalidOrMissingOverloadedOperator3P,
+		new String[] {
+			referenceString,
+			boundOneName,
+			boundTwoName},
+		new String[] {
+			referenceString,
+			boundOneShortName,
+			boundTwoShortName},
+		reference.sourceStart,
+		reference.sourceEnd);
+}
+
+public void overloadedOperatorMethodNotStatic(Assignment assignment, String assignmentType) {
+	String [] argument = new String [] {assignmentType};
+	this.handle(
+			IProblem.OverloadedOperatorMethodNotStatic,
+			argument,
+			argument,
+			assignment.sourceStart,
+			assignment.sourceEnd);
+}
+
+public void overloadedOperatorMethodNotStatic(Statement statement, String statementType) {
+	String [] argument = new String [] {statementType};
+	this.handle(
+			IProblem.OverloadedOperatorMethodNotStatic,
+			argument,
+			argument,
+			statement.sourceStart,
+			statement.sourceEnd);
+}
+
+public void overloadedOperatorMethodNotStatic(Expression expression, String expressionType) {
+	String [] argument = new String [] {expressionType};
+	this.handle(
+			IProblem.OverloadedOperatorMethodNotStatic,
+			argument,
+			argument,
+			expression.sourceStart,
+			expression.sourceEnd);
+}
+
+public void invalidReturnTypeForOverloadedOperator(Statement statement, String referenceString, TypeBinding boundOne, TypeBinding boundTwo) {
+	String boundOneName = new String(boundOne.readableName());
+	String boundOneShortName = new String(boundOne.shortReadableName());
+	String boundTwoName = new String(boundTwo.readableName());
+	String boundTwoShortName = new String(boundTwo.shortReadableName());
+	this.handle(
+		IProblem.InvalidReturnTypeForOverloadedOperator,
+		new String[] {
+			boundTwoName,
+			referenceString,
+			boundOneName},
+		new String[] {
+			boundTwoShortName,
+			referenceString,
+			boundOneShortName},
+		statement.sourceStart,
+		statement.sourceEnd);
+}
+
+
+//Put method with non-void return type
+public void invalidPutReturnType(MethodBinding binding) {
+	StringBuffer methodDescription = new StringBuffer();
+	for(int i = 0; i < binding.parameters.length; i++){
+		if(methodDescription.length() != 0){
+			methodDescription.append(" ,"); //$NON-NLS-1$
+		}
+		methodDescription.append(binding.parameters[i].shortReadableName());
+	}
+	String text = methodDescription.toString();
+	this.handle(
+		IProblem.MaxelerInvalidOverloadedPut,
+		new String[] {
+				text},
+		new String[] {
+				text},
+		binding.sourceStart(),
+		binding.sourceEnd());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 public void invalidOperator(CompoundAssignment assign, TypeBinding leftType, TypeBinding rightType) {
+	String leftName = new String(leftType.readableName());
+	String rightName = new String(rightType.readableName());
+	String leftShortName = new String(leftType.shortReadableName());
+	String rightShortName = new String(rightType.shortReadableName());
+	if (leftShortName.equals(rightShortName)){
+		leftShortName = leftName;
+		rightShortName = rightName;
+	}
+	this.handle(
+		IProblem.InvalidOperator,
+		new String[] {
+			assign.operatorToString(),
+			leftName + ", " + rightName}, //$NON-NLS-1$
+		new String[] {
+			assign.operatorToString(),
+			leftShortName + ", " + rightShortName}, //$NON-NLS-1$
+		assign.sourceStart,
+		assign.sourceEnd);
+}
+public void invalidOperator(ConnectCompoundAssignment assign, TypeBinding leftType, TypeBinding rightType) {
 	String leftName = new String(leftType.readableName());
 	String rightName = new String(rightType.readableName());
 	String leftShortName = new String(leftType.shortReadableName());
@@ -4697,6 +4920,7 @@ private boolean isKeyword(int token) {
 		case TerminalTokens.TokenNamedouble:
 		case TerminalTokens.TokenNamedefault:
 		case TerminalTokens.TokenNameelse:
+		case TerminalTokens.TokenNameELSE:
 		case TerminalTokens.TokenNameextends:
 		case TerminalTokens.TokenNamefor:
 		case TerminalTokens.TokenNamefinal:
@@ -4704,6 +4928,7 @@ private boolean isKeyword(int token) {
 		case TerminalTokens.TokenNamefalse:
 		case TerminalTokens.TokenNamefinally:
 		case TerminalTokens.TokenNameif:
+		case TerminalTokens.TokenNameIF:
 		case TerminalTokens.TokenNameint:
 		case TerminalTokens.TokenNameimport:
 		case TerminalTokens.TokenNameinterface:
@@ -6260,6 +6485,15 @@ public void mustDefineDimensionsOrInitializer(ArrayAllocationExpression expressi
 		expression.sourceStart,
 		expression.sourceEnd);
 }
+public void mustSpecifyPackage(CompilationUnitDeclaration compUnitDecl) {
+	String[] arguments = new String[] {new String(compUnitDecl.getFileName())};
+	this.handle(
+		IProblem.MustSpecifyPackage,
+		arguments,
+		arguments,
+		compUnitDecl.sourceStart,
+		compUnitDecl.sourceStart + 1);
+}
 public void mustUseAStaticMethod(MessageSend messageSend, MethodBinding method) {
 	this.handle(
 		IProblem.StaticMethodRequested,
@@ -6658,6 +6892,22 @@ public void objectMustBeClass(SourceTypeBinding type) {
 		type.sourceEnd());
 }
 public void operatorOnlyValidOnNumericType(CompoundAssignment  assignment, TypeBinding leftType, TypeBinding rightType) {
+	String leftName = new String(leftType.readableName());
+	String rightName = new String(rightType.readableName());
+	String leftShortName = new String(leftType.shortReadableName());
+	String rightShortName = new String(rightType.shortReadableName());
+	if (leftShortName.equals(rightShortName)){
+		leftShortName = leftName;
+		rightShortName = rightName;
+	}
+	this.handle(
+		IProblem.TypeMismatch,
+		new String[] {leftName, rightName },
+		new String[] {leftShortName, rightShortName },
+		assignment.sourceStart,
+		assignment.sourceEnd);
+}
+public void operatorOnlyValidOnNumericType(ConnectCompoundAssignment  assignment, TypeBinding leftType, TypeBinding rightType) {
 	String leftName = new String(leftType.readableName());
 	String rightName = new String(rightType.readableName());
 	String leftShortName = new String(leftType.shortReadableName());
@@ -7188,6 +7438,14 @@ public void redundantSuperInterface(SourceTypeBinding type, TypeReference refere
 	}
 }
 public void referenceMustBeArrayTypeAt(TypeBinding arrayType, ArrayReference arrayRef) {
+	this.handle(
+		IProblem.ArrayReferenceRequired,
+		new String[] {new String(arrayType.readableName())},
+		new String[] {new String(arrayType.shortReadableName())},
+		arrayRef.sourceStart,
+		arrayRef.sourceEnd);
+}
+public void referenceMustBeArrayTypeAt(TypeBinding arrayType, CompositeArrayReference arrayRef) {
 	this.handle(
 		IProblem.ArrayReferenceRequired,
 		new String[] {new String(arrayType.readableName())},
@@ -7985,6 +8243,14 @@ public void undocumentedEmptyBlock(int blockStart, int blockEnd) {
 		blockStart,
 		blockEnd);
 }
+public void maxelerAssertStatement(AssertStatement statement) {
+	this.handle(
+		IProblem.MaxelerAssertStatement,
+		NoArgument,
+		NoArgument,
+		statement.sourceStart,
+		statement.sourceEnd);
+}
 public void unexpectedStaticModifierForField(SourceTypeBinding type, FieldDeclaration fieldDecl) {
 	String[] arguments = new String[] {new String(fieldDecl.name)};
 	this.handle(
@@ -8561,6 +8827,31 @@ public void unusedLocalVariable(LocalDeclaration localDecl) {
 		localDecl.sourceStart,
 		localDecl.sourceEnd);
 }
+
+public void wrongTernaryIfEqualityExpression(EqualExpression expression, MethodBinding eqMethod){
+	int severity = computeSeverity(IProblem.WrongTernaryIfEqualityExpression);
+	if (severity == ProblemSeverities.Ignore) return;
+	String operator = ""; 																			//$NON-NLS-1$
+	if(((expression.bits & ASTNode.OperatorMASK) >> ASTNode.OperatorSHIFT) == OperatorIds.EQUAL_EQUAL )
+		operator = Operator.EQUALS.toString();
+	if(((expression.bits & ASTNode.OperatorMASK) >> ASTNode.OperatorSHIFT) == OperatorIds.NOT_EQUAL )
+		operator = Operator.NOT_EQUALS.toString();
+	String methodName = new String(eqMethod.returnType.constantPoolName()) +
+								" " + 																//$NON-NLS-1$
+								new String(eqMethod.selector) +
+								"(" + new String((eqMethod.parameters)[0].constantPoolName()) + 	//$NON-NLS-1$
+								")"; 																//$NON-NLS-1$
+	String[] arguments = new String[] {methodName, operator};
+	this.handle(
+		IProblem.WrongTernaryIfEqualityExpression,
+		arguments,
+		arguments,
+		severity,
+		expression.sourceStart,
+		expression.sourceEnd);
+
+}
+
 public void unusedObjectAllocation(AllocationExpression allocationExpression) {
 	this.handle(
 		IProblem.UnusedObjectAllocation, 

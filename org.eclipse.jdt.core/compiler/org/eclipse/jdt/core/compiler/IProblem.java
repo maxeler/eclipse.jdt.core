@@ -1823,4 +1823,123 @@ void setSourceStart(int sourceStart);
 	
 	/** @since 3.10 */
 	int LambdaShapeComputationError = 1101;
+
+///////////////////////////////////////////////////////////////////////////////////////
+	// #1169
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80000 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int AmbigousOperator = MethodRelated + 80000;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+	//
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80001 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int InvalidOrMissingOverloadedOperator2P = MethodRelated + 80001;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+	//
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80002 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int InvalidOrMissingOverloadedOperator3P = MethodRelated + 80002;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+	//
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80003 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int InvalidOrMissingOverloadedOperator4P = MethodRelated + 80003;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+	//
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80004 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int OverloadedOperatorMethodNotStatic = MethodRelated + 80004;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80005 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int WrongTernaryIfEqualityExpression = MethodRelated + Internal + 80005;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 *  Overloaded operators
+	 */
+    // NOTE:
+	// 80006 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int InvalidReturnTypeForOverloadedOperator = MethodRelated + Internal + 80006;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 *  Illegal assert statement
+	 */
+    // NOTE:
+	// 80006 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int MaxelerAssertStatement = MethodRelated + Internal + 80007;
+
+	////////////////////////////////////////////////////////////////////////////////////////
+	
+	/**
+	 *  Using non void return type for overloaded put method
+	 */
+    // NOTE:
+	// 80006 from messages.properties is chosen semi-arbitrary.
+    // In the future changes may be required, because of possible conflicts between sums.
+
+	int MaxelerInvalidOverloadedPut = MethodRelated + 80008;
+
+	////////////////////////////////////////////////////////////////////////////////////////
 }

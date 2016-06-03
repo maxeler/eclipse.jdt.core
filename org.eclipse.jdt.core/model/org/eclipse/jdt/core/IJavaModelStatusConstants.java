@@ -351,5 +351,5 @@ public interface IJavaModelStatusConstants {
 	 * with another source location. </p>
 	 * @since 3.6.4
 	 */
-	public static final int OUTPUT_LOCATION_OVERLAPPING_ANOTHER_SOURCE = 1013;
+	public static final int MISSING_MAXCOMPILERDIR = 1012;
 }

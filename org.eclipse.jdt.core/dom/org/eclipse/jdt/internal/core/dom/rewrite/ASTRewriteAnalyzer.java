@@ -2759,6 +2759,58 @@ public final class ASTRewriteAnalyzer extends ASTVisitor {
 	}
 
 	/* (non-Javadoc)
+	 * @see org.eclipse.jdt.core.dom.ASTVisitor#visit(IfStatement)
+	 */
+	public boolean visit(IFStatement node) {
+		if (!hasChildrenChanges(node)) {
+			return doVisitUnchangedChildren(node);
+		}
+
+		int pos= rewriteRequiredNode(node, IFStatement.EXPRESSION_PROPERTY); // statement
+
+		RewriteEvent thenEvent= getEvent(node, IFStatement.THEN_STATEMENT_PROPERTY);
+		int elseChange= getChangeKind(node, IFStatement.ELSE_STATEMENT_PROPERTY);
+
+		if (thenEvent != null && thenEvent.getChangeKind() != RewriteEvent.UNCHANGED) {
+			try {
+				int tok= getScanner().readNext(pos, true); // after the closing parent
+				pos= (tok == TerminalTokens.TokenNameRPAREN) ? getScanner().getCurrentEndOffset() : getScanner().getCurrentStartOffset();
+				
+				int indent= getIndent(node.getStartPosition());
+
+				int endPos= -1;
+				Object elseStatement= getOriginalValue(node, IFStatement.ELSE_STATEMENT_PROPERTY);
+				if (elseStatement != null) {
+					ASTNode thenStatement = (ASTNode) thenEvent.getOriginalValue();
+					endPos= getScanner().getTokenStartOffset(TerminalTokens.TokenNameELSE, thenStatement.getStartPosition() + thenStatement.getLength()); // else keyword
+				}
+				if (elseStatement == null || elseChange != RewriteEvent.UNCHANGED) {
+					pos= rewriteBodyNode(node, IFStatement.THEN_STATEMENT_PROPERTY, pos, endPos, indent, this.formatter.IF_BLOCK_NO_ELSE);
+				} else {
+					pos= rewriteBodyNode(node, IFStatement.THEN_STATEMENT_PROPERTY, pos, endPos, indent, this.formatter.IF_BLOCK_WITH_ELSE);
+				}
+			} catch (CoreException e) {
+				handleException(e);
+			}
+		} else {
+			pos= doVisit(node, IFStatement.THEN_STATEMENT_PROPERTY, pos);
+		}
+
+		if (elseChange != RewriteEvent.UNCHANGED) {
+			int indent= getIndent(node.getStartPosition());
+			Object newThen= getNewValue(node, IFStatement.THEN_STATEMENT_PROPERTY);
+			if (newThen instanceof Block) {
+				rewriteBodyNode(node, IFStatement.ELSE_STATEMENT_PROPERTY, pos, -1, indent, this.formatter.ELSE_AFTER_BLOCK);
+			} else {
+				rewriteBodyNode(node, IFStatement.ELSE_STATEMENT_PROPERTY, pos, -1, indent, this.formatter.ELSE_AFTER_STATEMENT);
+			}
+		} else {
+			pos= doVisit(node, IFStatement.ELSE_STATEMENT_PROPERTY, pos);
+		}
+		return false;
+	}
+
+	/* (non-Javadoc)
 	 * @see org.eclipse.jdt.core.dom.ASTVisitor#visit(ImportDeclaration)
 	 */
 	public boolean visit(ImportDeclaration node) {
@@ -3409,6 +3461,19 @@ public final class ASTRewriteAnalyzer extends ASTVisitor {
 		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see org.eclipse.jdt.core.dom.ASTVisitor#visit(SwitchCase)
+	 */
+	public boolean visit(SWITCHCASE node) {
+		if (!hasChildrenChanges(node)) {
+			return doVisitUnchangedChildren(node);
+		}
+
+		// dont allow switching from case to default or back. New statements should be created.
+		rewriteRequiredNode(node, SWITCHCASE.EXPRESSION_PROPERTY);
+		return false;
+	}
+
 	class SwitchListRewriter extends ParagraphListRewriter {
 		
 		private boolean indentSwitchStatementsCompareToCases;
@@ -3532,6 +3597,40 @@ public final class ASTRewriteAnalyzer extends ASTVisitor {
 		}
 		return false;
 	}
+
+	/* (non-Javadoc)
+	 * @see org.eclipse.jdt.core.dom.ASTVisitor#visit(SwitchStatement)
+	 */
+	public boolean visit(SWITCHStatement node) {
+		if (!hasChildrenChanges(node)) {
+			return doVisitUnchangedChildren(node);
+		}
+
+		int pos= rewriteRequiredNode(node, SWITCHStatement.EXPRESSION_PROPERTY);
+
+		ChildListPropertyDescriptor property= SWITCHStatement.STATEMENTS_PROPERTY;
+		if (getChangeKind(node, property) != RewriteEvent.UNCHANGED) {
+			try {
+				pos= getScanner().getTokenEndOffset(TerminalTokens.TokenNameLBRACE, pos);
+				int insertIndent= getIndent(node.getStartPosition());
+				if (DefaultCodeFormatterConstants.TRUE.equals(this.options.get(DefaultCodeFormatterConstants.FORMATTER_INDENT_SWITCHSTATEMENTS_COMPARE_TO_SWITCH))) {
+					insertIndent++;
+				}
+				
+				ParagraphListRewriter listRewriter= new SwitchListRewriter(insertIndent);
+				StringBuffer leadString= new StringBuffer();
+				leadString.append(getLineDelimiter());
+				leadString.append(createIndentString(insertIndent));
+				listRewriter.rewriteList(node, property, pos, leadString.toString());
+			} catch (CoreException e) {
+				handleException(e);
+			}
+		} else {
+			voidVisit(node, SWITCHStatement.STATEMENTS_PROPERTY);
+		}
+		return false;
+	}
+
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.jdt.core.dom.ASTVisitor#visit(SynchronizedStatement)

@@ -202,6 +202,18 @@ public void generateAssignment(BlockScope currentScope, CodeStream codeStream, A
 	// no need for generic cast as value got dupped
 }
 
+public void generatePreOverloadAssignment(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+	int pc = codeStream.position;
+	FieldBinding codegenBinding = this.binding.original();
+	this.receiver.generateCode(currentScope, codeStream, !codegenBinding.isStatic());
+	codeStream.recordPositionsFrom(pc, this.sourceStart);
+}
+
+public void generatePostOverloadAssignment(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+	FieldBinding codegenBinding = this.binding.original();
+	fieldStore(currentScope, codeStream, codegenBinding, this.syntheticAccessors == null ? null : this.syntheticAccessors[FieldReference.WRITE], this.actualReceiverType, this.receiver.isImplicitThis(), valueRequired);	
+}
+
 /**
  * Field reference code generation
  *
@@ -737,6 +749,10 @@ public VariableBinding nullAnnotatedVariableBinding(boolean supportTypeAnnotatio
 			return this.binding;
 		}
 	}
+	return null;
+}
+
+public TypeBinding resolveTypeCompundOverloadOperator(BlockScope scope, TypeBinding type) {
 	return null;
 }
 }

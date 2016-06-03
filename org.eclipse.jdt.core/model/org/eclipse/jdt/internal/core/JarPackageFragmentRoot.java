@@ -87,6 +87,9 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 		IJavaElement[] children;
 		ZipFile jar = null;
 		try {
+			IJavaProject project = getJavaProject();
+			String sourceLevel = project.getOption(JavaCore.COMPILER_SOURCE, true);
+
 			jar = getJar();
 
 			// always create the default package
@@ -94,7 +97,7 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 
 			for (Enumeration e= jar.entries(); e.hasMoreElements();) {
 				ZipEntry member= (ZipEntry) e.nextElement();
-				initRawPackageInfo(rawPackageInfo, member.getName(), member.isDirectory());
+				initRawPackageInfo(rawPackageInfo, member.getName(), member.isDirectory(), sourceLevel);
 			}
 
 			// loop through all of referenced packages, creating package fragments if necessary
@@ -221,7 +224,7 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 	public int hashCode() {
 		return this.jarPath.hashCode();
 	}
-	private void initRawPackageInfo(HashtableOfArrayToObject rawPackageInfo, String entryName, boolean isDirectory) {
+	private void initRawPackageInfo(HashtableOfArrayToObject rawPackageInfo, String entryName, boolean isDirectory, String sourceLevel) {
 		int lastSeparator = isDirectory ? entryName.length()-1 : entryName.lastIndexOf('/');
 		String[] pkgName = Util.splitOn('/', entryName, 0, lastSeparator);
 		String[] existing = null;
@@ -234,9 +237,8 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 		}
 		JavaModelManager manager = JavaModelManager.getJavaModelManager();
 		for (int i = existingLength; i < length; i++) {
-			// sourceLevel must be null because we know nothing about it based on a jar file
 			// complianceLevel can be retrieved from a jar file
-			if (Util.isValidFolderNameForPackage(pkgName[i], null, this.complianceLevel)) {
+			if (Util.isValidFolderNameForPackage(pkgName[i], sourceLevel, this.complianceLevel)) {
 				System.arraycopy(existing, 0, existing = new String[i+1], 0, i);
 				existing[i] = manager.intern(pkgName[i]);
 				rawPackageInfo.put(existing, new ArrayList[] { EMPTY_LIST, EMPTY_LIST });

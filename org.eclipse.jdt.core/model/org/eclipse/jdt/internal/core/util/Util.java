@@ -793,19 +793,21 @@ public class Util {
 				if (contentTypes[i].isKindOf(javaContentType)) { // note that javaContentType.isKindOf(javaContentType) == true
 					String[] fileExtension = contentTypes[i].getFileSpecs(IContentType.FILE_EXTENSION_SPEC);
 					for (int j = 0, length2 = fileExtension.length; j < length2; j++) {
+						if(!SuffixConstants.EXTENSION_maxjava.equals(fileExtension[j]))
 						fileExtensions.add(fileExtension[j]);
 					}
 				}
 			}
-			int length = fileExtensions.size();
+			int length = fileExtensions.size()+1;
 			// note that file extensions contains "java" as it is defined in JDT Core's plugin.xml
 			char[][] extensions = new char[length][];
 			extensions[0] = SuffixConstants.EXTENSION_java.toCharArray(); // ensure that "java" is first
-			int index = 1;
+			extensions[1] = SuffixConstants.EXTENSION_maxjava.toCharArray(); // ensure that "maxjava" is second
+			int index = 2;
 			Iterator iterator = fileExtensions.iterator();
 			while (iterator.hasNext()) {
 				String fileExtension = (String) iterator.next();
-				if (SuffixConstants.EXTENSION_java.equals(fileExtension))
+				if (SuffixConstants.EXTENSION_java.equals(fileExtension) || SuffixConstants.EXTENSION_maxjava.equals(fileExtension))
 					continue;
 				extensions[index++] = fileExtension.toCharArray();
 			}

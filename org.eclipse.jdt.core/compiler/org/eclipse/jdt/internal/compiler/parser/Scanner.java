@@ -49,6 +49,8 @@ public class Scanner implements TerminalTokens {
 	// 1.5 feature
 	public boolean useEnumAsAnIndentifier = false;
 
+	public boolean useDSLConstructs = false;
+
 	public boolean recordLineSeparator = false;
 	public char currentCharacter;
 	public int startPosition;
@@ -1315,9 +1317,15 @@ protected int getNextToken0() throws InvalidInputException {
 					}
 				case '~' :
 					return TokenNameTWIDDLE;
+				case '#' :
+					return TokenNameHASH;
 				case '!' :
-					if (getNextChar('='))
+					if (getNextChar('=')){
+						if (getNextChar('=')){
+							return TokenNameNOT_EQUAL_EQUAL;
+						}
 						return TokenNameNOT_EQUAL;
+					}
 					return TokenNameNOT;
 				case '*' :
 					if (getNextChar('='))
@@ -1330,8 +1338,12 @@ protected int getNextToken0() throws InvalidInputException {
 				case '<' :
 					{
 						int test;
-						if ((test = getNextChar('=', '<')) == 0)
+						if ((test = getNextChar('=', '<')) == 0){
+							if(getNextChar('='))
+								return TokenNameCONNECT;
+
 							return TokenNameLESS_EQUAL;
+						}
 						if (test > 0) {
 							if (getNextChar('='))
 								return TokenNameLEFT_SHIFT_EQUAL;
@@ -1360,8 +1372,12 @@ protected int getNextToken0() throws InvalidInputException {
 						return TokenNameGREATER;
 					}
 				case '=' :
-					if (getNextChar('='))
+					if (getNextChar('=')){
+						if (getNextChar('=')){
+							return TokenNameEQUAL_EQUAL_EQUAL;
+						}
 						return TokenNameEQUAL_EQUAL;
+					}
 					return TokenNameEQUAL;
 				case '&' :
 					{
@@ -3063,6 +3079,16 @@ private int internalScanIdentifierOrKeyword(int index, int length, char[] data) 
 				default :
 					return TokenNameIdentifier;
 			}
+		case 'C' :
+			if (length == 4) {
+				if ((data[++index] == 'A') && (data[++index] == 'S') && (data[++index] == 'E')){
+					if(this.useDSLConstructs)
+						return TokenNameCASE;
+					else
+						return TokenNameIdentifier;
+				}
+			}
+			return TokenNameIdentifier;
 
 		case 'd' : //default do double
 			switch (length) {
@@ -3126,6 +3152,17 @@ private int internalScanIdentifierOrKeyword(int index, int length, char[] data) 
 				default :
 					return TokenNameIdentifier;
 			}
+
+		case 'E' :
+			if (length == 4) {
+				if ((data[++index] == 'L') && (data[++index] == 'S') && (data[++index] == 'E')){
+					if(this.useDSLConstructs)
+						return TokenNameELSE;
+					else
+						return TokenNameIdentifier;
+				}
+			}
+			return TokenNameIdentifier;
 
 		case 'f' : //final finally float for false
 			switch (length) {
@@ -3245,6 +3282,16 @@ private int internalScanIdentifierOrKeyword(int index, int length, char[] data) 
 				default :
 					return TokenNameIdentifier;
 			}
+		case 'I' :
+			if (length == 2) {
+				if ((data[++index] == 'F')) {
+					if(this.useDSLConstructs)
+						return TokenNameIF;
+					else
+						return TokenNameIdentifier;
+				}
+			}
+			return TokenNameIdentifier;
 
 		case 'l' : //long
 			if (length == 4) {
@@ -3280,6 +3327,23 @@ private int internalScanIdentifierOrKeyword(int index, int length, char[] data) 
 				default :
 					return TokenNameIdentifier;
 			}
+		case 'O' :
+			if (length == 9) {
+				if ((data[++index] == 'T')
+					&& (data[++index] == 'H')
+					&& (data[++index] == 'E')
+					&& (data[++index] == 'R')
+					&& (data[++index] == 'W')
+					&& (data[++index] == 'I')
+					&& (data[++index] == 'S')
+					&& (data[++index] == 'E')){
+					if(this.useDSLConstructs)
+						return TokenNameOTHERWISE;
+					else
+						return TokenNameIdentifier;
+				}
+			}
+			return TokenNameIdentifier;
 
 		case 'p' : //package private protected public
 			switch (length) {
@@ -3405,6 +3469,17 @@ private int internalScanIdentifierOrKeyword(int index, int length, char[] data) 
 				default :
 					return TokenNameIdentifier;
 			}
+
+		case 'S' :
+			if (length == 6) {
+				if ((data[++index] == 'W') && (data[++index] == 'I') && (data[++index] == 'T') && (data[++index] == 'C') && (data[++index] == 'H')){
+					if(this.useDSLConstructs)
+						return TokenNameSWITCH;
+					else
+						return TokenNameIdentifier;
+				}
+			}
+			return TokenNameIdentifier;
 
 		case 't' : //try throw throws transient this true
 			switch (length) {
@@ -3904,6 +3979,8 @@ public String toStringAction(int act) {
 			return "byte"; //$NON-NLS-1$
 		case TokenNamecase :
 			return "case"; //$NON-NLS-1$
+		case TokenNameCASE :
+			return "CASE"; //$NON-NLS-1$
 		case TokenNamecatch :
 			return "catch"; //$NON-NLS-1$
 		case TokenNamechar :
@@ -3914,12 +3991,16 @@ public String toStringAction(int act) {
 			return "continue"; //$NON-NLS-1$
 		case TokenNamedefault :
 			return "default"; //$NON-NLS-1$
+		case TokenNameOTHERWISE :
+			return "OTHERWISE"; //$NON-NLS-1$
 		case TokenNamedo :
 			return "do"; //$NON-NLS-1$
 		case TokenNamedouble :
 			return "double"; //$NON-NLS-1$
 		case TokenNameelse :
 			return "else"; //$NON-NLS-1$
+		case TokenNameELSE :
+			return "ELSE"; //$NON-NLS-1$
 		case TokenNameextends :
 			return "extends"; //$NON-NLS-1$
 		case TokenNamefalse :
@@ -3934,6 +4015,8 @@ public String toStringAction(int act) {
 			return "for"; //$NON-NLS-1$
 		case TokenNameif :
 			return "if"; //$NON-NLS-1$
+		case TokenNameIF :
+			return "IF"; //$NON-NLS-1$
 		case TokenNameimplements :
 			return "implements"; //$NON-NLS-1$
 		case TokenNameimport :
@@ -3970,6 +4053,8 @@ public String toStringAction(int act) {
 			return "super"; //$NON-NLS-1$
 		case TokenNameswitch :
 			return "switch"; //$NON-NLS-1$
+		case TokenNameSWITCH :
+			return "SWITCH"; //$NON-NLS-1$
 		case TokenNamesynchronized :
 			return "synchronized"; //$NON-NLS-1$
 		case TokenNamethis :
@@ -4010,12 +4095,16 @@ public String toStringAction(int act) {
 			return "--"; //$NON-NLS-1$
 		case TokenNameEQUAL_EQUAL :
 			return "=="; //$NON-NLS-1$
+		case TokenNameEQUAL_EQUAL_EQUAL :
+			return "==="; //$NON-NLS-1$
 		case TokenNameLESS_EQUAL :
 			return "<="; //$NON-NLS-1$
 		case TokenNameGREATER_EQUAL :
 			return ">="; //$NON-NLS-1$
 		case TokenNameNOT_EQUAL :
 			return "!="; //$NON-NLS-1$
+		case TokenNameNOT_EQUAL_EQUAL :
+			return "!=="; //$NON-NLS-1$
 		case TokenNameLEFT_SHIFT :
 			return "<<"; //$NON-NLS-1$
 		case TokenNameRIGHT_SHIFT :
@@ -4170,6 +4259,7 @@ public static boolean isKeyword(int token) {
 		case TerminalTokens.TokenNamedouble:
 		case TerminalTokens.TokenNamedefault:
 		case TerminalTokens.TokenNameelse:
+		case TerminalTokens.TokenNameELSE:
 		case TerminalTokens.TokenNameextends:
 		case TerminalTokens.TokenNamefor:
 		case TerminalTokens.TokenNamefinal:
@@ -4177,6 +4267,7 @@ public static boolean isKeyword(int token) {
 		case TerminalTokens.TokenNamefalse:
 		case TerminalTokens.TokenNamefinally:
 		case TerminalTokens.TokenNameif:
+		case TerminalTokens.TokenNameIF:
 		case TerminalTokens.TokenNameint:
 		case TerminalTokens.TokenNameimport:
 		case TerminalTokens.TokenNameinterface:
@@ -4542,6 +4633,7 @@ public int fastForward(Statement unused) {
 			case TokenNamefloat:
 			case TokenNamefor:
 			case TokenNameif:
+			case TokenNameIF:
 			case TokenNameint:
 			case TokenNameinterface:
 			case TokenNamelong:

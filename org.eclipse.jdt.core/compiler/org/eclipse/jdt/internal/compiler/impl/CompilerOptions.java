@@ -155,6 +155,12 @@ public class CompilerOptions {
 	public static final String OPTION_ReportDeadCodeInTrivialIfStatement =  "org.eclipse.jdt.core.compiler.problem.deadCodeInTrivialIfStatement"; //$NON-NLS-1$
 	public static final String OPTION_ReportTasks = "org.eclipse.jdt.core.compiler.problem.tasks"; //$NON-NLS-1$
 	public static final String OPTION_ReportUnusedObjectAllocation = "org.eclipse.jdt.core.compiler.problem.unusedObjectAllocation";  //$NON-NLS-1$
+	public static final String OPTION_ForceMAXJ = "org.eclipse.jdt.core.compiler.forceMaxJ"; //$NON-NLS-1$
+	/**
+	 * Illegal mexeler assert
+	 */
+	public static final String OPTION_ReportMaxelerAssertStatement = "org.eclipse.jdt.core.compiler.problem.maxelerAssertStatement"; //$NON-NLS-1$
+
 	public static final String OPTION_IncludeNullInfoFromAsserts = "org.eclipse.jdt.core.compiler.problem.includeNullInfoFromAsserts";  //$NON-NLS-1$
 	public static final String OPTION_ReportMethodCanBeStatic = "org.eclipse.jdt.core.compiler.problem.reportMethodCanBeStatic";  //$NON-NLS-1$
 	public static final String OPTION_ReportMethodCanBePotentiallyStatic = "org.eclipse.jdt.core.compiler.problem.reportMethodCanBePotentiallyStatic";  //$NON-NLS-1$
@@ -280,6 +286,11 @@ public class CompilerOptions {
 	public static final int DeadCode = IrritantSet.GROUP2 | ASTNode.Bit2;
 	public static final int Tasks = IrritantSet.GROUP2 | ASTNode.Bit3;
 	public static final int UnusedObjectAllocation = IrritantSet.GROUP2 | ASTNode.Bit4;
+
+	// maxeler group 3
+	public static final int MaxelerAssertStatement = IrritantSet.GROUP3 | ASTNode.Bit1;
+	public static final int MaxelerOverloadedPut = IrritantSet.GROUP3 | ASTNode.Bit2;
+
 	public static final int MethodCanBeStatic = IrritantSet.GROUP2 | ASTNode.Bit5;
 	public static final int MethodCanBePotentiallyStatic = IrritantSet.GROUP2 | ASTNode.Bit6;
 	public static final int RedundantSpecificationOfTypeArguments = IrritantSet.GROUP2 | ASTNode.Bit7;
@@ -310,7 +321,7 @@ public class CompilerOptions {
 	/**
 	 * Default settings are to be defined in {@lnk CompilerOptions#resetDefaults()}
 	 */
-	
+	public boolean forceMAXJ;
 	/** Classfile debug information, may contain source file name, line numbers, local variable tables, etc... */
 	public int produceDebugAttributes; 
 	/** Classfile method patameters information as per JEP 118... */
@@ -462,6 +473,7 @@ public class CompilerOptions {
 	// keep in sync with warningTokenToIrritant and warningTokenFromIrritant
 	public final static String[] warningTokens = {
 		"all", //$NON-NLS-1$
+		"assert-statement", //$NON-NLS-1$
 		"boxing", //$NON-NLS-1$
 		"cast", //$NON-NLS-1$
 		"dep-ann", //$NON-NLS-1$
@@ -476,6 +488,7 @@ public class CompilerOptions {
 		"rawtypes", //$NON-NLS-1$
 		"resource", //$NON-NLS-1$
 		"restriction", //$NON-NLS-1$		
+		"return-on-overloaded-put", //$NON-NLS-1$
 		"serial", //$NON-NLS-1$
 		"static-access", //$NON-NLS-1$
 		"static-method", //$NON-NLS-1$
@@ -648,6 +661,8 @@ public class CompilerOptions {
 				return OPTION_ReportDeadCode;
 			case UnusedObjectAllocation:
 				return OPTION_ReportUnusedObjectAllocation;
+			case MaxelerAssertStatement:
+				return OPTION_ReportMaxelerAssertStatement;
 			case MethodCanBeStatic :
 				return OPTION_ReportMethodCanBeStatic;
 			case MethodCanBePotentiallyStatic :
@@ -841,6 +856,7 @@ public class CompilerOptions {
 			OPTION_ReportUnusedParameterWhenOverridingConcrete,
 			OPTION_ReportUnusedPrivateMember,
 			OPTION_ReportUnusedTypeArgumentsForMethodInvocation,
+			OPTION_ReportMaxelerAssertStatement,
 			OPTION_ReportUnusedWarningToken,
 			OPTION_ReportVarargsArgumentNeedCast,
 			OPTION_ReportUnclosedCloseable,
@@ -934,6 +950,10 @@ public class CompilerOptions {
 				return "fallthrough"; //$NON-NLS-1$
 			case OverridingMethodWithoutSuperInvocation :
 				return "super"; //$NON-NLS-1$
+			case MaxelerAssertStatement :
+				return "assert-statement"; //$NON-NLS-1$
+			case MaxelerOverloadedPut :
+				return "return-on-overloaded-put"; //$NON-NLS-1$
 			case MethodCanBeStatic :
 			case MethodCanBePotentiallyStatic :
 				return "static-method"; //$NON-NLS-1$
@@ -958,6 +978,8 @@ public class CompilerOptions {
 			case 'a' :
 				if ("all".equals(warningToken)) //$NON-NLS-1$
 					return IrritantSet.ALL;
+				if ("assert-statement".equals(warningToken)) //$NON-NLS-1$
+					return IrritantSet.MAXELER_ASSERT_STATEMENT;
 				break;
 			case 'b' :
 				if ("boxing".equals(warningToken)) //$NON-NLS-1$
@@ -1004,14 +1026,14 @@ public class CompilerOptions {
 					return IrritantSet.RESOURCE;
 				if ("restriction".equals(warningToken)) //$NON-NLS-1$
 					return IrritantSet.RESTRICTION;
+				if ("return-on-overloaded-put".equals(warningToken)) //$NON-NLS-1$
+					return IrritantSet.MAXELER_OVERLOADED_PUT;
 				break;
 			case 's' :
 				if ("serial".equals(warningToken)) //$NON-NLS-1$
 					return IrritantSet.SERIAL;
 				if ("static-access".equals(warningToken)) //$NON-NLS-1$
 					return IrritantSet.STATIC_ACCESS;
-				if ("static-method".equals(warningToken)) //$NON-NLS-1$
-					return IrritantSet.STATIC_METHOD;
 				if ("synthetic-access".equals(warningToken)) //$NON-NLS-1$
 					return IrritantSet.SYNTHETIC_ACCESS;
 				if ("super".equals(warningToken)) { //$NON-NLS-1$
@@ -1106,6 +1128,9 @@ public class CompilerOptions {
 		optionsMap.put(OPTION_ReportUnusedLabel, getSeverityString(UnusedLabel));
 		optionsMap.put(OPTION_ReportUnusedTypeArgumentsForMethodInvocation, getSeverityString(UnusedTypeArguments));
 		optionsMap.put(OPTION_Compliance, versionFromJdkLevel(this.complianceLevel));
+		optionsMap.put(OPTION_ForceMAXJ, this.forceMAXJ ? ENABLED : DISABLED);
+		optionsMap.put(OPTION_ReportMaxelerAssertStatement, getSeverityString(MaxelerAssertStatement));
+
 		optionsMap.put(OPTION_Source, versionFromJdkLevel(this.sourceLevel));
 		optionsMap.put(OPTION_TargetPlatform, versionFromJdkLevel(this.targetJDK));
 		optionsMap.put(OPTION_FatalOptionalError, this.treatOptionalErrorAsFatal ? ENABLED : DISABLED);
@@ -1281,6 +1306,8 @@ public class CompilerOptions {
 		this.inlineJsrBytecode = false;
 		this.shareCommonFinallyBlocks = false;
 
+		this.forceMAXJ = false;
+
 		// javadoc comment support
 		this.docCommentSupport = false;
 
@@ -1379,6 +1406,13 @@ public class CompilerOptions {
 				this.reportDeprecationWhenOverridingDeprecatedMethod = true;
 			} else if (DISABLED.equals(optionValue)) {
 				this.reportDeprecationWhenOverridingDeprecatedMethod = false;
+			}
+		}
+		if ((optionValue = optionsMap.get(OPTION_ForceMAXJ)) != null) {
+			if (ENABLED.equals(optionValue)) {
+				this.forceMAXJ = true;
+			} else if (DISABLED.equals(optionValue)) {
+				this.forceMAXJ = false;
 			}
 		}
 		if ((optionValue = optionsMap.get(OPTION_ReportUnusedDeclaredThrownExceptionWhenOverriding)) != null) {
@@ -1634,6 +1668,7 @@ public class CompilerOptions {
 		if ((optionValue = optionsMap.get(OPTION_ReportDeadCode)) != null) updateSeverity(DeadCode, optionValue);
 		if ((optionValue = optionsMap.get(OPTION_ReportTasks)) != null) updateSeverity(Tasks, optionValue);
 		if ((optionValue = optionsMap.get(OPTION_ReportUnusedObjectAllocation)) != null) updateSeverity(UnusedObjectAllocation, optionValue);
+		if ((optionValue = optionsMap.get(OPTION_ReportMaxelerAssertStatement)) != null) updateSeverity(MaxelerAssertStatement, optionValue);
 		if ((optionValue = optionsMap.get(OPTION_ReportMethodCanBeStatic)) != null) updateSeverity(MethodCanBeStatic, optionValue);
 		if ((optionValue = optionsMap.get(OPTION_ReportMethodCanBePotentiallyStatic)) != null) updateSeverity(MethodCanBePotentiallyStatic, optionValue);
 		if ((optionValue = optionsMap.get(OPTION_ReportRedundantSpecificationOfTypeArguments)) != null) updateSeverity(RedundantSpecificationOfTypeArguments, optionValue);
@@ -1928,6 +1963,7 @@ public class CompilerOptions {
 		buf.append("\n\t- dead code in trivial if statement: ").append(this.reportDeadCodeInTrivialIfStatement ? ENABLED : DISABLED); //$NON-NLS-1$
 		buf.append("\n\t- tasks severity: ").append(getSeverityString(Tasks)); //$NON-NLS-1$
 		buf.append("\n\t- unused object allocation: ").append(getSeverityString(UnusedObjectAllocation)); //$NON-NLS-1$
+		buf.append("\n\t- maxeler assert statement: ").append(getSeverityString(MaxelerAssertStatement)); //$NON-NLS-1$
 		buf.append("\n\t- method can be static: ").append(getSeverityString(MethodCanBeStatic)); //$NON-NLS-1$
 		buf.append("\n\t- method can be potentially static: ").append(getSeverityString(MethodCanBePotentiallyStatic)); //$NON-NLS-1$
 		buf.append("\n\t- redundant specification of type arguments: ").append(getSeverityString(RedundantSpecificationOfTypeArguments)); //$NON-NLS-1$

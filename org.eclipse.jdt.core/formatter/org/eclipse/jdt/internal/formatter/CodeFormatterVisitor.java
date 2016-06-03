@@ -264,6 +264,11 @@ public class CodeFormatterVisitor extends ASTVisitor {
 				builder.operatorsList.add(new Integer(TerminalTokens.TokenNameAND));
 				binaryExpression.right.traverse(builder, scope);
 				break;
+			case OperatorIds.CAT :
+				binaryExpression.left.traverse(builder, scope);
+				builder.operatorsList.add(new Integer(TerminalTokens.TokenNameHASH));
+				binaryExpression.right.traverse(builder, scope);
+				break;
 			case OperatorIds.AND_AND :
 				binaryExpression.left.traverse(builder, scope);
 				builder.operatorsList.add(new Integer(TerminalTokens.TokenNameAND_AND));
@@ -3228,6 +3233,8 @@ public class CodeFormatterVisitor extends ASTVisitor {
 				return dumpBinaryExpression(binaryExpression, TerminalTokens.TokenNameMULTIPLY, scope);
 			case OperatorIds.OR :
 				return dumpBinaryExpression(binaryExpression, TerminalTokens.TokenNameOR, scope);
+			case OperatorIds.CAT :
+				return dumpBinaryExpression(binaryExpression, TerminalTokens.TokenNameHASH, scope);
 			case OperatorIds.PLUS :
 				return dumpBinaryExpression(binaryExpression, TerminalTokens.TokenNamePLUS, scope);
 			case OperatorIds.REMAINDER :

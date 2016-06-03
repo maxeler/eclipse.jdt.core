@@ -823,6 +823,30 @@ public abstract class ASTNode {
 	public static final int MODIFIER = 83;
 
 	/**
+	 * new DSL
+	 */
+	/**
+	 * Node type constant indicating a node of type
+	 * <code>IFStatement</code>.
+	 * @see IFStatement
+	 */
+	public static final int _IF_STATEMENT = 100;
+
+	/**
+	 * Node type constant indicating a node of type
+	 * <code>SWITCHStatement</code>.
+	 * @see SWITCHStatement
+	 */
+	public static final int _SWITCH_STATEMENT = 101;
+
+	/**
+	 * Node type constant indicating a node of type
+	 * <code>SWITCHCASE</code>.
+	 * @see SWITCHCASE
+	 */
+	public static final int _SWITCH_CASE = 102;
+
+	/**
 	 * Node type constant indicating a node of type
 	 * <code>UnionType</code>.
 	 * @see UnionType
@@ -976,6 +1000,8 @@ public abstract class ASTNode {
 				return ForStatement.class;
 			case IF_STATEMENT :
 				return IfStatement.class;
+			case _IF_STATEMENT :
+				return IFStatement.class;
 			case IMPORT_DECLARATION :
 				return ImportDeclaration.class;
 			case INFIX_EXPRESSION :
@@ -1056,8 +1082,12 @@ public abstract class ASTNode {
 				return SuperMethodReference.class;
 			case SWITCH_CASE:
 				return SwitchCase.class;
+			case _SWITCH_CASE:
+				return SWITCHCASE.class;
 			case SWITCH_STATEMENT :
 				return SwitchStatement.class;
+			case _SWITCH_STATEMENT :
+				return SWITCHStatement.class;
 			case SYNCHRONIZED_STATEMENT :
 				return SynchronizedStatement.class;
 			case TAG_ELEMENT :

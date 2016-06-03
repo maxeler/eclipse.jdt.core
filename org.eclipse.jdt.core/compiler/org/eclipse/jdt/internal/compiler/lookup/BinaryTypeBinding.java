@@ -246,6 +246,9 @@ public BinaryTypeBinding(PackageBinding packageBinding, IBinaryType binaryType, 
 	this.sourceName = binaryType.getSourceName();
 	this.modifiers = binaryType.getModifiers();
 
+	char[][][] missingTypeNames = binaryType.getMissingTypeNames();
+	setAnnotations(createAnnotations(binaryType.getAnnotations(), this.environment, missingTypeNames));
+
 	if ((binaryType.getTagBits() & TagBits.HierarchyHasProblems) != 0)
 		this.tagBits |= TagBits.HierarchyHasProblems;
 
@@ -553,7 +556,6 @@ private void createFields(IBinaryField[] iFields, long sourceLevel, char[][][] m
 						this,
 						binaryField.getConstant());
 				if (firstAnnotatedFieldIndex < 0
-						&& this.environment.globalOptions.storeAnnotations
 						&& binaryField.getAnnotations() != null) {
 					firstAnnotatedFieldIndex = i;
 				}
@@ -748,17 +750,19 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
 		result.receiver = this.environment.createAnnotatedType(this, createAnnotations(receiverAnnotations, this.environment, missingTypeNames));
 	}
 
+	IBinaryAnnotation[] annotations = method.getAnnotations();
 	if (this.environment.globalOptions.storeAnnotations) {
-		IBinaryAnnotation[] annotations = method.getAnnotations();
 	    if (annotations == null || annotations.length == 0)
 	    	if (method.isConstructor())
 	    		annotations = walker.toMethodReturn().getAnnotationsAtCursor(); // FIXME: When both exist, order could become an issue.
-		result.setAnnotations(
+		
+	}
+
+	result.setAnnotations(
 			createAnnotations(annotations, this.environment, missingTypeNames),
 			paramAnnotations,
 			isAnnotationType() ? convertMemberValue(method.getDefaultValue(), this.environment, missingTypeNames, true) : null,
 			this.environment);
-	}
 
 	if (argumentNames != null) result.parameterNames = argumentNames;
 	
@@ -1456,8 +1460,8 @@ SimpleLookupTable storedAnnotations(boolean forceInitialize) {
 		return this.prototype.storedAnnotations(forceInitialize);
 	
 	if (forceInitialize && this.storedAnnotations == null) {
-		if (!this.environment.globalOptions.storeAnnotations)
-			return null; // not supported during this compile
+//		if (!this.environment.globalOptions.storeAnnotations)
+//			return null; // not supported during this compile
 		this.storedAnnotations = new SimpleLookupTable(3);
 	}
 	return this.storedAnnotations;

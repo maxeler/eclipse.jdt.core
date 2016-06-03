@@ -1590,4 +1590,53 @@ public boolean enterRecursiveFunction() {
 public void exitRecursiveFunction() {
 	// empty, subclasses to override
 }
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// Operator Overload Begin								//	
+	//////////////////////////////////////////////////////////////////////////////////////////
+	public boolean isBoxingType(){
+		switch (this.id) {
+			case TypeIds.T_JavaLangByte:
+			case TypeIds.T_JavaLangCharacter:
+			case TypeIds.T_JavaLangShort:
+			case TypeIds.T_JavaLangInteger:
+			case TypeIds.T_JavaLangLong:
+			case TypeIds.T_JavaLangFloat:
+			case TypeIds.T_JavaLangDouble:
+			case TypeIds.T_JavaLangBoolean:
+				return true;
+			default:
+				return false;
+			}
+	}
+	
+	public boolean isStringType(){
+		return this.id == TypeIds.T_JavaLangString;
+	}
+
+	
+	public static TypeBinding getUnboxingType(TypeBinding t){
+		switch(t.id){
+			case TypeIds.T_JavaLangByte:
+				return TypeBinding.BYTE;
+			case TypeIds.T_JavaLangCharacter:
+				return TypeBinding.CHAR;
+			case TypeIds.T_JavaLangShort:
+				return TypeBinding.SHORT;
+			case TypeIds.T_JavaLangInteger:
+				return TypeBinding.INT;
+			case TypeIds.T_JavaLangLong:
+				return TypeBinding.LONG;
+			case TypeIds.T_JavaLangFloat:
+				return TypeBinding.FLOAT;
+			case TypeIds.T_JavaLangDouble:
+				return TypeBinding.DOUBLE;
+			case TypeIds.T_JavaLangBoolean:
+				return TypeBinding.BOOLEAN;
+			default:
+				return null;
+		}
+	}
+	///////////////////////////////////////////////////////////////////////////////////////////
+	// Operator Overload End								 //
+	///////////////////////////////////////////////////////////////////////////////////////////
 }

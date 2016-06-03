@@ -248,6 +248,10 @@ public abstract class ASTVisitor {
 		return true;
 	}
 
+	public boolean visit(CompositeArrayAccess node) {
+		return true;
+	}
+
 	/**
 	 * Visits the given type-specific AST node.
 	 * <p>
@@ -738,6 +742,22 @@ public abstract class ASTVisitor {
 	 * be skipped
 	 */
 	public boolean visit(IfStatement node) {
+		return true;
+	}
+
+	/**
+	 * Visits the given type-specific AST node.
+	 * <p>
+	 * The default implementation does nothing and return true.
+	 * Subclasses may reimplement.
+	 * </p>
+	 *
+	 * @param node the node to visit
+	 * @return <code>true</code> if the children of this node should be
+	 * visited, and <code>false</code> if the children of this node should
+	 * be skipped
+	 */
+	public boolean visit(IFStatement node) {
 		return true;
 	}
 
@@ -1429,7 +1449,39 @@ public abstract class ASTVisitor {
 	 * visited, and <code>false</code> if the children of this node should
 	 * be skipped
 	 */
+	public boolean visit(SWITCHCASE node) {
+		return true;
+	}
+
+	/**
+	 * Visits the given type-specific AST node.
+	 * <p>
+	 * The default implementation does nothing and return true.
+	 * Subclasses may reimplement.
+	 * </p>
+	 *
+	 * @param node the node to visit
+	 * @return <code>true</code> if the children of this node should be
+	 * visited, and <code>false</code> if the children of this node should
+	 * be skipped
+	 */
 	public boolean visit(SwitchStatement node) {
+		return true;
+	}
+
+	/**
+	 * Visits the given type-specific AST node.
+	 * <p>
+	 * The default implementation does nothing and return true.
+	 * Subclasses may reimplement.
+	 * </p>
+	 *
+	 * @param node the node to visit
+	 * @return <code>true</code> if the children of this node should be
+	 * visited, and <code>false</code> if the children of this node should
+	 * be skipped
+	 */
+	public boolean visit(SWITCHStatement node) {
 		return true;
 	}
 
@@ -1761,6 +1813,10 @@ public abstract class ASTVisitor {
 	 * @param node the node to visit
 	 */
 	public void endVisit(ArrayAccess node) {
+		// default implementation: do nothing
+	}
+
+	public void endVisit(CompositeArrayAccess node) {
 		// default implementation: do nothing
 	}
 
@@ -2133,6 +2189,18 @@ public abstract class ASTVisitor {
 	 * @param node the node to visit
 	 */
 	public void endVisit(IfStatement node) {
+		// default implementation: do nothing
+	}
+
+	/**
+	 * End of visit the given type-specific AST node.
+	 * <p>
+	 * The default implementation does nothing. Subclasses may reimplement.
+	 * </p>
+	 *
+	 * @param node the node to visit
+	 */
+	public void endVisit(IFStatement node) {
 		// default implementation: do nothing
 	}
 
@@ -2631,7 +2699,31 @@ public abstract class ASTVisitor {
 	 *
 	 * @param node the node to visit
 	 */
+	public void endVisit(SWITCHCASE node) {
+		// default implementation: do nothing
+	}
+
+	/**
+	 * End of visit the given type-specific AST node.
+	 * <p>
+	 * The default implementation does nothing. Subclasses may reimplement.
+	 * </p>
+	 *
+	 * @param node the node to visit
+	 */
 	public void endVisit(SwitchStatement node) {
+		// default implementation: do nothing
+	}
+
+	/**
+	 * End of visit the given type-specific AST node.
+	 * <p>
+	 * The default implementation does nothing. Subclasses may reimplement.
+	 * </p>
+	 *
+	 * @param node the node to visit
+	 */
+	public void endVisit(SWITCHStatement node) {
 		// default implementation: do nothing
 	}
 

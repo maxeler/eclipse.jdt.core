@@ -503,6 +503,8 @@ public final class CompletionEngine
 	private final static int SUPERTYPE = 1;
 	private final static int SUBTYPE = 2;
 	
+	private final static char[] DOT_ENUM = ".enum".toCharArray(); //$NON-NLS-1$
+
 	int expectedTypesPtr = -1;
 	TypeBinding[] expectedTypes = new TypeBinding[1];
 	int expectedTypesFilter;
@@ -1276,6 +1278,8 @@ public final class CompletionEngine
 						completionName = CharOperation.concat(completionName, new char[] { ';' });
 					}
 	
+					TypeDeclaration typeDeclaration = findTypeDeclaration(simpleTypeName, fullyQualifiedName, scope);
+
 					int relevance = computeBaseRelevance();
 					relevance += computeRelevanceForResolution();
 					relevance += computeRelevanceForInterestingProposal(packageName, fullyQualifiedName);
@@ -1284,7 +1288,7 @@ public final class CompletionEngine
 	
 					this.noProposal = false;
 					if(!this.requestor.isIgnored(CompletionProposal.TYPE_REF)) {
-						createTypeProposal(packageName, typeName, modifiers, accessibility, completionName, relevance);
+						createTypeProposal(packageName, typeName, modifiers, accessibility, completionName, relevance, typeDeclaration);
 					}
 				} else {
 					if(!this.importCachesInitialized) {
@@ -4675,7 +4679,7 @@ public final class CompletionEngine
 	/*
 	 * Create a completion proposal for a type.
 	 */
-	private void createTypeProposal(char[] packageName, char[] typeName, int modifiers, int accessibility, char[] completionName, int relevance) {
+	private void createTypeProposal(char[] packageName, char[] typeName, int modifiers, int accessibility, char[] completionName, int relevance, TypeDeclaration typeDeclaration) {
 
 		// Create standard type proposal
 		if(!this.requestor.isIgnored(CompletionProposal.TYPE_REF) && (this.assistNodeInJavadoc & CompletionOnJavadoc.ONLY_INLINE_TAG) == 0) {
@@ -4687,6 +4691,7 @@ public final class CompletionEngine
 			proposal.setPackageName(packageName);
 			proposal.setTypeName(typeName);
 			proposal.setCompletion(completionName);
+			proposal.setAnnotations(findTypeAnnotations(typeDeclaration));
 			proposal.setFlags(modifiers);
 			proposal.setReplaceRange(this.startPosition - this.offset, this.endPosition - this.offset);
 			proposal.setTokenRange(this.tokenStart - this.offset, this.tokenEnd - this.offset);
@@ -6408,6 +6413,12 @@ public final class CompletionEngine
 				// Standard proposal
 				if (!this.isIgnored(CompletionProposal.FIELD_REF, missingElements != null) && (this.assistNodeInJavadoc & CompletionOnJavadoc.ONLY_INLINE_TAG) == 0) {
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+
+					if(field.sourceField() == null)
+						proposal.setAnnotations(getAnnotationBindings(field.getAnnotations()));
+					else
+						proposal.setAnnotations(findFieldAnnotations(field.sourceField()));
+
 					proposal.setDeclarationSignature(getSignature(field.declaringClass));
 					proposal.setSignature(getSignature(field.type));
 					proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -8718,6 +8729,10 @@ public final class CompletionEngine
 					if(original != method) {
 						proposal.setOriginalSignature(getSignature(original));
 					}
+					if(method.sourceMethod() == null)
+						proposal.setAnnotations(getAnnotationBindings(method.getAnnotations()));
+					else
+						proposal.setAnnotations(findMethodAnnotations(method.sourceMethod()));
 					proposal.setDeclarationPackageName(method.declaringClass.qualifiedPackageName());
 					proposal.setDeclarationTypeName(method.declaringClass.qualifiedSourceName());
 					proposal.setParameterPackageNames(parameterPackageNames);
@@ -12536,6 +12551,8 @@ public final class CompletionEngine
 			completion = new char[] { '(', ')' };
 		}
 		
+		TypeDeclaration typeDeclaration = findTypeDeclaration(simpleTypeName, fullyQualifiedName, scope);
+
 		InternalCompletionProposal typeProposal = createProposal(CompletionProposal.TYPE_REF, this.actualCompletionPosition);
 		typeProposal.nameLookup = this.nameEnvironment.nameLookup;
 		typeProposal.completionEngine = this;
@@ -12593,6 +12610,7 @@ public final class CompletionEngine
 						proposal.setParameterTypeNames(CharOperation.NO_CHAR_CHAR);
 						proposal.setParameterNames(CharOperation.NO_CHAR_CHAR);
 						proposal.setName(simpleTypeName);
+						proposal.setAnnotations(findTypeAnnotations(typeDeclaration));
 						proposal.setRequiredProposals(new CompletionProposal[]{typeProposal});
 						proposal.setIsContructor(true);
 						proposal.setCompletion(completion);
@@ -12646,6 +12664,7 @@ public final class CompletionEngine
 						proposal.setParameterTypeNames(CharOperation.NO_CHAR_CHAR);
 						proposal.setParameterNames(CharOperation.NO_CHAR_CHAR);
 						proposal.setName(simpleTypeName);
+						proposal.setAnnotations(findTypeAnnotations(typeDeclaration));
 						proposal.setRequiredProposals(new CompletionProposal[]{typeProposal});
 						proposal.setIsContructor(true);
 						proposal.setCompletion(completion);
@@ -12713,6 +12732,7 @@ public final class CompletionEngine
 						proposal.setDeclarationTypeName(typeName);
 						proposal.setParameterPackageNames(CharOperation.NO_CHAR_CHAR);
 						proposal.setParameterTypeNames(CharOperation.NO_CHAR_CHAR);
+						proposal.setAnnotations(findTypeAnnotations(typeDeclaration));
 						if (parameterNames != null) {
 							proposal.setParameterNames(parameterNames);
 						} else {
@@ -12819,6 +12839,8 @@ public final class CompletionEngine
 			if (!hasPossibleAnnotationTarget(guessedType, scope)) return;
 		}
 
+		TypeDeclaration typeDeclaration = findTypeDeclaration(simpleTypeName, fullyQualifiedName, scope);
+
 		int relevance = computeBaseRelevance();
 		relevance += computeRelevanceForResolution();
 		relevance += computeRelevanceForInterestingProposal(packageName, fullyQualifiedName);
@@ -12849,10 +12871,60 @@ public final class CompletionEngine
 
 		this.noProposal = false;
 		if(!this.requestor.isIgnored(CompletionProposal.TYPE_REF)) {
-			createTypeProposal(packageName, typeName, modifiers, accessibility, completionName, relevance);
+			createTypeProposal(packageName, typeName, modifiers, accessibility, completionName, relevance, typeDeclaration);
 		}
 	}
 
+	private TypeDeclaration findTypeDeclaration(char[] simpleTypeName, char[] fullyQualifiedName, Scope scope) {
+		Binding guessedType = null;
+		char[][] cn = CharOperation.splitOn('.', fullyQualifiedName);
+
+		if(scope == null) {
+			guessedType = this.unitScope.getTypeOrPackage(cn);
+			if (guessedType == null || !guessedType.isValidBinding()) return null;
+		} else {
+			TypeReference ref;
+			if (cn.length == 1) {
+				ref = new SingleTypeReference(simpleTypeName, 0);
+			} else {
+				ref = new QualifiedTypeReference(cn,new long[cn.length]);
+			}
+
+			switch (scope.kind) {
+				case Scope.METHOD_SCOPE :
+				case Scope.BLOCK_SCOPE :
+					guessedType = ref.resolveType((BlockScope)scope);
+					break;
+				case Scope.CLASS_SCOPE :
+					guessedType = ref.resolveType((ClassScope)scope);
+					break;
+			}
+
+			if (guessedType == null || !guessedType.isValidBinding()) return null;
+
+			TypeBinding typeBinding = (TypeBinding) guessedType;
+			if (!hasPossibleAnnotationTarget(typeBinding, scope)) return null;
+		}
+
+		if(guessedType instanceof SourceTypeBinding) {
+			SourceTypeBinding sourceTypeBinding = (SourceTypeBinding)guessedType;
+			ClassScope classScope = sourceTypeBinding.scope;
+
+			return classScope.referenceContext;
+		}
+
+		if(guessedType instanceof BinaryTypeBinding) {
+			BinaryTypeBinding binaryTypeBinding = (BinaryTypeBinding)guessedType;
+			AnnotationBinding[] annotationBinding = binaryTypeBinding.getAnnotations();
+
+			EmptyAnnotationDeclaration emptyDeclaration = new EmptyAnnotationDeclaration(null);
+			emptyDeclaration.setAnnotationNames(getAnnotationBindings(annotationBinding));
+
+			return emptyDeclaration;
+		}
+
+		return null;
+	}
 	protected void reset() {
 
 		super.reset(false);
@@ -12990,4 +13062,61 @@ public final class CompletionEngine
 		if(foundConflicts) return substituedParameterNames;
 		return null;
 	}
+
+	private char[][] findFieldAnnotations(FieldDeclaration field){
+		if(field == null) return null;
+		Annotation[] annotations = field.annotations;
+		if(annotations == null) return null;
+
+		return getAnnotations(annotations);
+	}
+
+	private char[][] findTypeAnnotations(TypeDeclaration type){
+		if(type instanceof EmptyAnnotationDeclaration) {
+			EmptyAnnotationDeclaration annotationDeclaration = (EmptyAnnotationDeclaration) type;
+			return annotationDeclaration.getAnnotationNames();
+		}
+
+		if(type == null) return null;
+		Annotation[] annotations = type.annotations;
+		if(annotations == null) return null;
+
+		return getAnnotations(annotations);
+	}
+
+	private char[][] findMethodAnnotations(AbstractMethodDeclaration method){
+		if(method == null) return null;
+		Annotation[] annotations = method.annotations;
+		if(annotations == null) return null;
+
+		return getAnnotations(annotations);
+	}
+
+	private char[][] getAnnotations(Annotation[] annotations){
+		int len = annotations.length;
+		char[][] annotationNames = new char[len][];
+			for(int i=0; i<len; i++) {
+				if(annotations[i].getCompilerAnnotation() == null) {
+					annotationNames[i] = annotations[i].type.getTypeName()[0];
+					continue;
+				}
+
+				annotationNames[i] = annotations[i].getCompilerAnnotation().getAnnotationType().shortReadableName();
+			}
+
+		return annotationNames;
+	}
+
+	private char[][] getAnnotationBindings(AnnotationBinding[] annotations){
+		int len = annotations.length;
+		char[][] annotationNames = new char[len][];
+			for(int i=0; i<len; i++) {
+				if(annotations[i].getAnnotationName() != null) {
+					annotationNames[i] = annotations[i].getAnnotationName();
+				}
+			}
+
+		return annotationNames;
+	}
+
 }

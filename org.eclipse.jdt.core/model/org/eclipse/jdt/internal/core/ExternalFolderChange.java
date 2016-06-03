@@ -44,7 +44,7 @@ public class ExternalFolderChange {
 		Iterator iterator = newFolders.iterator();
 		while (iterator.hasNext()) {
 			Object folderPath = iterator.next();
-			if (oldFolders == null || !oldFolders.remove(folderPath) || foldersManager.removePendingFolder(folderPath)) {
+			if (oldFolders == null || !oldFolders.remove(folderPath)) {
 				try {
 					foldersManager.createLinkFolder((IPath) folderPath, refreshIfExistAlready, monitor);
 				} catch (CoreException e) {
