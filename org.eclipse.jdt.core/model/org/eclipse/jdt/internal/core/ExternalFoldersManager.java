@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.Vector;
 
 import org.eclipse.core.resources.IFolder;
@@ -41,7 +40,6 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.internal.core.util.Messages;
 import org.eclipse.jdt.internal.core.util.Util;
 
@@ -50,7 +48,6 @@ public class ExternalFoldersManager {
 	private static final String EXTERNAL_PROJECT_NAME = ".org.eclipse.jdt.core.external.folders"; //$NON-NLS-1$
 	private static final String LINKED_FOLDER_NAME = ".link"; //$NON-NLS-1$
 	private Map folders;
-	private Set pendingFolders; // subset of keys of 'folders', for which linked folders haven't been created yet.
 	private int counter = 0;
 	/* Singleton instance */
 	private static ExternalFoldersManager MANAGER;
@@ -104,8 +101,7 @@ public class ExternalFoldersManager {
 	public static boolean isExternalFolderPath(IPath externalPath) {
 		if (externalPath == null)
 			return false;
-		String firstSegment = externalPath.segment(0);
-		if (firstSegment != null && ResourcesPlugin.getWorkspace().getRoot().getProject(firstSegment).exists())
+		if (ResourcesPlugin.getWorkspace().getRoot().getProject(externalPath.segment(0)).exists())
 			return false;
 		JavaModelManager manager = JavaModelManager.getJavaModelManager();
 		if (manager.isExternalFile(externalPath) || manager.isAssumedExternalFile(externalPath))
@@ -126,11 +122,11 @@ public class ExternalFoldersManager {
 		return EXTERNAL_PROJECT_NAME.equals(resourcePath.segment(0));
 	}
 
-	public IFolder addFolder(IPath externalFolderPath, boolean scheduleForCreation) {
-		return addFolder(externalFolderPath, getExternalFoldersProject(), scheduleForCreation);
+	public IFolder addFolder(IPath externalFolderPath) {
+		return addFolder(externalFolderPath, getExternalFoldersProject());
 	}
 
-	private IFolder addFolder(IPath externalFolderPath, IProject externalFoldersProject, boolean scheduleForCreation) {
+	private IFolder addFolder(IPath externalFolderPath, IProject externalFoldersProject) {
 		Map knownFolders = getFolders();
 		Object existing = knownFolders.get(externalFolderPath);
 		if (existing != null) {
@@ -140,37 +136,13 @@ public class ExternalFoldersManager {
 		do {
 			result = externalFoldersProject.getFolder(LINKED_FOLDER_NAME + this.counter++);
 		} while (result.exists());
-		if (scheduleForCreation) {
-			synchronized(this) {
-				if (this.pendingFolders == null)
-					this.pendingFolders = Collections.synchronizedSet(new HashSet());
-			}
-			this.pendingFolders.add(externalFolderPath);
-		}
 		knownFolders.put(externalFolderPath, result);
 		return result;
 	}
 	
-	/** 
-	 * Try to remove the argument from the list of folders pending for creation.
-	 * @param externalPath to link to
-	 * @return true if the argument was found in the list of pending folders and could be removed from it.
-	 */
-	public synchronized boolean removePendingFolder(Object externalPath) {
-		if (this.pendingFolders == null)
-			return false;
-		return this.pendingFolders.remove(externalPath);
-	}
-
 	public IFolder createLinkFolder(IPath externalFolderPath, boolean refreshIfExistAlready, IProgressMonitor monitor) throws CoreException {
 		IProject externalFoldersProject = createExternalFoldersProject(monitor); // run outside synchronized as this can create a resource
-		return createLinkFolder(externalFolderPath, refreshIfExistAlready, externalFoldersProject, monitor);
-	}
-
-	private IFolder createLinkFolder(IPath externalFolderPath, boolean refreshIfExistAlready,
-									IProject externalFoldersProject, IProgressMonitor monitor) throws CoreException {
-		
-		IFolder result = addFolder(externalFolderPath, externalFoldersProject, false);
+		IFolder result = addFolder(externalFolderPath, externalFoldersProject);
 		if (!result.exists())
 			result.createLink(externalFolderPath, IResource.ALLOW_MISSING_LOCAL, monitor);
 		else if (refreshIfExistAlready)
@@ -178,46 +150,13 @@ public class ExternalFoldersManager {
 		return result;
 	}
 
-	public void createPendingFolders(IProgressMonitor monitor) throws JavaModelException{
-		synchronized (this) {
-			if (this.pendingFolders == null || this.pendingFolders.isEmpty()) return;
-		}
-		
-		IProject externalFoldersProject = null;
-		try {
-			externalFoldersProject = createExternalFoldersProject(monitor);
-		}
-		catch(CoreException e) {
-			throw new JavaModelException(e);
-		}
-		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=368152
-		// To avoid race condition (from addFolder and removeFolder, load the map elements into an array and clear the map immediately.
-		// The createLinkFolder being in the synchronized block can cause a deadlock and hence keep it out of the synchronized block. 
-		Object[] arrayOfFolders = null;
-		synchronized (this.pendingFolders) {
-			arrayOfFolders = this.pendingFolders.toArray();
-			this.pendingFolders.clear();
-		}
-
-		for (int i=0; i < arrayOfFolders.length; i++) {
-			try {
-				createLinkFolder((IPath) arrayOfFolders[i], false, externalFoldersProject, monitor);
-			} catch (CoreException e) {
-				Util.log(e, "Error while creating a link for external folder :" + arrayOfFolders[i]); //$NON-NLS-1$
-			}
-		}
-	}
-	
 	public void cleanUp(IProgressMonitor monitor) throws CoreException {
 		ArrayList toDelete = getFoldersToCleanUp(monitor);
 		if (toDelete == null)
 			return;
 		for (Iterator iterator = toDelete.iterator(); iterator.hasNext();) {
-			Map.Entry entry = (Map.Entry) iterator.next();
-			IFolder folder = (IFolder) entry.getValue();
+			IFolder folder = (IFolder) iterator.next();
 			folder.delete(true, monitor);
-			IPath key = (IPath) entry.getKey();
-			this.folders.remove(key);
 		}
 		IProject project = getExternalFoldersProject();
 		if (project.isAccessible() && project.members().length == 1/*remaining member is .project*/)
@@ -239,10 +178,11 @@ public class ExternalFoldersManager {
 				IPath path = (IPath) entry.getKey();
 				if ((roots != null && !roots.containsKey(path))
 						&& (sourceAttachments != null && !sourceAttachments.containsKey(path))) {
-					if (entry.getValue() != null) {
+					IFolder folder = (IFolder) entry.getValue();
+					if (folder != null) {
 						if (result == null)
 							result = new ArrayList();
-						result.add(entry);
+						result.add(folder);
 					}
 				}
 			}
@@ -253,7 +193,7 @@ public class ExternalFoldersManager {
 	public IProject getExternalFoldersProject() {
 		return ResourcesPlugin.getWorkspace().getRoot().getProject(EXTERNAL_PROJECT_NAME);
 	}
-	public IProject createExternalFoldersProject(IProgressMonitor monitor) throws CoreException {
+	private IProject createExternalFoldersProject(IProgressMonitor monitor) throws CoreException {
 		IProject project = getExternalFoldersProject();
 		if (!project.isAccessible()) {
 			if (!project.exists()) {

@@ -375,4 +375,10 @@ protected void recordExceptionsForEnclosingLambda(BlockScope scope, TypeBinding.
 			lambda.throwsException(thrownExceptions[i]);
 	}
 }
+
+public Constant resolveCase(BlockScope scope, TypeBinding testType, SWITCHStatement switchStatement) {
+	// statement within a switch that are not case are treated as normal statement....
+	resolve(scope);
+	return Constant.NotAConstant;
+}
 }

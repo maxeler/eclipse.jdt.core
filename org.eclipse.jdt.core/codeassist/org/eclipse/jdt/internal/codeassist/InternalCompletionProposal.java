@@ -51,6 +51,7 @@ public class InternalCompletionProposal extends CompletionProposal {
 	protected char[] typeName;
 	protected char[][] parameterPackageNames;
 	protected char[][] parameterTypeNames;
+	protected char[][] annotationsTypes;
 
 	protected char[] originalSignature;
 
@@ -174,6 +175,8 @@ public class InternalCompletionProposal extends CompletionProposal {
 	 * Defaults to <code>null</code>.
 	 */
 	private char[][] parameterNames = null;
+
+	private char[][] annotations = null;
 
 	/**
 	 * Indicates whether parameter names have been computed.
@@ -415,6 +418,11 @@ public class InternalCompletionProposal extends CompletionProposal {
 	protected void setIsContructor(boolean isConstructor) {
 		this.isConstructor = isConstructor;
 	}
+
+	protected void setAnnotationTypes(char[][] annotationTypes) {
+		this.annotationsTypes = annotationTypes;
+	}
+
 	public void setOriginalSignature(char[] originalSignature) {
 		this.originalSignature = originalSignature;
 	}
@@ -1507,6 +1515,35 @@ public class InternalCompletionProposal extends CompletionProposal {
 		this.parameterNamesComputed = true;
 	}
 
+	/**
+	 * Added by: Milan
+	 * 
+	 * <p>
+	 * Extension of the CompletionProposal class to simplify
+	 * the extraction of annotations linked to individual fields and
+	 * methods inside a class.
+	 *  </p>
+	 *  
+	 * @param annotations
+	 */
+	public void setAnnotations(char[][] annotations) {
+		this.annotations = annotations;
+	}
+
+	/**
+	 * Added by: Milan
+	 * 
+	 * <p>
+	 * Extension of the CompletionProposal class to simplify
+	 * the extraction of annotations linked to individual fields and
+	 * methods inside a class.
+	 * </p>
+	 *  
+	 * @return annotations if present or <code>null</code> if none
+	 */
+	public char[][] getAnnotations(){
+		return this.annotations;
+	}
 	/**
 	 * Returns the accessibility of the proposal.
 	 * <p>

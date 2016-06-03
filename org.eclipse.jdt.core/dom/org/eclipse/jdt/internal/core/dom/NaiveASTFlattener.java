@@ -838,6 +838,22 @@ public class NaiveASTFlattener extends ASTVisitor {
 	}
 
 	/*
+	 * @see ASTVisitor#visit(IfStatement)
+	 */
+	public boolean visit(IFStatement node) {
+		printIndent();
+		this.buffer.append("IF (");//$NON-NLS-1$
+		node.getExpression().accept(this);
+		this.buffer.append(") ");//$NON-NLS-1$
+		node.getThenStatement().accept(this);
+		if (node.getElseStatement() != null) {
+			this.buffer.append(" ELSE ");//$NON-NLS-1$
+			node.getElseStatement().accept(this);
+		}
+		return false;
+	}
+
+	/*
 	 * @see ASTVisitor#visit(ImportDeclaration)
 	 */
 	public boolean visit(ImportDeclaration node) {
@@ -1558,6 +1574,42 @@ public class NaiveASTFlattener extends ASTVisitor {
 	 */
 	public boolean visit(SwitchStatement node) {
 		this.buffer.append("switch (");//$NON-NLS-1$
+		node.getExpression().accept(this);
+		this.buffer.append(") ");//$NON-NLS-1$
+		this.buffer.append("{\n");//$NON-NLS-1$
+		this.indent++;
+		for (Iterator it = node.statements().iterator(); it.hasNext(); ) {
+			Statement s = (Statement) it.next();
+			s.accept(this);
+			this.indent--; // incremented in visit(SwitchCase)
+		}
+		this.indent--;
+		printIndent();
+		this.buffer.append("}\n");//$NON-NLS-1$
+		return false;
+	}
+
+	/*
+	 * @see ASTVisitor#visit(SwitchCase)
+	 */
+	public boolean visit(SWITCHCASE node) {
+		if (node.isDefault()) {
+			this.buffer.append("OTHERWISE :\n");//$NON-NLS-1$
+		} else {
+			this.buffer.append("CASE ");//$NON-NLS-1$
+			node.getExpression().accept(this);
+			this.buffer.append("{");//$NON-NLS-1$
+			this.buffer.append("}\n");//$NON-NLS-1$
+		}
+		this.indent++; //decremented in visit(SwitchStatement)
+		return false;
+	}
+
+	/*
+	 * @see ASTVisitor#visit(SwitchStatement)
+	 */
+	public boolean visit(SWITCHStatement node) {
+		this.buffer.append("SWITCH (");//$NON-NLS-1$
 		node.getExpression().accept(this);
 		this.buffer.append(") ");//$NON-NLS-1$
 		this.buffer.append("{\n");//$NON-NLS-1$

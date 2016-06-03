@@ -1033,6 +1033,10 @@ public TypeBinding resolveType(BlockScope scope) {
 	return null;
 }
 
+public TypeBinding resolveType(BlockScope scope, Expression expression) {
+	return resolveType(scope);
+}
+
 /**
  * Resolve the type of this expression in the context of a classScope
  *

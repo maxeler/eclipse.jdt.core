@@ -57,12 +57,9 @@ public class PackageFragment extends Openable implements IPackageFragment, Suffi
 
 	public String[] names;
 
-	private boolean isValidPackageName;
-
 protected PackageFragment(PackageFragmentRoot root, String[] names) {
 	super(root);
 	this.names = names;
-	this.isValidPackageName = internalIsValidPackageName();
 }
 /**
  * @see Openable
@@ -387,11 +384,14 @@ public boolean hasSubpackages() throws JavaModelException {
 	}
 	return false;
 }
-protected boolean internalIsValidPackageName() {
-	// if package fragment refers to folder in another IProject, then
-	// resource().getProject() is different than getJavaProject().getProject()
-	// use the other java project's options to verify the name
-	IJavaProject javaProject = JavaCore.create(resource().getProject());
+/**
+ * @see IPackageFragment#isDefaultPackage()
+ */
+public boolean isDefaultPackage() {
+	return this.names.length == 0;
+}
+private boolean isValidPackageName() {
+	JavaProject javaProject = (JavaProject) getJavaProject();
 	String sourceLevel = javaProject.getOption(JavaCore.COMPILER_SOURCE, true);
 	String complianceLevel = javaProject.getOption(JavaCore.COMPILER_COMPLIANCE, true);
 	for (int i = 0, length = this.names.length; i < length; i++) {
@@ -399,15 +399,6 @@ protected boolean internalIsValidPackageName() {
 			return false;
 	}
 	return true;
-}
-/**
- * @see IPackageFragment#isDefaultPackage()
- */
-public boolean isDefaultPackage() {
-	return this.names.length == 0;
-}
-protected final boolean isValidPackageName() {
-	return this.isValidPackageName;
 }
 /**
  * @see ISourceManipulation#move(IJavaElement, IJavaElement, String, boolean, IProgressMonitor)

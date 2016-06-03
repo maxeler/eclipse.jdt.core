@@ -22,7 +22,11 @@ MethodInfoWithParameterAnnotations(MethodInfo methodInfo, AnnotationInfo[] annot
 	this.parameterAnnotations = parameterAnnotations;
 }
 public IBinaryAnnotation[] getParameterAnnotations(int index) {
-	return this.parameterAnnotations == null ? null : this.parameterAnnotations[index];
+	try {
+		return this.parameterAnnotations[index];
+	} catch(Exception e) {
+		return new IBinaryAnnotation[]{};
+	}
 }
 public int getAnnotatedParametersCount() {
 	return this.parameterAnnotations == null ? 0 : this.parameterAnnotations.length;

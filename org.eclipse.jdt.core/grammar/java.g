@@ -42,11 +42,11 @@ $Terminals
 
 	Identifier
 
-	abstract assert boolean break byte case catch char class 
-	continue const default do double else enum extends false final finally float
-	for goto if implements import instanceof int
+	abstract assert boolean break byte case CASE catch char class
+	continue const default OTHERWISE do double else ELSE enum extends false final finally float
+	for goto if IF implements import instanceof int
 	interface long native new null package private
-	protected public return short static strictfp super switch
+	protected public return short static strictfp super switch SWITCH
 	synchronized this throw throws transient true try void
 	volatile while
 
@@ -60,9 +60,11 @@ $Terminals
 	PLUS_PLUS
 	MINUS_MINUS
 	EQUAL_EQUAL
+	EQUAL_EQUAL_EQUAL
 	LESS_EQUAL
 	GREATER_EQUAL
 	NOT_EQUAL
+	NOT_EQUAL_EQUAL
 	LEFT_SHIFT
 	RIGHT_SHIFT
 	UNSIGNED_RIGHT_SHIFT
@@ -77,6 +79,7 @@ $Terminals
 	LEFT_SHIFT_EQUAL
 	RIGHT_SHIFT_EQUAL
 	UNSIGNED_RIGHT_SHIFT_EQUAL
+	CONNECT
 	OR_OR
 	AND_AND
 	PLUS
@@ -105,6 +108,7 @@ $Terminals
 	EQUAL
 	AT
 	ELLIPSIS
+	HASH
 	ARROW
 	COLON_COLON
 	BeginLambda
@@ -123,9 +127,11 @@ $Alias
 	'++'   ::= PLUS_PLUS
 	'--'   ::= MINUS_MINUS
 	'=='   ::= EQUAL_EQUAL
+	'==='  ::= EQUAL_EQUAL_EQUAL
 	'<='   ::= LESS_EQUAL
 	'>='   ::= GREATER_EQUAL
 	'!='   ::= NOT_EQUAL
+	'!=='  ::= NOT_EQUAL_EQUAL
 	'<<'   ::= LEFT_SHIFT
 	'>>'   ::= RIGHT_SHIFT
 	'>>>'  ::= UNSIGNED_RIGHT_SHIFT
@@ -152,6 +158,7 @@ $Alias
 	'|'    ::= OR
 	'~'    ::= TWIDDLE
 	'/'    ::= DIVIDE
+	'<=='  ::= CONNECT
 	'>'    ::= GREATER
 	'<'    ::= LESS
 	'('    ::= LPAREN
@@ -168,6 +175,7 @@ $Alias
 	'='    ::= EQUAL
 	'@'	   ::= AT
 	'...'  ::= ELLIPSIS
+	'#'	   ::= HASH
 	'@308' ::= AT308
 	'@308...' ::= AT308DOTDOTDOT
 	
@@ -1052,6 +1060,8 @@ Statement -> StatementWithoutTrailingSubstatement
 Statement -> LabeledStatement
 Statement -> IfThenStatement
 Statement -> IfThenElseStatement
+Statement -> IFThenStatement
+Statement -> IFThenELSEStatement
 Statement -> WhileStatement
 Statement -> ForStatement
 -----------------------------------------------
@@ -1064,6 +1074,9 @@ Statement -> EnhancedForStatement
 StatementNoShortIf -> StatementWithoutTrailingSubstatement
 StatementNoShortIf -> LabeledStatementNoShortIf
 StatementNoShortIf -> IfThenElseStatementNoShortIf
+StatementNoShortIf -> IFThenELSEStatementNoShortIf
+StatementNoShortIf -> IfThenStatementNoShortIf
+StatementNoShortIf -> IFThenStatementNoShortIf
 StatementNoShortIf -> WhileStatementNoShortIf
 StatementNoShortIf -> ForStatementNoShortIf
 -----------------------------------------------
@@ -1077,6 +1090,7 @@ StatementWithoutTrailingSubstatement -> Block
 StatementWithoutTrailingSubstatement -> EmptyStatement
 StatementWithoutTrailingSubstatement -> ExpressionStatement
 StatementWithoutTrailingSubstatement -> SwitchStatement
+StatementWithoutTrailingSubstatement -> SWITCHStatement
 StatementWithoutTrailingSubstatement -> DoStatement
 StatementWithoutTrailingSubstatement -> BreakStatement
 StatementWithoutTrailingSubstatement -> ContinueStatement
@@ -1121,6 +1135,10 @@ IfThenStatement ::= 'if' '(' Expression ')' Statement
 /.$putCase consumeStatementIfNoElse(); $break ./
 /:$readableName IfStatement:/
 
+IfThenStatementNoShortIf ::=  'if' '(' Expression ')' StatementNoShortIf
+/.$putCase consumeStatementIfNoElse(); $break ./
+/:$readableName IfStatement:/
+
 IfThenElseStatement ::= 'if' '(' Expression ')' StatementNoShortIf 'else' Statement
 /.$putCase consumeStatementIfWithElse(); $break ./
 /:$readableName IfStatement:/
@@ -1128,6 +1146,24 @@ IfThenElseStatement ::= 'if' '(' Expression ')' StatementNoShortIf 'else' Statem
 IfThenElseStatementNoShortIf ::= 'if' '(' Expression ')' StatementNoShortIf 'else' StatementNoShortIf
 /.$putCase consumeStatementIfWithElse(); $break ./
 /:$readableName IfStatement:/
+
+IFThenStatement ::=  'IF' '(' Expression ')' Statement
+/.$putCase consumeStatementIFNoELSE(); $break ./
+/:$readableName IFStatement:/
+
+IFThenStatementNoShortIf ::=  'IF' '(' Expression ')' StatementNoShortIf
+/.$putCase consumeStatementIFNoELSE(); $break ./
+/:$readableName IFStatement:/
+
+--291
+IFThenELSEStatement ::=  'IF' '(' Expression ')' StatementNoShortIf 'ELSE' Statement
+/.$putCase consumeStatementIFWithELSE(); $break ./
+/:$readableName IFStatement:/
+
+--292
+IFThenELSEStatementNoShortIf ::=  'IF' '(' Expression ')' StatementNoShortIf 'ELSE' StatementNoShortIf
+/.$putCase consumeStatementIFWithELSE(); $break ./
+/:$readableName IFStatement:/
 
 SwitchStatement ::= 'switch' '(' Expression ')' OpenBlock SwitchBlock
 /.$putCase consumeStatementSwitch() ; $break ./
@@ -1162,6 +1198,36 @@ SwitchLabel ::= 'case' ConstantExpression ':'
 SwitchLabel ::= 'default' ':'
 /. $putCase consumeDefaultLabel(); $break ./
 /:$readableName SwitchLabel:/
+
+SWITCHStatement ::= 'SWITCH' '(' Expression ')' OpenBlock SWITCHBlock
+/.$putCase consumeStatementSWITCH() ; $break ./
+/:$readableName SWITCHStatement:/
+
+SWITCHBlock ::= '{' '}'
+/.$putCase consumeEmptySWITCHBlock() ; $break ./
+
+SWITCHBlock ::= '{' SWITCHBlockStatements '}'
+/.$putCase consumeSWITCHBlock() ; $break ./
+/:$readableName SWITCHBlock:/
+
+SWITCHBlockStatements -> SWITCHBlockStatement
+SWITCHBlockStatements ::= SWITCHBlockStatements SWITCHBlockStatement
+/.$putCase consumeSWITCHBlockStatements() ; $break ./
+/:$readableName SWITCHBlockStatements:/
+
+SWITCHBlockStatement ::= SWITCHLabel '{'  '}'
+/.$putCase consumeEmptySWITCHBlockStatement() ; $break ./
+
+SWITCHBlockStatement ::= SWITCHLabel '{' BlockStatements '}'
+/.$putCase consumeSWITCHBlockStatement() ; $break ./
+/:$readableName SWITCHBlockStatement:/
+
+SWITCHLabel ::= 'CASE' '(' Expression ')'
+/. $putCase consumeCASELabel(); $break ./
+
+SWITCHLabel ::= 'OTHERWISE'
+/. $putCase consumeOTHERWISELabel(); $break ./
+/:$readableName SWITCHLabel:/
 
 WhileStatement ::= 'while' '(' Expression ')' Statement
 /.$putCase consumeStatementWhile() ; $break ./
@@ -1563,6 +1629,7 @@ DimWithOrWithOutExprs ::= DimWithOrWithOutExprs DimWithOrWithOutExpr
 /:$readableName Dimensions:/
 
 DimWithOrWithOutExpr ::= TypeAnnotationsopt '[' Expression ']'
+DimWithOrWithOutExpr ::= TypeAnnotationsopt '[' Expression ':' Expression ']'
 DimWithOrWithOutExpr ::= TypeAnnotationsopt '[' ']'
 /. $putCase consumeDimWithOrWithOutExpr(); $break ./
 /:$readableName Dimension:/
@@ -1613,6 +1680,14 @@ ArrayAccess ::= PrimaryNoNewArray '[' Expression ']'
 /.$putCase consumeArrayAccess(false); $break ./
 ArrayAccess ::= ArrayCreationWithArrayInitializer '[' Expression ']'
 /.$putCase consumeArrayAccess(false); $break ./
+/:$readableName ArrayAccess:/
+
+ArrayAccess ::= Name '[' Expression ':' Expression ']'
+/.$putCase consumeCompositeArrayAccess(true); $break ./
+ArrayAccess ::= PrimaryNoNewArray '[' Expression ':' Expression ']'
+/.$putCase consumeCompositeArrayAccess(false); $break ./
+ArrayAccess ::= ArrayCreationWithArrayInitializer '[' Expression ':' Expression ']'
+/.$putCase consumeCompositeArrayAccess(false); $break ./
 /:$readableName ArrayAccess:/
 
 PostfixExpression -> Primary
@@ -1750,8 +1825,12 @@ InstanceofExpression ::= InstanceofExpression 'instanceof' ReferenceType
 EqualityExpression -> InstanceofExpression
 EqualityExpression ::= EqualityExpression '==' InstanceofExpression
 /.$putCase consumeEqualityExpression(OperatorIds.EQUAL_EQUAL); $break ./
+EqualityExpression ::= EqualityExpression '===' InstanceofExpression
+/.$putCase consumeMaxelerEqualityExpression(OperatorIds.EQUAL_EQUAL_EQUAL); $break ./
 EqualityExpression ::= EqualityExpression '!=' InstanceofExpression
 /.$putCase consumeEqualityExpression(OperatorIds.NOT_EQUAL); $break ./
+EqualityExpression ::= EqualityExpression '!==' InstanceofExpression
+/.$putCase consumeMaxelerEqualityExpression(OperatorIds.NOT_EQUAL_EQUAL); $break ./
 /:$readableName Expression:/
 
 AndExpression -> EqualityExpression
@@ -1769,8 +1848,13 @@ InclusiveOrExpression ::= InclusiveOrExpression '|' ExclusiveOrExpression
 /.$putCase consumeBinaryExpression(OperatorIds.OR); $break ./
 /:$readableName Expression:/
 
-ConditionalAndExpression -> InclusiveOrExpression
-ConditionalAndExpression ::= ConditionalAndExpression '&&' InclusiveOrExpression
+CatExpression -> InclusiveOrExpression
+CatExpression ::= CatExpression '#' InclusiveOrExpression
+/.$putCase consumeBinaryExpression(OperatorIds.CAT); $break ./
+/:$readableName Expression:/
+
+ConditionalAndExpression -> CatExpression
+ConditionalAndExpression ::= ConditionalAndExpression '&&' CatExpression
 /.$putCase consumeBinaryExpression(OperatorIds.AND_AND); $break ./
 /:$readableName Expression:/
 
@@ -1825,6 +1909,8 @@ AssignmentOperator ::= '^='
 /.$putCase consumeAssignmentOperator(XOR); $break ./
 AssignmentOperator ::= '|='
 /.$putCase consumeAssignmentOperator(OR); $break ./
+AssignmentOperator ::= '<=='
+/.$putCase consumeAssignmentOperator(CONNECT); $break ./
 /:$readableName AssignmentOperator:/
 /:$recovery_template =:/
 
@@ -2357,12 +2443,20 @@ InstanceofExpression_NotName ::= InstanceofExpression_NotName 'instanceof' Refer
 EqualityExpression_NotName -> InstanceofExpression_NotName
 EqualityExpression_NotName ::= EqualityExpression_NotName '==' InstanceofExpression
 /.$putCase consumeEqualityExpression(OperatorIds.EQUAL_EQUAL); $break ./
+EqualityExpression_NotName ::= EqualityExpression_NotName '===' InstanceofExpression
+/.$putCase consumeMaxelerEqualityExpression(OperatorIds.EQUAL_EQUAL_EQUAL); $break ./
 EqualityExpression_NotName ::= Name '==' InstanceofExpression
 /.$putCase consumeEqualityExpressionWithName(OperatorIds.EQUAL_EQUAL); $break ./
+EqualityExpression_NotName ::= Name '===' InstanceofExpression
+/.$putCase consumeMaxelerEqualityExpressionWithName(OperatorIds.EQUAL_EQUAL_EQUAL); $break ./
 EqualityExpression_NotName ::= EqualityExpression_NotName '!=' InstanceofExpression
 /.$putCase consumeEqualityExpression(OperatorIds.NOT_EQUAL); $break ./
+EqualityExpression_NotName ::= EqualityExpression_NotName '!==' InstanceofExpression
+/.$putCase consumeMaxelerEqualityExpression(OperatorIds.NOT_EQUAL_EQUAL); $break ./
 EqualityExpression_NotName ::= Name '!=' InstanceofExpression
 /.$putCase consumeEqualityExpressionWithName(OperatorIds.NOT_EQUAL); $break ./
+EqualityExpression_NotName ::= Name '!==' InstanceofExpression
+/.$putCase consumeMaxelerEqualityExpressionWithName(OperatorIds.NOT_EQUAL_EQUAL); $break ./
 /:$readableName Expression:/
 
 AndExpression_NotName -> EqualityExpression_NotName
@@ -2386,10 +2480,17 @@ InclusiveOrExpression_NotName ::= Name '|' ExclusiveOrExpression
 /.$putCase consumeBinaryExpressionWithName(OperatorIds.OR); $break ./
 /:$readableName Expression:/
 
-ConditionalAndExpression_NotName -> InclusiveOrExpression_NotName
-ConditionalAndExpression_NotName ::= ConditionalAndExpression_NotName '&&' InclusiveOrExpression
+CatExpression_NotName -> InclusiveOrExpression_NotName
+CatExpression_NotName ::= CatExpression_NotName '#' InclusiveOrExpression
+/.$putCase consumeBinaryExpression(OperatorIds.CAT); $break ./
+CatExpression_NotName ::= Name '#' InclusiveOrExpression
+/.$putCase consumeBinaryExpressionWithName(OperatorIds.CAT); $break ./
+/:$readableName Expression:/
+
+ConditionalAndExpression_NotName -> CatExpression_NotName
+ConditionalAndExpression_NotName ::= ConditionalAndExpression_NotName '&&' CatExpression
 /.$putCase consumeBinaryExpression(OperatorIds.AND_AND); $break ./
-ConditionalAndExpression_NotName ::= Name '&&' InclusiveOrExpression
+ConditionalAndExpression_NotName ::= Name '&&' CatExpression
 /.$putCase consumeBinaryExpressionWithName(OperatorIds.AND_AND); $break ./
 /:$readableName Expression:/
 
@@ -2635,9 +2736,11 @@ $names
 PLUS_PLUS ::=    '++'   
 MINUS_MINUS ::=    '--'   
 EQUAL_EQUAL ::=    '=='   
+EQUAL_EQUAL_EQUAL ::=    '==='
 LESS_EQUAL ::=    '<='   
 GREATER_EQUAL ::=    '>='   
 NOT_EQUAL ::=    '!='   
+NOT_EQUAL_EQUAL ::=    '!=='
 LEFT_SHIFT ::=    '<<'   
 RIGHT_SHIFT ::=    '>>'   
 UNSIGNED_RIGHT_SHIFT ::=    '>>>'  
@@ -2652,6 +2755,7 @@ REMAINDER_EQUAL ::=    '%='
 LEFT_SHIFT_EQUAL ::=    '<<='  
 RIGHT_SHIFT_EQUAL ::=    '>>='  
 UNSIGNED_RIGHT_SHIFT_EQUAL ::=    '>>>=' 
+CONNECT ::=    '<=='
 OR_OR ::=    '||'   
 AND_AND ::=    '&&'
 PLUS ::=    '+'    
@@ -2682,6 +2786,7 @@ AT ::=    '@'
 AT308 ::= '@'
 AT308DOTDOTDOT ::= '@'
 ELLIPSIS ::=    '...'    
+HASH ::=	'#'
 ARROW ::= '->'
 COLON_COLON ::= '::'
 

@@ -544,6 +544,7 @@ class DocCommentParser extends AbstractCommentParser {
 			case TerminalTokens.TokenNamedo:
 			case TerminalTokens.TokenNamedouble:
 			case TerminalTokens.TokenNameelse:
+			case TerminalTokens.TokenNameELSE:
 			case TerminalTokens.TokenNameextends:
 			case TerminalTokens.TokenNamefalse:
 			case TerminalTokens.TokenNamefinal:
@@ -551,6 +552,7 @@ class DocCommentParser extends AbstractCommentParser {
 			case TerminalTokens.TokenNamefloat:
 			case TerminalTokens.TokenNamefor:
 			case TerminalTokens.TokenNameif:
+			case TerminalTokens.TokenNameIF:
 			case TerminalTokens.TokenNameimplements:
 			case TerminalTokens.TokenNameimport:
 			case TerminalTokens.TokenNameinstanceof:

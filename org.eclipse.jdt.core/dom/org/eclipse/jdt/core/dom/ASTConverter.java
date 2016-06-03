@@ -1049,6 +1049,18 @@ class ASTConverter {
 		return arrayInitializer;
 	}
 
+	public CompositeArrayAccess convert(org.eclipse.jdt.internal.compiler.ast.CompositeArrayReference reference) {
+		CompositeArrayAccess arrayAccess = new CompositeArrayAccess(this.ast);
+		if (this.resolveBindings) {
+			recordNodes(arrayAccess, reference);
+		}
+		arrayAccess.setSourceRange(reference.sourceStart, reference.sourceEnd - reference.sourceStart + 1);
+		arrayAccess.setArray(convert(reference.receiver));
+		arrayAccess.setIndexOne(convert(reference.positionOne));
+		arrayAccess.setIndexTwo(convert(reference.positionTwo));
+		return arrayAccess;
+	}
+
 	public ArrayAccess convert(org.eclipse.jdt.internal.compiler.ast.ArrayReference reference) {
 		ArrayAccess arrayAccess = new ArrayAccess(this.ast);
 		if (this.resolveBindings) {
@@ -1289,6 +1301,19 @@ class ASTConverter {
 		}
 		switchCase.setSourceRange(statement.sourceStart, statement.sourceEnd - statement.sourceStart + 1);
 		retrieveColonPosition(switchCase);
+		return switchCase;
+	}
+
+	public SWITCHCASE convert(org.eclipse.jdt.internal.compiler.ast.CASEStatement statement) {
+		SWITCHCASE switchCase = new SWITCHCASE(this.ast);
+		org.eclipse.jdt.internal.compiler.ast.Expression constantExpression = statement.constantExpression;
+		if (constantExpression == null) {
+			switchCase.setExpression(null);
+		} else {
+			switchCase.setExpression(convert(constantExpression));
+		}
+		switchCase.setSourceRange(statement.sourceStart, statement.sourceEnd - statement.sourceStart + 1);
+//		retrieveColonPosition(switchCase);
 		return switchCase;
 	}
 
@@ -1605,6 +1630,27 @@ class ASTConverter {
 				break;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.NOT_EQUAL :
 				infixExpression.setOperator(InfixExpression.Operator.NOT_EQUALS);
+		}
+		return infixExpression;
+
+	}
+
+	public Expression convert(org.eclipse.jdt.internal.compiler.ast.EqualEqualExpression expression) {
+		InfixExpression infixExpression = new InfixExpression(this.ast);
+		if (this.resolveBindings) {
+			recordNodes(infixExpression, expression);
+		}
+		Expression leftExpression = convert(expression.left);
+		infixExpression.setLeftOperand(leftExpression);
+		infixExpression.setRightOperand(convert(expression.right));
+		int startPosition = leftExpression.getStartPosition();
+		infixExpression.setSourceRange(startPosition, expression.sourceEnd - startPosition + 1);
+		switch ((expression.bits & org.eclipse.jdt.internal.compiler.ast.ASTNode.OperatorMASK) >> org.eclipse.jdt.internal.compiler.ast.ASTNode.OperatorSHIFT) {
+			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.EQUAL_EQUAL_EQUAL :
+				infixExpression.setOperator(InfixExpression.Operator.MAXELER_EQUALS);
+				break;
+			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.NOT_EQUAL_EQUAL :
+				infixExpression.setOperator(InfixExpression.Operator.MAXELER_NOT_EQUALS);
 		}
 		return infixExpression;
 
@@ -1943,6 +1989,26 @@ class ASTConverter {
 
 	public IfStatement convert(org.eclipse.jdt.internal.compiler.ast.IfStatement statement) {
 		IfStatement ifStatement = new IfStatement(this.ast);
+		ifStatement.setSourceRange(statement.sourceStart, statement.sourceEnd - statement.sourceStart + 1);
+		ifStatement.setExpression(convert(statement.condition));
+		final Statement thenStatement = convert(statement.thenStatement);
+		if (thenStatement == null) return null;
+		ifStatement.setThenStatement(thenStatement);
+		org.eclipse.jdt.internal.compiler.ast.Statement statement2 = statement.elseStatement;
+		if (statement2 != null) {
+			final Statement elseStatement = convert(statement2);
+			if (elseStatement != null) {
+				ifStatement.setElseStatement(elseStatement);
+			}
+		}
+		return ifStatement;
+	}
+
+	/**
+	 * New: Milan
+	 */
+	public IFStatement convert(org.eclipse.jdt.internal.compiler.ast.IFStatement statement) {
+		IFStatement ifStatement = new IFStatement(this.ast);
 		ifStatement.setSourceRange(statement.sourceStart, statement.sourceEnd - statement.sourceStart + 1);
 		ifStatement.setExpression(convert(statement.condition));
 		final Statement thenStatement = convert(statement.thenStatement);
@@ -2554,6 +2620,9 @@ class ASTConverter {
 		if (reference instanceof org.eclipse.jdt.internal.compiler.ast.ArrayReference) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.ArrayReference) reference);
 		}
+		if (reference instanceof org.eclipse.jdt.internal.compiler.ast.CompositeArrayReference) {
+			return convert((org.eclipse.jdt.internal.compiler.ast.CompositeArrayReference) reference);
+		}
 		if (reference instanceof org.eclipse.jdt.internal.compiler.ast.FieldReference) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.FieldReference) reference);
 		}
@@ -2689,6 +2758,9 @@ class ASTConverter {
 		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.CaseStatement) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.CaseStatement) statement);
 		}
+		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.CASEStatement) {
+			return convert((org.eclipse.jdt.internal.compiler.ast.CASEStatement) statement);
+		}
 		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.DoStatement) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.DoStatement) statement);
 		}
@@ -2704,6 +2776,9 @@ class ASTConverter {
 		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.IfStatement) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.IfStatement) statement);
 		}
+		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.IFStatement) {
+			return convert((org.eclipse.jdt.internal.compiler.ast.IFStatement) statement);
+		}
 		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.LabeledStatement) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.LabeledStatement) statement);
 		}
@@ -2712,6 +2787,9 @@ class ASTConverter {
 		}
 		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.SwitchStatement) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.SwitchStatement) statement);
+		}
+		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.SWITCHStatement) {
+			return convert((org.eclipse.jdt.internal.compiler.ast.SWITCHStatement) statement);
 		}
 		if (statement instanceof org.eclipse.jdt.internal.compiler.ast.SynchronizedStatement) {
 			return convert((org.eclipse.jdt.internal.compiler.ast.SynchronizedStatement) statement);
@@ -2776,6 +2854,27 @@ class ASTConverter {
 
 	public SwitchStatement convert(org.eclipse.jdt.internal.compiler.ast.SwitchStatement statement) {
 		SwitchStatement switchStatement = new SwitchStatement(this.ast);
+		switchStatement.setSourceRange(statement.sourceStart, statement.sourceEnd - statement.sourceStart + 1);
+		switchStatement.setExpression(convert(statement.expression));
+		org.eclipse.jdt.internal.compiler.ast.Statement[] statements = statement.statements;
+		if (statements != null) {
+			int statementsLength = statements.length;
+			for (int i = 0; i < statementsLength; i++) {
+				if (statements[i] instanceof org.eclipse.jdt.internal.compiler.ast.LocalDeclaration) {
+					checkAndAddMultipleLocalDeclaration(statements, i, switchStatement.statements());
+				} else {
+					final Statement currentStatement = convert(statements[i]);
+					if (currentStatement != null) {
+						switchStatement.statements().add(currentStatement);
+					}
+				}
+			}
+		}
+		return switchStatement;
+	}
+
+	public SWITCHStatement convert(org.eclipse.jdt.internal.compiler.ast.SWITCHStatement statement) {
+		SWITCHStatement switchStatement = new SWITCHStatement(this.ast);
 		switchStatement.setSourceRange(statement.sourceStart, statement.sourceEnd - statement.sourceStart + 1);
 		switchStatement.setExpression(convert(statement.expression));
 		org.eclipse.jdt.internal.compiler.ast.Statement[] statements = statement.statements;
@@ -4031,12 +4130,16 @@ class ASTConverter {
 		switch (operatorID) {
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.EQUAL_EQUAL :
 				return InfixExpression.Operator.EQUALS;
+			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.EQUAL_EQUAL_EQUAL :
+				return InfixExpression.Operator.MAXELER_EQUALS;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.LESS_EQUAL :
 				return InfixExpression.Operator.LESS_EQUALS;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.GREATER_EQUAL :
 				return InfixExpression.Operator.GREATER_EQUALS;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.NOT_EQUAL :
 				return InfixExpression.Operator.NOT_EQUALS;
+			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.NOT_EQUAL_EQUAL :
+				return InfixExpression.Operator.MAXELER_NOT_EQUALS;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.LEFT_SHIFT :
 				return InfixExpression.Operator.LEFT_SHIFT;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.RIGHT_SHIFT :
@@ -4067,6 +4170,8 @@ class ASTConverter {
 				return InfixExpression.Operator.GREATER;
 			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.LESS :
 				return InfixExpression.Operator.LESS;
+			case org.eclipse.jdt.internal.compiler.ast.OperatorIds.CAT :
+				return InfixExpression.Operator.CAT;
 		}
 		return null;
 	}

@@ -1510,9 +1510,7 @@ public class JavaModelManager implements ISaveParticipant, IContentTypeChangeLis
 					propertyName.equals(JavaCore.CORE_ENABLE_CLASSPATH_MULTIPLE_OUTPUT_LOCATIONS) ||
 					propertyName.equals(JavaCore.CORE_INCOMPLETE_CLASSPATH) ||
 					propertyName.equals(JavaCore.CORE_CIRCULAR_CLASSPATH) ||
-					propertyName.equals(JavaCore.CORE_INCOMPATIBLE_JDK_LEVEL) ||
-					propertyName.equals(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM) ||
-					propertyName.equals(JavaCore.CORE_OUTPUT_LOCATION_OVERLAPPING_ANOTHER_SOURCE)) {
+					propertyName.equals(JavaCore.CORE_INCOMPATIBLE_JDK_LEVEL)) {
 					JavaModelManager manager = JavaModelManager.getJavaModelManager();
 					IJavaModel model = manager.getJavaModel();
 					IJavaProject[] projects;
@@ -2286,7 +2284,6 @@ public class JavaModelManager implements ISaveParticipant, IContentTypeChangeLis
 		defaultOptionsMap.put(JavaCore.CORE_INCOMPLETE_CLASSPATH, JavaCore.ERROR);
 		defaultOptionsMap.put(JavaCore.CORE_CIRCULAR_CLASSPATH, JavaCore.ERROR);
 		defaultOptionsMap.put(JavaCore.CORE_INCOMPATIBLE_JDK_LEVEL, JavaCore.IGNORE); 
-		defaultOptionsMap.put(JavaCore.CORE_OUTPUT_LOCATION_OVERLAPPING_ANOTHER_SOURCE, JavaCore.ERROR);
 		defaultOptionsMap.put(JavaCore.CORE_ENABLE_CLASSPATH_EXCLUSION_PATTERNS, JavaCore.ENABLED);
 		defaultOptionsMap.put(JavaCore.CORE_ENABLE_CLASSPATH_MULTIPLE_OUTPUT_LOCATIONS, JavaCore.ENABLED);
 
@@ -3715,18 +3712,9 @@ public class JavaModelManager implements ISaveParticipant, IContentTypeChangeLis
 	 * If forceAdd is false it just returns the existing info and if true, this element and it's children are closed and then 
 	 * this particular info is added to the cache.
 	 */
-	protected synchronized Object putInfos(IJavaElement openedElement, Object newInfo, boolean forceAdd, Map newElements) {
+	protected synchronized void putInfos(IJavaElement openedElement, Map newElements) {
 		// remove existing children as the are replaced with the new children contained in newElements
 		Object existingInfo = this.cache.peekAtInfo(openedElement);
-		if (existingInfo != null && !forceAdd) {
-			// If forceAdd is false, then it could mean that the particular element 
-			// wasn't in cache at that point of time, but would have got added through 
-			// another thread. In that case, removing the children could remove it's own
-			// children. So, we should not remove the children but return the already existing 
-			// info.
-			// https://bugs.eclipse.org/bugs/show_bug.cgi?id=372687
-			return existingInfo;
-		}
 		if (openedElement instanceof IParent) {
 			closeChildren(existingInfo);
 		}
@@ -3756,7 +3744,6 @@ public class JavaModelManager implements ISaveParticipant, IContentTypeChangeLis
 			Map.Entry entry = (Map.Entry) iterator.next();
 			this.cache.putInfo((IJavaElement) entry.getKey(), entry.getValue());
 		}
-		return newInfo;
 	}
 
 	private void closeChildren(Object info) {

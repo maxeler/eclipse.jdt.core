@@ -804,6 +804,18 @@ public final class JavaCore extends Plugin {
 	 */
 	public static final String COMPILER_PB_UNDOCUMENTED_EMPTY_BLOCK = PLUGIN_ID + ".compiler.problem.undocumentedEmptyBlock"; //$NON-NLS-1$
 	/**
+	 * Compiler option ID: Reporting assert statements.
+	 * <p>When enabled, the compiler will issue an error or a warning when an assert statement is detected.
+	 * <dl>
+	 * <dt>Option id:</dt><dd><code>"org.eclipse.jdt.core.compiler.problem.maxelerAssertStatement"</code></dd>
+	 * <dt>Possible values:</dt><dd><code>{ "error", "warning", "ignore" }</code></dd>
+	 * <dt>Default:</dt><dd><code>"ignore"</code></dd>
+	 * </dl>
+	 * @since 3.0
+	 * @category CompilerOptionID
+	 */
+	public static final String COMPILER_PB_MAXELER_ASSERT_STATEMENT = PLUGIN_ID + ".compiler.problem.maxelerAssertStatement"; //$NON-NLS-1$
+	/**
 	 * Compiler option ID: Reporting Finally Blocks Not Completing Normally.
 	 * <p>When enabled, the compiler will issue an error or a warning when a finally block does not complete normally.</p>
 	 * <dl>
@@ -2243,12 +2255,12 @@ public final class JavaCore extends Plugin {
 	/**
 	 * Core option ID: Reporting an output location overlapping another source location.
 	 * <p> Indicate the severity of the problem reported when a source entry's output location overlaps another
-	 * source entry.</p>
+	 * source entry. </p>
 	 * 
 	 * <dl>
 	 * <dt>Option id:</dt><dd><code>"org.eclipse.jdt.core.classpath.outputOverlappingAnotherSource"</code></dd>
 	 * <dt>Possible values:</dt><dd><code>{ "error", "warning", "ignore" }</code></dd>
-	 * <dt>Default:</dt><dd><code>"error"</code></dd>
+	 * <dt>Default:</dt><dd><code>"warning"</code></dd>
 	 * </dl>
 	 * @since 3.6.4
 	 */
@@ -4039,9 +4051,9 @@ public final class JavaCore extends Plugin {
 			// and recreate links for external folders if needed
 			if (monitor != null)
 				monitor.subTask(Messages.javamodel_resetting_source_attachment_properties);
+			ExternalFoldersManager externalFoldersManager = JavaModelManager.getExternalManager();
 			final IJavaProject[] projects = manager.getJavaModel().getJavaProjects();
 			HashSet visitedPaths = new HashSet();
-			ExternalFoldersManager externalFoldersManager = JavaModelManager.getExternalManager();
 			for (int i = 0, length = projects.length; i < length; i++) {
 				JavaProject javaProject = (JavaProject) projects[i];
 				IClasspathEntry[] classpath;
@@ -4052,6 +4064,7 @@ public final class JavaCore extends Plugin {
 					continue;
 				}
 				if (classpath != null) {
+					boolean needExternalFolderCreation = false;
 					for (int j = 0, length2 = classpath.length; j < length2; j++) {
 						IClasspathEntry entry = classpath[j];
 						if (entry.getSourceAttachmentPath() != null) {
@@ -4061,35 +4074,16 @@ public final class JavaCore extends Plugin {
 							}
 						}
 						// else source might have been attached by IPackageFragmentRoot#attachSource(...), we keep it
-						if (entry.getEntryKind() == IClasspathEntry.CPE_LIBRARY) {
+						if (!needExternalFolderCreation && entry.getEntryKind() == IClasspathEntry.CPE_LIBRARY) {
 							IPath entryPath = entry.getPath();
 							if (ExternalFoldersManager.isExternalFolderPath(entryPath) && externalFoldersManager.getFolder(entryPath) == null) {
-								externalFoldersManager.addFolder(entryPath, true);
-							}
+								needExternalFolderCreation = true;
 						}
 					}
 				}
+					if (needExternalFolderCreation)
+						manager.deltaState.addExternalFolderChange(javaProject, null/*act as if all external folders were new*/);
 			}
-			try {
-				externalFoldersManager.createPendingFolders(monitor);
-			}
-			catch(JavaModelException jme) {
-				// Creation of external folder project failed. Log it and continue;
-				Util.log(jme, "Error while processing external folders"); //$NON-NLS-1$
-			}
-
-			// ensure external jars are refreshed (see https://bugs.eclipse.org/bugs/show_bug.cgi?id=93668)
-			// before search is initialized (see https://bugs.eclipse.org/bugs/show_bug.cgi?id=405051)
-			final JavaModel model = manager.getJavaModel();
-			try {
-				if (monitor != null)
-					monitor.subTask(Messages.javamodel_refreshing_external_jars);
-				model.refreshExternalArchives(
-					null/*refresh all projects*/,
-					monitor == null ? null : new SubProgressMonitor(monitor, 1) // 1% of the time is spent in jar refresh
-				);
-			} catch (JavaModelException e) {
-				// refreshing failed: ignore
 			}
 
 			// initialize delta state
@@ -4158,7 +4152,6 @@ public final class JavaCore extends Plugin {
 							try {
 								if (JavaBuilder.DEBUG)
 									System.out.println("Touching " + project.getElementName()); //$NON-NLS-1$
-								new ClasspathValidation((JavaProject) project).validate(); // https://bugs.eclipse.org/bugs/show_bug.cgi?id=287164
 								project.getProject().touch(progressMonitor2);
 							} catch (CoreException e) {
 								// could not touch this project: ignore
