@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -631,6 +631,9 @@ public final class CompletionEngine
 		public boolean receiverIsImplicitThis() { return false; }
 		public InferenceContext18 freshInferenceContext(Scope scope) { return null; }
 		public ExpressionContext getExpressionContext() { return ExpressionContext.VANILLA_CONTEXT; }
+		public boolean isQualifiedSuper() { return false; }
+		public boolean checkingPotentialCompatibility() { return false; }
+		public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {/* ignore */}
 	};
 
 	private int foundTypesCount;
@@ -1705,6 +1708,7 @@ public final class CompletionEngine
 
 		buildContext(astNode, astNodeParent, compilationUnitDeclaration, qualifiedBinding, scope);
 
+		if (astNode instanceof CompletionOnMemberAccess && qualifiedBinding instanceof BaseTypeBinding) return true;
 		if (astNode instanceof CompletionOnFieldType) {
 			completionOnFieldType(astNode, scope);
 		} else if (astNode instanceof CompletionOnMethodReturnType) {
@@ -2359,7 +2363,7 @@ public final class CompletionEngine
 				this.completionToken,
 				null,
 				argTypes,
-				(ReferenceBinding) ((ReferenceBinding) qualifiedBinding).capture(scope, messageSend.receiver.sourceEnd),
+				(ReferenceBinding) ((ReferenceBinding) qualifiedBinding).capture(scope, messageSend.receiver.sourceStart, messageSend.receiver.sourceEnd),
 				scope,
 				new ObjectVector(),
 				false,
@@ -2621,7 +2625,7 @@ public final class CompletionEngine
 
 				findFieldsAndMethods(
 					this.completionToken,
-					((TypeBinding) qualifiedBinding).capture(scope, access.receiver.sourceEnd),
+					((TypeBinding) qualifiedBinding).capture(scope, access.receiver.sourceStart, access.receiver.sourceEnd),
 					scope,
 					fieldsFound,
 					methodsFound,
@@ -2733,7 +2737,7 @@ public final class CompletionEngine
 				this.completionToken,
 				null,
 				argTypes,
-				(ReferenceBinding)((ReferenceBinding) qualifiedBinding).capture(scope, messageSend.receiver.sourceEnd),
+				(ReferenceBinding)((ReferenceBinding) qualifiedBinding).capture(scope, messageSend.receiver.sourceStart, messageSend.receiver.sourceEnd),
 				scope,
 				new ObjectVector(),
 				false,
@@ -2777,7 +2781,7 @@ public final class CompletionEngine
 							this.completionToken,
 							typeArgTypes,
 							null,
-							(ReferenceBinding)receiverType.capture(scope, messageSend.receiver.sourceEnd),
+							(ReferenceBinding)receiverType.capture(scope, messageSend.receiver.sourceStart, messageSend.receiver.sourceEnd),
 							scope,
 							new ObjectVector(),
 							onlyStatic,
@@ -2807,11 +2811,16 @@ public final class CompletionEngine
 			
 			TypeBinding receiverType = (TypeBinding) qualifiedBinding;
 			if (receiverType != null && receiverType instanceof ReferenceBinding) {
+				if (!(receiverType.isInterface() || this.requestor.isIgnored(CompletionProposal.KEYWORD))) {
+					this.assistNodeIsConstructor = true;
+					setSourceAndTokenRange(referenceExpression.nameSourceStart, referenceExpression.sourceEnd);
+					findKeywords(this.completionToken, new char[][] { Keywords.NEW }, false, false);
+				}
 				findMethods(
 						this.completionToken,
 						referenceExpression.resolvedTypeArguments,
 						null,
-						(ReferenceBinding)receiverType.capture(scope, referenceExpression.sourceEnd),
+						(ReferenceBinding)receiverType.capture(scope, referenceExpression.sourceStart, referenceExpression.sourceEnd),
 						scope,
 						new ObjectVector(),
 						onlyStatic,
@@ -3091,7 +3100,7 @@ public final class CompletionEngine
 
 				findFieldsAndMethods(
 						this.completionToken,
-						receiverType.capture(scope, ref.sourceEnd),
+						receiverType.capture(scope, ref.sourceStart, ref.sourceEnd),
 						scope,
 						fieldsFound,
 						methodsFound,
@@ -5299,6 +5308,7 @@ public final class CompletionEngine
 								char[] typeName = currentType.qualifiedSourceName();
 								
 								InternalCompletionProposal proposal = createProposal(CompletionProposal.ANONYMOUS_CLASS_CONSTRUCTOR_INVOCATION, this.actualCompletionPosition);
+								proposal.setBinding(constructor);
 								proposal.setDeclarationSignature(getSignature(currentType));
 								proposal.setDeclarationKey(currentType.computeUniqueKey());
 								proposal.setSignature(getSignature(constructor));
@@ -5459,6 +5469,7 @@ public final class CompletionEngine
 								char[] typeName = currentType.qualifiedSourceName();
 								int constructorRelevance = relevance + computeRelevanceForConstructor();
 								InternalCompletionProposal proposal =  createProposal(CompletionProposal.CONSTRUCTOR_INVOCATION, this.actualCompletionPosition);
+								proposal.setBinding(constructor);
 								proposal.setDeclarationSignature(getSignature(currentType));
 								proposal.setSignature(getSignature(constructor));
 								MethodBinding original = constructor.original();
@@ -5502,6 +5513,7 @@ public final class CompletionEngine
 						} else {
 							if(!isIgnored(CompletionProposal.METHOD_REF, missingElements != null) && (this.assistNodeInJavadoc & CompletionOnJavadoc.ONLY_INLINE_TAG) == 0) {
 								InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+								proposal.setBinding(constructor);
 								proposal.setDeclarationSignature(getSignature(currentType));
 								proposal.setSignature(getSignature(constructor));
 								MethodBinding original = constructor.original();
@@ -5543,6 +5555,7 @@ public final class CompletionEngine
 							if ((this.assistNodeInJavadoc & CompletionOnJavadoc.TEXT) != 0 && !this.requestor.isIgnored(CompletionProposal.JAVADOC_METHOD_REF)) {
 								char[] javadocCompletion = inlineTagCompletion(completion, JavadocTagConstants.TAG_LINK);
 								InternalCompletionProposal proposal =  createProposal(CompletionProposal.JAVADOC_METHOD_REF, this.actualCompletionPosition);
+								proposal.setBinding(constructor);
 								proposal.setDeclarationSignature(getSignature(currentType));
 								proposal.setSignature(getSignature(constructor));
 								MethodBinding original = constructor.original();
@@ -5786,6 +5799,7 @@ public final class CompletionEngine
 
 				if(!this.requestor.isIgnored(CompletionProposal.FIELD_REF)) {
 					InternalCompletionProposal proposal = createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+					proposal.setBinding(field);
 					proposal.setDeclarationSignature(getSignature(field.declaringClass));
 					proposal.setSignature(getSignature(field.type));
 					proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -5839,6 +5853,7 @@ public final class CompletionEngine
 						ReferenceBinding fieldType = (ReferenceBinding)field.type;
 
 						InternalCompletionProposal proposal = createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+						proposal.setBinding(field);
 						proposal.setDeclarationSignature(getSignature(field.declaringClass));
 						proposal.setSignature(getSignature(field.type));
 						proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -6180,6 +6195,7 @@ public final class CompletionEngine
 					this.noProposal = false;
 					if(!this.requestor.isIgnored(CompletionProposal.METHOD_REF)) {
 						InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+						proposal.setBinding(constructor);
 						proposal.setDeclarationSignature(getSignature(currentType));
 						proposal.setSignature(getSignature(constructor));
 						MethodBinding original = constructor.original();
@@ -6413,6 +6429,7 @@ public final class CompletionEngine
 				// Standard proposal
 				if (!this.isIgnored(CompletionProposal.FIELD_REF, missingElements != null) && (this.assistNodeInJavadoc & CompletionOnJavadoc.ONLY_INLINE_TAG) == 0) {
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+					proposal.setBinding(field);
 
 					if(field.sourceField() == null)
 						proposal.setAnnotations(getAnnotationBindings(field.getAnnotations()));
@@ -6453,6 +6470,7 @@ public final class CompletionEngine
 				if ((this.assistNodeInJavadoc & CompletionOnJavadoc.TEXT) != 0 && !this.requestor.isIgnored(CompletionProposal.JAVADOC_FIELD_REF)) {
 					char[] javadocCompletion = inlineTagCompletion(completion, JavadocTagConstants.TAG_LINK);
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.JAVADOC_FIELD_REF, this.actualCompletionPosition);
+					proposal.setBinding(field);
 					proposal.setDeclarationSignature(getSignature(field.declaringClass));
 					proposal.setSignature(getSignature(field.type));
 					proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -6495,6 +6513,7 @@ public final class CompletionEngine
 			} else {
 				if(!this.isIgnored(CompletionProposal.FIELD_REF_WITH_CASTED_RECEIVER, missingElements != null)) {
 					InternalCompletionProposal proposal = createProposal(CompletionProposal.FIELD_REF_WITH_CASTED_RECEIVER, this.actualCompletionPosition);
+					proposal.setBinding(field);
 					proposal.setDeclarationSignature(getSignature(field.declaringClass));
 					proposal.setSignature(getSignature(field.type));
 					proposal.setReceiverSignature(getSignature(receiverType));
@@ -7573,6 +7592,7 @@ public final class CompletionEngine
 					char[] completion = CharOperation.concat(receiverType.sourceName, field.name, '.');
 
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+					proposal.setBinding(field);
 					proposal.setDeclarationSignature(getSignature(field.declaringClass));
 					proposal.setSignature(getSignature(field.type));
 					proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -7615,6 +7635,7 @@ public final class CompletionEngine
 					char[] completion = field.name;
 
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+					proposal.setBinding(field);
 					proposal.setDeclarationSignature(getSignature(field.declaringClass));
 					proposal.setSignature(getSignature(field.type));
 					proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -7849,6 +7870,7 @@ public final class CompletionEngine
 			this.noProposal = false;
 			if(!this.requestor.isIgnored(CompletionProposal.FIELD_REF)) {
 				InternalCompletionProposal proposal =  createProposal(CompletionProposal.FIELD_REF, this.actualCompletionPosition);
+				proposal.setBinding(field);
 				proposal.setDeclarationSignature(getSignature(field.declaringClass));
 				proposal.setSignature(getSignature(field.type));
 				proposal.setDeclarationPackageName(field.declaringClass.qualifiedPackageName());
@@ -8192,6 +8214,9 @@ public final class CompletionEngine
 					relevance += computeRelevanceForExpectingType(TypeBinding.BOOLEAN);
 					relevance += computeRelevanceForQualification(false);
 				}
+				if (CharOperation.equals(choices[i], Keywords.NEW)) {
+					relevance += computeRelevanceForConstructor();
+				}
 				this.noProposal = false;
 				if(!this.requestor.isIgnored(CompletionProposal.KEYWORD)) {
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.KEYWORD, this.actualCompletionPosition);
@@ -8444,6 +8469,7 @@ public final class CompletionEngine
 			this.noProposal = false;
 			if(!this.requestor.isIgnored(CompletionProposal.METHOD_DECLARATION)) {
 				InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_DECLARATION, this.actualCompletionPosition);
+				proposal.setBinding(method);
 				proposal.setDeclarationSignature(getSignature(method.declaringClass));
 				proposal.setDeclarationKey(method.declaringClass.computeUniqueKey());
 				proposal.setSignature(getSignature(method));
@@ -8723,6 +8749,7 @@ public final class CompletionEngine
 				// Standard proposal
 				if(!this.isIgnored(CompletionProposal.METHOD_REF, missingElements != null) && (this.assistNodeInJavadoc & CompletionOnJavadoc.ONLY_INLINE_TAG) == 0) {
 					InternalCompletionProposal proposal =  createProposal(completionOnReferenceExpressionName ? CompletionProposal.METHOD_NAME_REFERENCE : CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+					proposal.setBinding(method);
 					proposal.setDeclarationSignature(getSignature(method.declaringClass));
 					proposal.setSignature(getSignature(method));
 					MethodBinding original = method.original();
@@ -8754,10 +8781,7 @@ public final class CompletionEngine
 					}
 					proposal.setCompletion(completion);
 					proposal.setFlags(method.modifiers);
-					if (completionOnReferenceExpressionName)
-						proposal.setReplaceRange(this.endPosition - this.offset - methodLength, this.endPosition - this.offset);
-					else 
-						proposal.setReplaceRange(this.startPosition - this.offset, this.endPosition - this.offset);
+					proposal.setReplaceRange(this.startPosition - this.offset, this.endPosition - this.offset);
 					proposal.setTokenRange(this.tokenStart - this.offset, this.tokenEnd - this.offset);
 					proposal.setRelevance(relevance);
 					if(parameterNames != null) proposal.setParameterNames(parameterNames);
@@ -8771,6 +8795,7 @@ public final class CompletionEngine
 				if ((this.assistNodeInJavadoc & CompletionOnJavadoc.TEXT) != 0 && !this.requestor.isIgnored(CompletionProposal.JAVADOC_METHOD_REF)) {
 					char[] javadocCompletion = inlineTagCompletion(completion, JavadocTagConstants.TAG_LINK);
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.JAVADOC_METHOD_REF, this.actualCompletionPosition);
+					proposal.setBinding(method);
 					proposal.setDeclarationSignature(getSignature(method.declaringClass));
 					proposal.setSignature(getSignature(method));
 					MethodBinding original = method.original();
@@ -8799,6 +8824,7 @@ public final class CompletionEngine
 			} else {
 				if(!this.isIgnored(CompletionProposal.METHOD_REF_WITH_CASTED_RECEIVER, missingElements != null)) {
 					InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF_WITH_CASTED_RECEIVER, this.actualCompletionPosition);
+					proposal.setBinding(method);
 					proposal.setDeclarationSignature(getSignature(method.declaringClass));
 					proposal.setSignature(getSignature(method));
 					MethodBinding original = method.original();
@@ -8989,6 +9015,7 @@ public final class CompletionEngine
 							completion = CharOperation.concat(receiverType.sourceName, completion, '.');
 
 							InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+							proposal.setBinding(method);
 							proposal.setDeclarationSignature(getSignature(method.declaringClass));
 							proposal.setSignature(getSignature(method));
 							MethodBinding original = method.original();
@@ -9018,6 +9045,7 @@ public final class CompletionEngine
 						completion = CharOperation.concat(receiverType.sourceName, completion, '.');
 
 						InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+						proposal.setBinding(method);
 						proposal.setDeclarationSignature(getSignature(method.declaringClass));
 						proposal.setSignature(getSignature(method));
 						MethodBinding original = method.original();
@@ -9065,6 +9093,7 @@ public final class CompletionEngine
 				} else {
 					if (!this.isIgnored(CompletionProposal.METHOD_REF, CompletionProposal.METHOD_IMPORT)) {
 						InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+						proposal.setBinding(method);
 						proposal.setDeclarationSignature(getSignature(method.declaringClass));
 						proposal.setSignature(getSignature(method));
 						MethodBinding original = method.original();
@@ -9217,6 +9246,7 @@ public final class CompletionEngine
 			this.noProposal = false;
 			if(!this.requestor.isIgnored(CompletionProposal.METHOD_REF)) {
 				InternalCompletionProposal proposal =  createProposal(CompletionProposal.METHOD_REF, this.actualCompletionPosition);
+				proposal.setBinding(method);
 				proposal.setDeclarationSignature(getSignature(method.declaringClass));
 				proposal.setSignature(getSignature(method));
 				MethodBinding original = method.original();
@@ -9311,7 +9341,7 @@ public final class CompletionEngine
 				((scope instanceof MethodScope && !((MethodScope)scope).isStatic)
 				|| ((methodScope = scope.enclosingMethodScope()) != null && !methodScope.isStatic))) {
 			if (token.length > 0) {
-				findKeywords(token, new char[][]{Keywords.THIS}, true, false);
+				findKeywords(token, new char[][]{Keywords.THIS, Keywords.SUPER}, true, false);
 			} else {
 				int relevance = computeBaseRelevance();
 				relevance += computeRelevanceForResolution();
@@ -10078,7 +10108,7 @@ public final class CompletionEngine
 				ReferenceBinding[] superInterfaces = currentType.superInterfaces();
 				if (superInterfaces != null && currentType.isIntersectionType()) {
 					for (int i = 0; i < superInterfaces.length; i++) {
-						superInterfaces[i] = (ReferenceBinding)superInterfaces[i].capture(invocationScope, invocationSite.sourceEnd());
+						superInterfaces[i] = (ReferenceBinding)superInterfaces[i].capture(invocationScope, invocationSite.sourceStart(), invocationSite.sourceEnd());
 					}
 				}
 
@@ -12208,6 +12238,9 @@ public final class CompletionEngine
 
 		if(parent instanceof ParameterizedSingleTypeReference) {
 			ParameterizedSingleTypeReference ref = (ParameterizedSingleTypeReference) parent;
+			if (ref.resolvedType == null) {
+				return false;
+			}
 			TypeVariableBinding[] typeVariables = ((ReferenceBinding)ref.resolvedType).typeVariables();
 			int length = ref.typeArguments == null ? 0 : ref.typeArguments.length;
 			int nodeIndex = -1;

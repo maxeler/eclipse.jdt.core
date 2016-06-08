@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -22,6 +22,7 @@ import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.jdom.*;
 import org.eclipse.jdt.core.util.IModifierConstants;
 
+@SuppressWarnings("rawtypes")
 public class ASTConverterTest extends ConverterTestSetup {
 
 	/** @deprecated using deprecated code */
@@ -9945,6 +9946,38 @@ public class ASTConverterTest extends ConverterTestSetup {
 		Statement statement = (Statement) statements.get(0);
 		assertTrue("Not an superconstructorinvocation", statement.getNodeType() == ASTNode.SUPER_CONSTRUCTOR_INVOCATION); //$NON-NLS-1$
 		checkSourceRange(statement, "super();", source); //$NON-NLS-1$
+	}
+
+	/**
+	 * http://dev.eclipse.org/bugs/show_bug.cgi?id=446746
+	 */
+	public void testBug446746_0001() throws JavaModelException {
+		String contents = "enum A{B(){void c(){}}}";
+		ICompilationUnit unit = getWorkingCopy("/Converter18/src/X.java", true/*resolve*/);
+		ASTNode node = buildAST(contents, unit);
+
+		assertEquals("Not a compilation unit", ASTNode.COMPILATION_UNIT, node.getNodeType());
+		CompilationUnit compilationUnit = (CompilationUnit) node;
+		assertProblemsSize(compilationUnit, 0);
+		EnumDeclaration enumDecl = (EnumDeclaration) getASTNode(compilationUnit, 0);
+		EnumConstantDeclaration constant = (EnumConstantDeclaration) enumDecl.enumConstants().get(0);
+		checkSourceRange(constant, "B(){void c(){}}", contents);
+	}
+
+	/**
+	 * http://dev.eclipse.org/bugs/show_bug.cgi?id=446746
+	 */
+	public void testBug446746_0002() throws JavaModelException {
+		String contents = "enum A{B(){void c(){} }}";
+		ICompilationUnit unit = getWorkingCopy("/Converter18/src/X.java", true/*resolve*/);
+		ASTNode node = buildAST(contents, unit);
+
+		assertEquals("Not a compilation unit", ASTNode.COMPILATION_UNIT, node.getNodeType());
+		CompilationUnit compilationUnit = (CompilationUnit) node;
+		assertProblemsSize(compilationUnit, 0);
+		EnumDeclaration enumDecl = (EnumDeclaration) getASTNode(compilationUnit, 0);
+		EnumConstantDeclaration constant = (EnumConstantDeclaration) enumDecl.enumConstants().get(0);
+		checkSourceRange(constant, "B(){void c(){} }", contents);
 	}
 }
 

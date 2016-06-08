@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2009 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Mateusz Matela <mateusz.matela@gmail.com> - [formatter] Formatter does not format Java code correctly, especially when max line width is set - https://bugs.eclipse.org/303519
  *******************************************************************************/
 package org.eclipse.jdt.core.tests.formatter;
 
@@ -50,6 +51,7 @@ import org.eclipse.jdt.internal.formatter.DefaultCodeFormatter;
  * 	<li>{@link FormatterJavadocDontIndentTagsDescriptionTests}</li>
  * </ul>
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class FormatterCommentsTests extends FormatterRegressionTests {
 
 	private static final IPath OUTPUT_FOLDER = new Path("out").append("default");
@@ -420,7 +422,11 @@ public void testHtmlPre02() throws JavaModelException {
 	// Difference with old formatter:
 	// 1) Blank lines inside the <pre> tag are now preserved
 	// 		see bug https://bugs.eclipse.org/bugs/show_bug.cgi?id=231845
+	this.formatterPrefs.number_of_empty_lines_to_preserve = 4;
 	formatUnit("html.pre", "X02.java");
+}
+public void testHtmlPre02b() throws JavaModelException {
+	formatUnit("html.pre", "X02b.java");	
 }
 public void testHtmlPre03() throws JavaModelException {
 	formatUnit("html.pre", "X03.java");
@@ -907,12 +913,14 @@ public void testBlockComments10() throws JavaModelException {
 	formatUnit("comments.block", "X10.java");
 }
 public void testBlockComments11() throws JavaModelException {
+	setPageWidth80();
 	formatUnit("comments.block", "X11.java");
 }
 public void testBlockComments12() throws JavaModelException {
 	formatUnit("comments.block", "X12.java");
 }
 public void testBlockComments13() throws JavaModelException {
+	setPageWidth80();
 	String source =
 		"package test.comments.block;\r\n" + 
 		"\r\n" + 
@@ -932,17 +940,15 @@ public void testBlockComments13() throws JavaModelException {
 		"public class X13 {\n" + 
 		"\n" + 
 		"	protected void handleWarningToken(String token, boolean isEnabling) {\n" + 
-		"		if (token.equals(\"pkgDefaultMethod___\")\n" + 
-		"				|| token.equals(\"packageDefaultMethod___\")/*\n" + 
-		"														 * _backward_\n" + 
-		"														 * _compatible_\n" + 
-		"														 */) {\n" + 
+		"		if (token.equals(\"pkgDefaultMethod___\") || token.equals(\n" + 
+		"				\"packageDefaultMethod___\")/* _backward_ _compatible_ */ ) {\n" + 
 		"		}\n" + 
 		"	}\n" + 
 		"}\n"
 	);
 }
 public void testBlockComments14() throws JavaModelException {
+	setPageWidth80();
 	formatUnit("comments.block", "X14.java");
 }
 public void testBlockComments15() throws JavaModelException {
@@ -952,6 +958,7 @@ public void testBlockComments16() throws JavaModelException {
 	formatUnit("comments.block", "X16.java");
 }
 public void testBlockComments17() throws JavaModelException {
+	setPageWidth80();
 	formatUnit("comments.block", "X17.java");
 }
 public void testBlockComments18() throws JavaModelException {
@@ -993,8 +1000,6 @@ public void testWkspEclipse05() throws JavaModelException {
 	formatUnit("wksp.eclipse", "X05.java");
 }
 public void testWkspEclipse06() throws JavaModelException {
-	// Difference with old formatter:
-	// 1) fixed invalid description indentation when param ref is invalid
 	formatUnit("wksp.eclipse", "X06.java");
 }
 public void testWkspEclipse07() throws JavaModelException {
@@ -1031,13 +1036,11 @@ public void testWkspEclipse11c() throws JavaModelException {
 public void testWkspEclipse12() throws JavaModelException {
 	// Difference with old formatter:
 	// 1) fixed wrong max length with immutable tags
-	// TODO the string is now put on 2 lines
 	formatUnit("wksp.eclipse", "X12.java");
 }
 public void testWkspEclipse12b() throws JavaModelException {
 	// Difference with old formatter:
 	// 1) fixed wrong max length with immutable tags
-	// TODO the string is now put on 2 lines
 	formatUnit("wksp.eclipse", "X12b.java");
 }
 public void testWkspEclipse13() throws JavaModelException {
@@ -1143,10 +1146,6 @@ public void testWkspEclipse28d() throws JavaModelException {
 	formatUnit("wksp.eclipse", "X28d.java");
 }
 public void testWkspEclipse29() throws JavaModelException {
-	// Difference with old formatter:
-	// 1) Consider any tag as normal root tag when syntax is invalid
-	// 2) Split line just after the identifier when name syntax is invalid
-	// TODO verify that these 2 new rules are OK
 	formatUnit("wksp.eclipse", "X29.java");
 }
 public void testWkspEclipse30() throws JavaModelException {

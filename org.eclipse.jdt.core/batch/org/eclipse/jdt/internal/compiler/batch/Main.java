@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,6 +19,9 @@
  *								bug 375366 - ECJ ignores unusedParameterIncludeDocCommentReference unless enableJavadoc option is set
  *								bug 388281 - [compiler][null] inheritance of null annotations as an option
  *								bug 381443 - [compiler][null] Allow parameter widening from @NonNull to unannotated
+ *								Bug 440477 - [null] Infrastructure for feeding external annotations into compilation
+ *								Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+ *								Bug 408815 - [batch][null] Add CLI option for COMPILER_PB_SYNTACTIC_NULL_ANALYSIS_FOR_FIELDS
  *     Jesper S Moller   - Contributions for
  *								bug 407297 - [1.8][compiler] Control generation of parameter names by option
  *    Mat Booth - Contribution for bug 405176 
@@ -1286,6 +1289,10 @@ public class Main implements ProblemSeverities, SuffixConstants {
 			return bundle;
 		}
 	}
+
+	// used with -annotationpath to declare that annotations should be read from the classpath:
+	private static final String ANNOTATION_SOURCE_CLASSPATH = "CLASSPATH"; //$NON-NLS-1$
+
 	// javadoc analysis tuning
 	boolean enableJavadocOn;
 
@@ -1296,6 +1303,9 @@ public class Main implements ProblemSeverities, SuffixConstants {
 	/* Bundle containing messages */
 	public ResourceBundle bundle;
 	protected FileSystem.Classpath[] checkedClasspaths;
+	// paths to external annotations:
+	protected List<String> annotationPaths;
+	protected boolean annotationsFromClasspath;
 
 	public Locale compilerLocale;
 	public CompilerOptions compilerOptions; // read-only
@@ -1669,7 +1679,6 @@ private boolean checkVMVersion(long minimalSupportedVersion) {
  *  Low-level API performing the actual compilation
  */
 public boolean compile(String[] argv) {
-
 	// decode command line arguments
 	try {
 		configure(argv);
@@ -1759,6 +1768,7 @@ public void configure(String[] argv) {
 	final int INSIDE_S_start = 19;
 	final int INSIDE_CLASS_NAMES = 20;
 	final int INSIDE_WARNINGS_PROPERTIES = 21;
+	final int INSIDE_ANNOTATIONPATH_start = 22;
 
 	final int DEFAULT = 0;
 	ArrayList bootclasspaths = new ArrayList(DEFAULT_SIZE_CLASSPATH);
@@ -1767,6 +1777,8 @@ public void configure(String[] argv) {
 	ArrayList classpaths = new ArrayList(DEFAULT_SIZE_CLASSPATH);
 	ArrayList extdirsClasspaths = null;
 	ArrayList endorsedDirClasspaths = null;
+	this.annotationPaths = null;
+	this.annotationsFromClasspath = false;
 
 	int index = -1;
 	int filesCount = 0;
@@ -2209,6 +2221,13 @@ public void configure(String[] argv) {
 							CompilerOptions.GENERATE);
 					continue;
 				}
+				if (currentArg.equals("-genericsignature")) { //$NON-NLS-1$
+					mode = DEFAULT;
+					this.options.put(
+							CompilerOptions.OPTION_LambdaGenericSignature,
+							CompilerOptions.GENERATE);
+					continue;
+				}
 				if (currentArg.startsWith("-g")) { //$NON-NLS-1$
 					mode = DEFAULT;
 					String debugOption = currentArg;
@@ -2453,6 +2472,10 @@ public void configure(String[] argv) {
 					this.options.put(CompilerOptions.OPTION_ReportMissingNonNullByDefaultAnnotation, CompilerOptions.WARNING);
 					continue;
 				}
+				if (currentArg.equals("-annotationpath")) { //$NON-NLS-1$
+					mode = INSIDE_ANNOTATIONPATH_start;
+					continue;
+				}
 				break;
 			case INSIDE_TARGET :
 				if (this.didSpecifyTarget) {
@@ -2651,6 +2674,20 @@ public void configure(String[] argv) {
 			case INSIDE_WARNINGS_PROPERTIES :
 				initializeWarnings(currentArg);
 				mode = DEFAULT;
+				continue;
+			case INSIDE_ANNOTATIONPATH_start:
+				mode = DEFAULT;
+				if (currentArg.isEmpty() || currentArg.charAt(0) == '-')
+					throw new IllegalArgumentException(this.bind("configure.missingAnnotationPath", currentArg)); //$NON-NLS-1$
+				if (ANNOTATION_SOURCE_CLASSPATH.equals(currentArg)) {
+					this.annotationsFromClasspath = true;
+				} else {
+					if (this.annotationPaths == null)
+						this.annotationPaths = new ArrayList<String>();
+					StringTokenizer tokens = new StringTokenizer(currentArg, File.pathSeparator);
+					while (tokens.hasMoreTokens())
+						this.annotationPaths.add(tokens.nextToken());
+				}
 				continue;
 		}
 
@@ -2985,26 +3022,7 @@ public String extractDestinationPathFromSourceFile(CompilationResult result) {
  * Answer the component to which will be handed back compilation results from the compiler
  */
 public ICompilerRequestor getBatchRequestor() {
-	return new ICompilerRequestor() {
-		int lineDelta = 0;
-		public void acceptResult(CompilationResult compilationResult) {
-			if (compilationResult.lineSeparatorPositions != null) {
-				int unitLineCount = compilationResult.lineSeparatorPositions.length;
-				this.lineDelta += unitLineCount;
-				if (Main.this.showProgress && this.lineDelta > 2000) {
-					// in -log mode, dump a dot every 2000 lines compiled
-					Main.this.logger.logProgress();
-					this.lineDelta = 0;
-				}
-			}
-			Main.this.logger.startLoggingSource(compilationResult);
-			if (compilationResult.hasProblems() || compilationResult.hasTasks()) {
-				Main.this.logger.logProblems(compilationResult.getAllProblems(), compilationResult.compilationUnit.getContents(), Main.this);
-			}
-			outputClassFiles(compilationResult);
-			Main.this.logger.endLoggingSource();
-		}
-	};
+    return new BatchCompilerRequestor(this);
 }
 /*
  *  Build the set of compilation source units
@@ -3073,7 +3091,8 @@ public File getJavaHome() {
 }
 
 public FileSystem getLibraryAccess() {
-	return new FileSystem(this.checkedClasspaths, this.filenames);
+	return new FileSystem(this.checkedClasspaths, this.filenames, 
+					this.annotationsFromClasspath && CompilerOptions.ENABLED.equals(this.options.get(CompilerOptions.OPTION_AnnotationBasedNullAnalysis)));
 }
 
 /*
@@ -3827,6 +3846,11 @@ private void handleErrorOrWarningToken(String token, boolean isEnabling, int sev
 			} else if (token.equals("switchDefault")) { //$NON-NLS-1$
 				setSeverity(CompilerOptions.OPTION_ReportMissingDefaultCase, severity, isEnabling);
 				return;
+			} else if (token.equals("syntacticAnalysis")) { //$NON-NLS-1$
+				this.options.put(
+						CompilerOptions.OPTION_SyntacticNullAnalysisForFields,
+						isEnabling ? CompilerOptions.ENABLED : CompilerOptions.DISABLED);
+				return;
 			}
 			break;
 		case 't' :
@@ -3858,6 +3882,9 @@ private void handleErrorOrWarningToken(String token, boolean isEnabling, int sev
 				return;
 			} else if (token.equals("unusedArgument") || token.equals("unusedArguments")/*backward compatible*/) { //$NON-NLS-1$ //$NON-NLS-2$
 				setSeverity(CompilerOptions.OPTION_ReportUnusedParameter, severity, isEnabling);
+				return;
+			} else if (token.equals("unusedExceptionParam")) { //$NON-NLS-1$
+				setSeverity(CompilerOptions.OPTION_ReportUnusedExceptionParameter, severity, isEnabling);
 				return;
 			} else if (token.equals("unusedImport") || token.equals("unusedImports")/*backward compatible*/) { //$NON-NLS-1$ //$NON-NLS-2$
 				setSeverity(CompilerOptions.OPTION_ReportUnusedImport, severity, isEnabling);
@@ -4584,6 +4611,13 @@ protected void setPaths(ArrayList bootclasspaths,
 	this.checkedClasspaths = new FileSystem.Classpath[classpaths.size()];
 	classpaths.toArray(this.checkedClasspaths);
 	this.logger.logClasspath(this.checkedClasspaths);
+
+	if (this.annotationPaths != null && CompilerOptions.ENABLED.equals(this.options.get(CompilerOptions.OPTION_AnnotationBasedNullAnalysis))) {
+		for (FileSystem.Classpath cp : this.checkedClasspaths) {
+			if (cp instanceof ClasspathJar)
+				((ClasspathJar) cp).annotationPaths = this.annotationPaths;
+		}
+	}
 }
 private static boolean shouldIgnoreOptionalProblems(char[][] folderNames, char[] fileName) {
 	if (folderNames == null || fileName == null) {

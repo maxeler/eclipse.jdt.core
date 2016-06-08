@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,6 +24,7 @@
  *							Bug 427438 - [1.8][compiler] NPE at org.eclipse.jdt.internal.compiler.ast.ConditionalExpression.generateCode(ConditionalExpression.java:280)
  *							Bug 418537 - [1.8][null] Fix null type annotation analysis for poly conditional expressions
  *							Bug 428352 - [1.8][compiler] Resolution errors don't always surface
+ *							Bug 407414 - [compiler][null] Incorrect warning on a primitive type being null
  *******************************************************************************/
 package org.eclipse.jdt.internal.compiler.ast;
 
@@ -36,7 +37,7 @@ import org.eclipse.jdt.internal.compiler.codegen.*;
 import org.eclipse.jdt.internal.compiler.flow.*;
 import org.eclipse.jdt.internal.compiler.lookup.*;
 
-public class ConditionalExpression extends OperatorExpression {
+public class ConditionalExpression extends OperatorExpression implements IPolyExpression {
 
 	public Expression condition, valueIfTrue, valueIfFalse;
 	public Constant optimizedBooleanConstant;
@@ -59,12 +60,9 @@ public class ConditionalExpression extends OperatorExpression {
 	private boolean isPolyExpression = false;
 	private TypeBinding originalValueIfTrueType;
 	private TypeBinding originalValueIfFalseType;
-	private BlockScope polyExpressionScope;
 	private boolean use18specifics;
-	public ConditionalExpression(
-		Expression condition,
-		Expression valueIfTrue,
-		Expression valueIfFalse) {
+
+	public ConditionalExpression(Expression condition, Expression valueIfTrue, Expression valueIfFalse) {
 		this.condition = condition;
 		this.valueIfTrue = valueIfTrue;
 		this.valueIfFalse = valueIfFalse;
@@ -437,6 +435,8 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 	}
 
 	public int nullStatus(FlowInfo flowInfo, FlowContext flowContext) {
+		if ((this.implicitConversion & TypeIds.BOXING) != 0)
+			return FlowInfo.NON_NULL;
 		return this.nullStatus;
 	}
 
@@ -534,27 +534,20 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		this.condition.computeConversion(scope, TypeBinding.BOOLEAN, conditionType);
 
 		if (this.valueIfTrue instanceof CastExpression) this.valueIfTrue.bits |= DisableUnnecessaryCastCheck; // will check later on
-		this.originalValueIfTrueType = this.valueIfTrue.resolvedType;
+			this.originalValueIfTrueType = this.valueIfTrue.resolvedType;
 
 		if (this.valueIfFalse instanceof CastExpression) this.valueIfFalse.bits |= DisableUnnecessaryCastCheck; // will check later on
-		this.originalValueIfFalseType = this.valueIfFalse.resolvedType;
-
-		if (isPolyExpression()) {
-			if (this.expectedType == null) {
-				this.polyExpressionScope = scope; // preserve for eventual resolution/error reporting.
-			}
-		}
+			this.originalValueIfFalseType = this.valueIfFalse.resolvedType;
 
 		if (conditionType == null || this.originalValueIfTrueType == null || this.originalValueIfFalseType == null)
 			return null;
 		if (isPolyExpression()) {
 			if (this.expectedType == null) {
-				this.polyExpressionScope = scope; // preserve for eventual resolution/error reporting.
 				return new PolyTypeBinding(this);
 			}
-			computeConversions(scope, this.expectedType);
-			return this.resolvedType = this.expectedType;
+			return this.resolvedType = computeConversions(scope, this.expectedType) ? this.expectedType : null;
 		}
+
 		TypeBinding valueIfTrueType = this.originalValueIfTrueType;
 		TypeBinding valueIfFalseType = this.originalValueIfFalseType;
 		if (use15specifics && TypeBinding.notEquals(valueIfTrueType, valueIfFalseType)) {
@@ -705,7 +698,7 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 			if (commonType != null) {
 				this.valueIfTrue.computeConversion(scope, commonType, this.originalValueIfTrueType);
 				this.valueIfFalse.computeConversion(scope, commonType, this.originalValueIfFalseType);
-				return this.resolvedType = commonType.capture(scope, this.sourceEnd);
+				return this.resolvedType = commonType.capture(scope, this.sourceStart, this.sourceEnd);
 			}
 		} else {
 			// < 1.5 : one operand must be convertible to the other
@@ -726,7 +719,8 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		return null;
 	}
 
-	protected void computeConversions(BlockScope scope, TypeBinding targetType) {
+	protected boolean computeConversions(BlockScope scope, TypeBinding targetType) {
+		boolean ok = true;
 		if (this.originalValueIfTrueType != null && this.originalValueIfTrueType.isValidBinding()) {
 			if (this.valueIfTrue.isConstantValueOfTypeAssignableToType(this.originalValueIfTrueType, targetType)
 					|| this.originalValueIfTrueType.isCompatibleWith(targetType)) {
@@ -747,6 +741,7 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 				}
 			} else {
 				scope.problemReporter().typeMismatchError(this.originalValueIfTrueType, targetType, this.valueIfTrue, null);
+				ok = false;
 			}
 		}
 		if (this.originalValueIfFalseType != null && this.originalValueIfFalseType.isValidBinding()) {
@@ -769,8 +764,10 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 				}
 			} else {
 				scope.problemReporter().typeMismatchError(this.originalValueIfFalseType, targetType, this.valueIfFalse, null);
+				ok = false;
 			}
 		}
+		return ok;
 	}
 
 	public void setExpectedType(TypeBinding expectedType) {
@@ -785,21 +782,34 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		return this.expressionContext;
 	}
 	
-	public TypeBinding checkAgainstFinalTargetType(TypeBinding targetType, Scope scope) {
-		// in 1.8 if treated as a poly expression:
-		if (isPolyExpression()) {
-			targetType = targetType.uncapture(this.polyExpressionScope);
-			this.originalValueIfTrueType = this.valueIfTrue.checkAgainstFinalTargetType(targetType, scope);
-			this.originalValueIfFalseType = this.valueIfFalse.checkAgainstFinalTargetType(targetType, scope);
-			computeConversions(this.polyExpressionScope, targetType);
-			this.resolvedType = targetType;
-		}
-		return this.resolvedType;
+	@Override
+	public Expression[] getPolyExpressions() {
+		Expression [] truePolys = this.valueIfTrue.getPolyExpressions();
+		Expression [] falsePolys = this.valueIfFalse.getPolyExpressions();
+		if (truePolys.length == 0)
+			return falsePolys;
+		if (falsePolys.length == 0)
+			return truePolys;
+		Expression [] allPolys = new Expression [truePolys.length + falsePolys.length];
+		System.arraycopy(truePolys, 0, allPolys, 0, truePolys.length);
+		System.arraycopy(falsePolys, 0, allPolys, truePolys.length, falsePolys.length);
+		return allPolys;
 	}
-	
+
 	public boolean isPertinentToApplicability(TypeBinding targetType, MethodBinding method) {
 		return this.valueIfTrue.isPertinentToApplicability(targetType, method) 
 				&& this.valueIfFalse.isPertinentToApplicability(targetType, method);
+	}
+	
+	@Override
+	public boolean isPotentiallyCompatibleWith(TypeBinding targetType, Scope scope) {
+		return this.valueIfTrue.isPotentiallyCompatibleWith(targetType, scope) 
+				&& this.valueIfFalse.isPotentiallyCompatibleWith(targetType, scope);
+	}
+	
+	@Override
+	public boolean isFunctionalType() {
+		return this.valueIfTrue.isFunctionalType() || this.valueIfFalse.isFunctionalType(); // Even if only one arm is functional type, this will require a functional interface target
 	}
 	
 	public boolean isPolyExpression() throws UnsupportedOperationException {
@@ -850,11 +860,6 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		return isPolyExpression() ?
 				this.valueIfTrue.sIsMoreSpecific(s, t, scope) && this.valueIfFalse.sIsMoreSpecific(s, t, scope):
 				false;
-	}
-	
-	public void tagAsEllipsisArgument() {
-		this.valueIfTrue.tagAsEllipsisArgument();
-		this.valueIfFalse.tagAsEllipsisArgument();
 	}
 
 	public void traverse(ASTVisitor visitor, BlockScope scope) {

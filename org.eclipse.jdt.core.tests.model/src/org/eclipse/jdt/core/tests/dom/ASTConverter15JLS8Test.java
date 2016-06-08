@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2013 IBM Corporation and others.
+ * Copyright (c) 2011, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -34,6 +34,7 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.tests.util.Util;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class ASTConverter15JLS8Test extends ConverterTestSetup {
 
 	ICompilationUnit workingCopy;
@@ -7055,7 +7056,7 @@ public class ASTConverter15JLS8Test extends ConverterTestSetup {
 				false);
 		assertEquals("Not a compilation unit", ASTNode.COMPILATION_UNIT, node.getNodeType());
 		CompilationUnit unit = (CompilationUnit) node;
-		assertProblemsSize(unit, 1, "Type mismatch: cannot convert from Test to Annotation");
+		assertProblemsSize(unit, 1, "Test is not an annotation type");
 		node = getASTNode(unit, 0, 0);
 		assertEquals("Not a field declaration", ASTNode.FIELD_DECLARATION, node.getNodeType());
 		FieldDeclaration declaration = (FieldDeclaration) node;
@@ -9376,7 +9377,7 @@ public class ASTConverter15JLS8Test extends ConverterTestSetup {
 
 	//https://bugs.eclipse.org/bugs/show_bug.cgi?id=192774
 	//Test ability to distinguish AST nodes of multiple similar annotations.
-	public void _test0276() throws JavaModelException {
+	public void test0276() throws JavaModelException {
 		this.workingCopy = getWorkingCopy("/Converter15/src/X.java", true/*resolve*/);
 		String contents =
 			"@interface Annot {\n" +

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@
  *     Brock Janiczak   - Contribution for bug 150741
  *     Ray V. (voidstar@gmail.com) - Contribution for bug 282988
  *     Jesper S Moller - Contribution for bug 402173
+ *     Mateusz Matela <mateusz.matela@gmail.com> - [formatter] Formatter does not format Java code correctly, especially when max line width is set - https://bugs.eclipse.org/303519
  *******************************************************************************/
 package org.eclipse.jdt.core.formatter;
 
@@ -18,7 +19,7 @@ import java.util.Map;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.internal.formatter.DefaultCodeFormatterOptions;
-import org.eclipse.jdt.internal.formatter.align.Alignment;
+import org.eclipse.jdt.internal.formatter.DefaultCodeFormatterOptions.Alignment;
 
 /**
  * Constants used to set up the options of the code formatter.
@@ -3637,7 +3638,7 @@ public class DefaultCodeFormatterConstants {
 	 * FORMATTER / Option to specify the length of the page. Beyond this length, the formatter will try to split the code
 	 *     - option id:         "org.eclipse.jdt.core.formatter.lineSplit"
 	 *     - possible values:   "&lt;n&gt;", where n is zero or a positive integer
-	 *     - default:           "80"
+	 *     - default:           "120"
 	 * </pre>
 	 * @since 3.0
 	 */
@@ -4048,7 +4049,9 @@ public class DefaultCodeFormatterConstants {
 	 * @since 3.0
 	 */
 	public static Map getEclipse21Settings() {
-		return DefaultCodeFormatterOptions.getDefaultSettings().getMap();
+		DefaultCodeFormatterOptions options = DefaultCodeFormatterOptions.getDefaultSettings();
+		options.page_width = 80; // changed with bug 356841
+		return options.getMap();
 	}
 
 	/**

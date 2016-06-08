@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2014 IBM Corporation and others.
+ * Copyright (c) 2011, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,11 +14,20 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.tests.compiler.regression;
 
+import java.io.File;
 import java.util.Map;
 
+import org.eclipse.jdt.core.ToolFactory;
+import org.eclipse.jdt.core.tests.util.Util;
+import org.eclipse.jdt.core.util.IAttributeNamesConstants;
+import org.eclipse.jdt.core.util.IClassFileAttribute;
+import org.eclipse.jdt.core.util.IClassFileReader;
+import org.eclipse.jdt.core.util.IMethodInfo;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
 import junit.framework.Test;
+
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class LambdaExpressionsTest extends AbstractRegressionTest {
 
 static {
@@ -2182,11 +2191,6 @@ public void test424589() {
 		"----------\n" + 
 		"2. ERROR in X.java (at line 11)\n" + 
 		"	Set<Z> x = foo(Set::new);\n" + 
-		"	           ^^^^^^^^^^^^^\n" + 
-		"Type mismatch: cannot convert from Collection<Object> to Set<Z>\n" + 
-		"----------\n" + 
-		"3. ERROR in X.java (at line 11)\n" + 
-		"	Set<Z> x = foo(Set::new);\n" + 
 		"	               ^^^\n" + 
 		"Cannot instantiate the type Set\n" + 
 		"----------\n");
@@ -4156,7 +4160,7 @@ public void test432619a() throws Exception {
 		"OK");
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=432682, [1.8][compiler] Type mismatch error with lambda expression
-public void _test432682() throws Exception {
+public void test432682() throws Exception {
 	this.runConformTest(
 		new String[] {
 			"X.java",
@@ -4174,7 +4178,7 @@ public void _test432682() throws Exception {
 			"	}\n" +
 			"}\n"
 		},
-		"OK");
+		"true");
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=432520, compiler "duplicate method" bug with lamdas and generic interfaces 
 public void test432520() throws Exception {
@@ -4380,32 +4384,6 @@ public void test432531() {
 			"}"
 	});
 }
-// https://bugs.eclipse.org/bugs/show_bug.cgi?id=432531 [1.8] VerifyError with anonymous subclass inside of lambda expression in the superclass constructor call
-public void test432531a() {
-	this.runConformTest(
-		new String[] {
-			"Y.java", 
-			"import java.util.function.Supplier;\n" + 
-			"class E {\n" + 
-			"	E(Supplier<Object> factory) { }\n" + 
-			"}\n" + 
-			"public class Y extends E {\n" + 
-			"	Y() {\n" + 
-			"		super( () -> {\n" + 
-			"			class Z extends E {\n" + 
-			"				Z() {\n" + 
-			"					super(() -> new Object());\n" + 
-			"				}\n" + 
-			"			}\n" + 
-			"			return new Z();\n" + 
-			"			});\n" + 
-			"	}\n" + 
-			"	public static void main(String[] args) {\n" + 
-			"		new Y();\n" + 
-			"	}\n" + 
-			"}"
-	});
-}
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=434297 [1.8] NPE in LamdaExpression.analyseCode with lamda expression nested in a conditional expression
 public void test434297() {
 	this.runConformTest(
@@ -4432,6 +4410,1293 @@ public void test434297() {
 			"	}\n" + 
 			"  }\n" + 
 			"}"
+	});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=436542 : Eclipse 4.4 compiler generates "bad class file" according to javac
+public void test436542() throws Exception {
+	String jreDirectory = Util.getJREDirectory();
+	String jfxJar = Util.toNativePath(jreDirectory + "/lib/ext/jfxrt.jar");
+	this.runConformTest(
+		new String[] {
+			"Utility.java",
+			"import java.util.Collection;\n" + 
+			"import java.util.List;\n" + 
+			"import java.util.function.Function;\n" + 
+			"import java.util.stream.Collectors;\n" + 
+			"import javafx.collections.ListChangeListener;\n" + 
+			"import javafx.collections.ObservableList;\n" + 
+			"public class Utility {\n" + 
+			"	public static void main(String[] args) {\n" + 
+			"		System.out.println(\"Success\");\n" + 
+			"	}\n" + 
+			"    public static <T, R> List<R> mapList(Collection<T> original, Function<T, R> func) {\n" + 
+			"        return original.stream().map(func).collect(Collectors.toList());\n" + 
+			"    }\n" + 
+			"    /**\n" + 
+			"     * \"Binds\" the destination list to the observable source list with a transformation function applied.\n" + 
+			"     * Whenever the source list changes, the destination list is altered to match by applying\n" + 
+			"     * the given function to each element in the source list.\n" + 
+			"     */\n" + 
+			"    public static <S, T> void bindMap(List<T> dest, ObservableList<S> src, Function<S, T> func) {\n" + 
+			"        dest.clear();\n" + 
+			"        dest.addAll(mapList(src, func));\n" + 
+			"        src.addListener((ListChangeListener<S>) changes -> {\n" + 
+			"            while (changes.next()) {\n" + 
+			"                if (changes.wasPermutated() || changes.wasUpdated()) {\n" + 
+			"                    // Same code for updated, replaced and permutation, just recalc the range:\n" + 
+			"                    for (int i = changes.getFrom(); i < changes.getTo(); i++)\n" + 
+			"                        dest.set(i, func.apply(src.get(i)));\n" + 
+			"                } else {\n" + 
+			"                    for (int i = 0; i < changes.getRemovedSize(); i++)\n" + 
+			"                        dest.remove(changes.getFrom());\n" + 
+			"                    for (int i = 0; i < changes.getAddedSubList().size();i++)\n" + 
+			"                        dest.add(i + changes.getFrom(), func.apply(changes.getAddedSubList().get(i)));\n" + 
+			"                }\n" + 
+			"            }\n" + 
+			"        });\n" + 
+			"    }\n" + 
+			"}",
+		},
+		"Success",
+		Util.concatWithClassLibs(new String[]{jfxJar,OUTPUT_DIR}, false),
+		true,
+		null);
+	IClassFileReader classFileReader = ToolFactory.createDefaultClassFileReader(OUTPUT_DIR + File.separator + "Utility.class", IClassFileReader.ALL);
+	IMethodInfo lambdaMethod = null;
+	IMethodInfo[] methodInfos = classFileReader.getMethodInfos();
+	int length = methodInfos.length;
+	for (int i = 0; i < length; i++) {
+		IMethodInfo methodInfo = methodInfos[i];
+		if ("lambda$0".equals(new String(methodInfo.getName()))) {
+			lambdaMethod = methodInfo;
+			break;
+		}
+	}
+	assertNotNull("Could not find lambda method",lambdaMethod);
+	IClassFileAttribute signature = org.eclipse.jdt.internal.core.util.Util.getAttribute(lambdaMethod, IAttributeNamesConstants.SIGNATURE);
+	assertNull("Found generic signature for lambda method", signature);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=439515 [1.8] ECJ reports error at method reference to overloaded instance method
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=440643, Eclipse compiler doesn't like method references with overloaded varargs method
+public void test439515() {
+	this.runConformTest(
+		new String[] {
+			"X.java", 
+			"interface Fun<T, R> {\n" +
+			"	R apply(T arg);\n" +
+			"}\n" +
+			"public class X {\n" +
+			"	int size() {\n" +
+			"		return -1;\n" +
+			"	}\n" +
+			"	int size(Object arg) {\n" +
+			"		return 0;\n" +
+			"	}\n" +
+			"	int size(X arg) {\n" +
+			"		return 1;\n" +
+			"	}\n" +
+			"	public static void main(String args[]) {\n" +
+			"		Fun<X, Integer> f1 = X::size;\n" +
+			"		System.out.println(f1.apply(new X()));\n" +
+			"	}\n" +
+			"}\n"
+	    },
+	    "-1");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=439515 [1.8] ECJ reports error at method reference to overloaded instance method
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=440643, Eclipse compiler doesn't like method references with overloaded varargs method
+public void test439515a() {
+	this.runConformTest(
+		new String[] {
+			"X.java", 
+			"interface Fun<T, R> {\n" +
+			"	R apply(T arg);\n" +
+			"}\n" +
+			"public class X {\n" +
+			"	static int size() {\n" +
+			"		return -1;\n" +
+			"	}\n" +
+			"	static int size(Object arg) {\n" +
+			"		return 0;\n" +
+			"	}\n" +
+			"	static int size(X arg) {\n" +
+			"		return 1;\n" +
+			"	}\n" +
+			"	public static void main(String args[]) {\n" +
+			"		Fun<X, Integer> f1 = X::size;\n" +
+			"		System.out.println(f1.apply(new X()));\n" +
+			"	}\n" +
+			"}\n"
+	    },
+	    "1");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=438534 Java8 java.lang.Method.getGeneric* methods fail with java.lang.reflect.GenericSignatureFormatError: Signature Parse error: Expected Field Type Signature
+public void test438534() {
+	this.runConformTest(
+		new String[] {
+			"ByteCodeTest.java", 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.security.AccessController;\n" + 
+			"import java.security.PrivilegedAction;\n" + 
+			"import java.util.Collections;\n" + 
+			"import java.util.Comparator;\n" + 
+			"public class ByteCodeTest {\n" + 
+			"  public static class BrokenByteCode {\n" + 
+			"    public void hello() {\n" + 
+			"      Collections.sort(Collections.<String> emptyList(), Comparator.comparing((String data) -> data.length()));\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"  public static void main(String[] args) {\n" + 
+			"    for (Method method : AccessController.doPrivileged((PrivilegedAction<Method[]>) () -> BrokenByteCode.class.getDeclaredMethods())) {\n" + 
+			"      method.getGenericExceptionTypes();\n" + 
+			"      method.getGenericParameterTypes();\n" + 
+			"      method.getGenericReturnType();\n" + 
+			"    }\n" + 
+			"    System.out.println(\"SUCCESS\");\n" +
+			"  }\n" + 
+			"}\n"
+	    },
+	    "SUCCESS");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=440152 [codegen]"Missing code implementation in the compiler" on cascaded inner class references
+public void test440152() {
+	this.runConformTest(
+		new String[] {
+			"Foo.java",
+			"import java.util.function.Function;\n" + 
+			"interface Foo {void alpha(Bar pBar);}\n" + 
+			"class Bar {Object bravo() {return null;}}\n" + 
+			"class Test {\n" + 
+			"  Test(Function pFunction) {\n" + 
+			"    class Baz {public Baz(Object pObj) {pFunction.apply(pObj);}}\n" + 
+			"    delta(pBar -> charlie(new Baz(pBar.bravo())));\n" + 
+			"  }\n" + 
+			"  void charlie(Object pRemovals) {}\n" + 
+			"  void delta(Foo pListener) {}\n" + 
+			"}"
+	});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=440152 [codegen]"Missing code implementation in the compiler" on cascaded inner class references
+public void test440152a() {
+	this.runConformTest(
+		new String[] {
+			"Foo.java",
+			"import java.util.function.Function;\n" + 
+			"interface Foo {void alpha(Bar pBar);}\n" + 
+			"class Bar {Object bravo() {return null;}}\n" + 
+			"class Test {\n" + 
+			"	Test(Function pFunction) {\n" + 
+			"	    class Baz {\n" + 
+			"	    	public Baz(Object pObj) {\n" + 
+			"	    	}\n" + 
+			"	    	class NestedBaz extends Baz {\n" + 
+			"	    		NestedBaz(Object pObj) {\n" + 
+			"	    			super(pObj);\n" + 
+			"	    			pFunction.apply(pObj);\n" + 
+			"	    		}\n" + 
+			"	    	}\n" + 
+			"	    	}\n" + 
+			"	    delta(pBar -> charlie(new Baz(pBar).new NestedBaz(pBar.bravo())));\n" + 
+			"	  }\n" + 
+			"	  void charlie(Object pRemovals) {}\n" + 
+			"	  void delta(Foo pListener) {}\n" + 
+			"}\n"
+	});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=432110,  [1.8][compiler] nested lambda type incorrectly inferred vs javac
+public void test432110() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.function.Function;\n" +
+			"public interface X {\n" +
+			"    default void test() {\n" +
+			"        testee().flatMap(_warning_ -> {\n" +
+			"            return result().map(s -> 0);\n" +
+			"        });\n" +
+			"    }\n" +
+			"    Either<Integer, Integer> testee();\n" +
+			"    Either<Integer, String> result();\n" +
+			"    static interface Either<L, R> {\n" +
+			"        <U> Either<L, U> flatMap(Function<? super R, Either<L, U>> mapper);\n" +
+			"        <U> Either<L, U> map(Function<? super R, U> mapper);\n" +
+			"    }\n" +
+			"    public static void main(String [] args) {\n" +
+			"        System.out.println(\"OK\");\n" +
+			"    }\n" +
+			"}\n",
+		}, 
+		"OK");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=441929, [1.8][compiler] @SuppressWarnings("unchecked") not accepted on local variable
+public void test441929() {
+	this.runNegativeTest(
+		new String[] {
+			"Y.java",
+			"public class Y {\n" +
+			"    @FunctionalInterface\n" +
+			"    interface X {\n" +
+			"        public void x();\n" +
+			"    }\n" +
+			"    public void z(X x) {\n" +
+			"    }\n" +
+			"    public <T> void test() {\n" +
+			"        z(() -> {\n" +
+			"            try {\n" +
+			"                @SuppressWarnings(\"unchecked\")   // (1)\n" +
+			"                Class<? extends T> klass = (Class<? extends T>) Class.forName(\"java.lang.Object\");   // (2)\n" +
+			"                System.out.println(klass.getName());\n" +
+			"            } catch (Exception e) {\n" +
+			"                e.printStackTrace();\n" +
+			"            }\n" +
+			"        });\n" +
+			"    }\n" +
+			"}\n",
+		}, 
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=437781, [1.8][compiler] Eclipse accepts code rejected by javac because of ambiguous method reference
+public void test437781() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.function.Consumer;\n" +
+			"import java.util.function.Function;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		new X().visit( System.out::println );\n" +
+			"	}\n" +
+			"	public boolean visit(Function<Integer, Boolean> func) {\n" +
+			"		System.out.println(\"Function\");\n" +
+			"		return true;\n" +
+			"	}\n" +
+			"	public void visit(Consumer<Integer> func) {\n" +
+			"		System.out.println(\"Consumer\");\n" +
+			"	}	\n" +
+			"}\n"
+		},
+		"Consumer");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=443889, [1.8][compiler] Lambdas get compiled to duplicate methods
+public void test443889() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.function.BiConsumer;\n" +
+			"import java.util.function.Consumer;\n" +
+			"public class X {\n" +
+			"    public interface CurryBiConsumer<T, U> extends BiConsumer<T, U> {\n" +
+			"        default public CurryConsumer<U> curryFirst(T t) {\n" +
+			"            return (u) -> accept(t, u);\n" +
+			"        }\n" +
+			"        default public CurryConsumer<T> currySecond(U u) {\n" +
+			"            return (t) -> accept(t, u);\n" +
+			"        }\n" +
+			"    }\n" +
+			"    public interface CurryConsumer<T> extends Consumer<T> {\n" +
+			"        default public Runnable curry(T t) {\n" +
+			"            return () -> accept(t);\n" +
+			"        }\n" +
+			"    }\n" +
+			"    static void execute(Runnable r) {\n" +
+			"        System.out.println(\"BEFORE\");\n" +
+			"        r.run();\n" +
+			"        System.out.println(\"AFTER\");\n" +
+			"    }\n" +
+			"    static void display(String str, int count) {\n" +
+			"        System.out.println(\"DISP: \" + str + \" \" + count);\n" +
+			"    }\n" +
+			"    public static void main(String[] args) {\n" +
+			"        CurryBiConsumer<String, Integer> bc = X::display;\n" +
+			"        execute(bc.curryFirst(\"Salomon\").curry(42));\n" +
+			"    }\n" +
+			"}\n"
+		},
+		"BEFORE\n" + 
+		"DISP: Salomon 42\n" + 
+		"AFTER");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=441907, [1.8][compiler] Eclipse 4.4.x compiler generics bugs with streams and lambdas 
+public void test441907() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.*;\n" +
+			"import java.util.function.Predicate;\n" +
+			"import java.util.stream.Stream;\n" +
+			"public class X {\n" +
+			"  public static class FooBar<V> {\n" +
+			"  }\n" +
+			"  public interface FooBarred {\n" +
+			"    public <V> boolean hasFooBar(final FooBar<V> fooBar);\n" +
+			"  }\n" +
+			"  public interface Widget extends FooBarred {\n" +
+			"  }\n" +
+			"  public static void test() {\n" +
+			"    Set<FooBar<?>> foobars = new HashSet<>();\n" +
+			"    Set<Widget> widgets = new HashSet<>();\n" +
+			"    Stream<X.FooBar<?>> s = null;\n" +
+			"    FooBarred fb = null;\n" +
+			"    fb.hasFooBar((FooBar<?>) null);\n" +
+			"    boolean anyWidgetHasFooBar = widgets.stream().anyMatch(\n" +
+			"        widget -> foobars.stream().anyMatch(widget::hasFooBar)\n" +
+			"        );\n" +
+			"  }\n" +
+			"}\n"
+		},
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444773, [1.8][compiler] NullPointerException in LambdaExpression.analyseCode 
+public void test444773() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.List;\n" +
+			"import java.util.Optional;\n" +
+			" \n" +
+			"public class X {\n" +
+			"  static class Container {\n" +
+			"    final private String s;\n" +
+			"    public Container(String s) { this.s = s; }\n" +
+			"  }\n" +
+			" \n" +
+			"  public static void main(String[] args) {\n" +
+			"    final List<Container> list = new ArrayList<>();\n" +
+			"    final Optional<String> optStr = Optional.of(\"foo\");\n" +
+			"    list.add(new Container(optStr.orElseThrow(() -> new IllegalStateException()))); // Error here\n" +
+			" \n" +
+			"    // This will work:\n" +
+			"    final String s = optStr.orElseThrow(IllegalStateException::new);\n" +
+			"    list.add(new Container(s));	\n" +
+			"  }\n" +
+			"}\n"
+		},
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444772, [1.8][compiler] NullPointerException in ReferenceExpression.shouldGenerateImplicitLambda 
+public void test444772() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.List;\n" +
+			"import java.util.Optional;\n" +
+			" \n" +
+			"public class X {\n" +
+			"  static class Container {\n" +
+			"    final private String s;\n" +
+			"    public Container(String s) { this.s = s; }\n" +
+			"  }\n" +
+			" \n" +
+			"  public static void main(String[] args) {\n" +
+			"    final List<Container> list = new ArrayList<>();\n" +
+			"    final Optional<String> optStr = Optional.of(\"foo\");\n" +
+			"    list.add(new Container(optStr.orElseThrow(IllegalStateException::new))); // Error here\n" +
+			" \n" +
+			"    // This will work:\n" +
+			"    final String s = optStr.orElseThrow(IllegalStateException::new);\n" +
+			"    list.add(new Container(s));	\n" +
+			"  }\n" +
+			"}\n"
+		},
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444803, [1.8][compiler] Exception in thread "main" java.lang.VerifyError: Bad local variable type
+public void test444803() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.Collection;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"    X abc = null;\n" +
+			"    public static void main(String[] args) {\n" +
+			"        new X();\n" +
+			"    }\n" +
+			"    private void doSth() {\n" +
+			"        final List<String> l = new ArrayList<>();\n" +
+			"        try {\n" +
+			"            System.out.println(\"ok\");\n" +
+			//"            Runnable r = () -> abc.terminateInstances(abc.withInstanceIds(l));\n" +
+			"        } finally {\n" +
+			"            Runnable r = () -> abc.terminateInstances(abc.withInstanceIds(l));\n" +
+			"        }\n" +
+			"    }\n" +
+			"    public void terminateInstances(X abc) {\n" +
+			"    }\n" +
+			"    public X withInstanceIds(Collection<String> arg0) {\n" +
+			"    	return null;\n" +
+			"    }\n" +
+			"}\n" +
+			"interface FI {\n" +
+			"	public void foo(Collection<String> arg0);\n" +
+			"}\n"
+		},
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444785, [1.8] Error in JDT Core during reconcile
+public void test444785() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.io.Serializable;\n" +
+			"import java.util.function.Function;\n" +
+			"public interface X {\n" +
+			"	@FunctionalInterface\n" +
+			"	static interface Function1<T1, R> extends Function<T1, R>, Serializable {\n" +
+			"		@Override\n" +
+			"		R apply(T1 t1);\n" +
+			"	}\n" +
+			"	@FunctionalInterface\n" +
+			"	static interface Function6<T1, T2, T3, T4, T5, T6, R> extends Serializable {\n" +
+			"		R apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6);\n" +
+			"		default Function1<T1, Function1<T2, Function1<T3, Function1<T4, Function1<T5, Function1<T6, R>>>>>> curried() {\n" +
+			"			return t1 -> t2 -> t3 -> t4 -> t5 -> t6 -> apply(t1, t2, t3, t4, t5, t6);\n" +
+			"		}\n" +
+			"		default Function1<Tuple6<T1, T2, T3, T4, T5, T6>, R> tupled() {\n" +
+			"			return t -> apply(t._1, t._2, t._3, t._4, t._5, t._6);\n" +
+			"		}\n" +
+			"	}\n" +
+			"	static final class Tuple6<T1, T2, T3, T4, T5, T6> {\n" +
+			"		public final T1 _1;\n" +
+			"		public final T2 _2;\n" +
+			"		public final T3 _3;\n" +
+			"		public final T4 _4;\n" +
+			"		public final T5 _5;\n" +
+			"		public final T6 _6;\n" +
+			"		public Tuple6(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) {\n" +
+			"			this._1 = t1;\n" +
+			"			this._2 = t2;\n" +
+			"			this._3 = t3;\n" +
+			"			this._4 = t4;\n" +
+			"			this._5 = t5;\n" +
+			"			this._6 = t6;\n" +
+			"		}\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447119, [1.8][compiler] method references lost generic type information (4.4 -> 4.4.1 regression) 
+public void test447119() {
+	this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.lang.reflect.Method;\n" +
+				"import java.lang.reflect.Parameter;\n" +
+				"import java.util.Arrays;\n" +
+				"import java.util.function.Function;\n" +
+				"import java.util.List;\n" +
+				"public class X {\n" +
+				"    private static List<String> foo(List<String> x){return x;}\n" +
+				"    public static void main(String[] args) {\n" +
+				"        Function<List<String>,List<String>> f = i -> { return i; };\n" +
+				"        Method[] methods = X.class.getDeclaredMethods();\n" +
+				"        for (Method m : methods) {\n" +
+				"        	if (m.getName().contains(\"lambda\")) {\n" +
+				"        		System.out.println(\"- \" + m.getGenericReturnType() + \" \" + m.getName() + \"(\" + Arrays.asList(m.getGenericParameterTypes()) + \")\");\n" +
+				"        	}\n" +
+				"        }\n" +
+				"    }\n" +
+				"}\n"
+			},
+			"- interface java.util.List lambda$0([interface java.util.List])");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447119, [1.8][compiler] method references lost generic type information (4.4 -> 4.4.1 regression) 
+public void test447119a() {
+	this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.lang.reflect.Method;\n" +
+				"import java.lang.reflect.Parameter;\n" +
+				"import java.util.Arrays;\n" +
+				"import java.util.function.Function;\n" +
+				"import java.util.List;\n" +
+				"public class X {\n" +
+				"    private static List<String> foo(List<String> x){return x;}\n" +
+				"    public static void main(String[] args) {\n" +
+				"        Function<List<String>,List<String>> f = X::foo;\n" +
+				"        Method[] methods = X.class.getDeclaredMethods();\n" +
+				"        for (Method m : methods) {\n" +
+				"        	if (m.getName().contains(\"lambda\")) {\n" +
+				"        		System.out.println(\"- \" + m.getGenericReturnType() + \" \" + m.getName() + \"(\" + Arrays.asList(m.getGenericParameterTypes()) + \")\");\n" +
+				"        	}\n" +
+				"        }\n" +
+				"    }\n" +
+				"}\n"
+			},
+			"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447119, [1.8][compiler] method references lost generic type information (4.4 -> 4.4.1 regression) 
+public void test447119b() {
+	this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.lang.reflect.Method;\n" +
+				"import java.lang.reflect.Parameter;\n" +
+				"import java.util.Arrays;\n" +
+				"import java.util.function.Function;\n" +
+				"import java.util.List;\n" +
+				"import java.io.Serializable;" +
+				"public class X {\n" +
+				"    private static interface SerializableFunction<A, R> extends Function<A, R>, Serializable { }" +
+				"    private static List<String> foo(List<String> x){return x;}\n" +
+				"    public static void main(String[] args) {\n" +
+				"        SerializableFunction<List<String>, List<String>> f = i -> { return i; };\n" +
+				"        Method[] methods = X.class.getDeclaredMethods();\n" +
+				"        for (Method m : methods) {\n" +
+				"        	if (m.getName().contains(\"lambda\")) {\n" +
+				"        		System.out.println(\"- \" + m.getGenericReturnType() + \" \" + m.getName() + \"(\" + Arrays.asList(m.getGenericParameterTypes()) + \")\");\n" +
+				"        	}\n" +
+				"        }\n" +
+				"    }\n" +
+				"}\n"
+			},
+			"- interface java.util.List lambda$0([interface java.util.List])");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447119, [1.8][compiler] method references lost generic type information (4.4 -> 4.4.1 regression) 
+public void test447119c() {
+	this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.lang.reflect.Method;\n" +
+				"import java.lang.reflect.Parameter;\n" +
+				"import java.util.Arrays;\n" +
+				"import java.util.function.Function;\n" +
+				"import java.util.List;\n" +
+				"import java.io.Serializable;" +
+				"public class X {\n" +
+				"    private static interface SerializableFunction<A, R> extends Function<A, R>, Serializable { }" +
+				"    private static List<String> foo(List<String> x){return x;}\n" +
+				"    public static void main(String[] args) {\n" +
+				"        SerializableFunction<List<String>, List<String>> f = X::foo;\n" +
+				"        Method[] methods = X.class.getDeclaredMethods();\n" +
+				"        for (Method m : methods) {\n" +
+				"        	if (m.getName().contains(\"lambda\")) {\n" +
+				"        		System.out.println(\"- \" + m.getGenericReturnType() + \" \" + m.getName() + \"(\" + Arrays.asList(m.getGenericParameterTypes()) + \")\");\n" +
+				"        	}\n" +
+				"        }\n" +
+				"    }\n" +
+				"}\n"
+			},
+			"- java.util.List<java.lang.String> lambda$0([java.util.List<java.lang.String>])");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447119, [1.8][compiler] method references lost generic type information (4.4 -> 4.4.1 regression) 
+public void test447119d() {
+	this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.io.ObjectStreamClass;\n" +
+				"import java.io.Serializable;\n" +
+				"import java.lang.invoke.SerializedLambda;\n" +
+				"import java.lang.reflect.Method;\n" +
+				"import java.util.List;\n" +
+				"import java.util.function.Function;\n" +
+				"public class X {\n" +
+				"	private static interface SerializableFunction<A, R> extends Function<A, R>, Serializable { }\n" +
+				"	private static List<String> noop(List<String> l) { return l; }\n" +
+				"	public static void main(String[] args) throws Exception {\n" +
+				"		SerializableFunction<List<String>, List<String>> f = X::noop;\n" +
+				"		Method invokeWriteReplaceMethod = ObjectStreamClass.class.getDeclaredMethod(\"invokeWriteReplace\", Object.class);\n" +
+				"		invokeWriteReplaceMethod.setAccessible(true);\n" +
+				"		SerializedLambda l = (SerializedLambda)invokeWriteReplaceMethod.invoke(ObjectStreamClass.lookupAny(f.getClass()), f);\n" +
+				"		System.out.println(\"Lambda binds to: \" + l.getImplClass() + \".\" + l.getImplMethodName());\n" +
+				"		System.out.println(\"Methods (with generics):\");\n" +
+				"		for(Method m : X.class.getDeclaredMethods()) {\n" +
+				"			if(m.getName().equals(\"main\")) continue;\n" +
+				"			if(m.getName().contains(\"deserializeLambda\")) continue;\n" +
+				"			System.out.println(\"- \" + m.getGenericReturnType() + \" \" + m.getName() + \"(\" + m.getGenericParameterTypes()[0] + \")\");\n" +
+				"		}\n" +
+				"	}\n" +
+				"}\n"
+			},
+			"Lambda binds to: X.lambda$0\n" + 
+			"Methods (with generics):\n" + 
+			"- java.util.List<java.lang.String> noop(java.util.List<java.lang.String>)\n" + 
+			"- java.util.List<java.lang.String> lambda$0(java.util.List<java.lang.String>)",
+			null,
+			true,
+			new String [] { "-Ddummy" }); // Not sure, unless we force the VM to not be reused by passing dummy vm argument, the generated program aborts midway through its execution.
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447119, [1.8][compiler] method references lost generic type information (4.4 -> 4.4.1 regression) 
+public void test447119e() {
+	this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.lang.reflect.Method;\n" +
+				"import java.lang.reflect.Parameter;\n" +
+				"import java.util.Arrays;\n" +
+				"import java.util.function.Function;\n" +
+				"import java.util.List;\n" +
+				"public class X implements java.io.Serializable {\n" +
+				"    private static List<String> foo(List<String> x){return x;}\n" +
+				"    public static void main(String[] args) {\n" +
+				"        Function<List<String>,List<String>> f = X::foo;\n" +
+				"        Method[] methods = X.class.getDeclaredMethods();\n" +
+				"        for (Method m : methods) {\n" +
+				"        	if (m.getName().contains(\"lambda\")) {\n" +
+				"        		System.out.println(\"- \" + m.getGenericReturnType() + \" \" + m.getName() + \"(\" + Arrays.asList(m.getGenericParameterTypes()) + \")\");\n" +
+				"        	}\n" +
+				"        }\n" +
+				"    }\n" +
+				"}\n"
+			},
+			"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=432605, [1.8] Incorrect error "The type ArrayList<T> does not define add(ArrayList<T>, Object) that is applicable here"
+public void test432605() {
+	this.runConformTest(
+		new String[] {
+			"X.java", 
+			"import java.util.ArrayList;\n" +
+			"import java.util.HashMap;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.function.Supplier;\n" +
+			"import java.util.stream.Collector;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"import java.util.stream.Stream;\n" +
+			"public class X {\n" +
+			"static <T, E extends Exception, K, L, M> M terminalAsMapToList(\n" +
+			"    Function<? super T, ? extends K> classifier,\n" +
+			"    Function<HashMap<K, L>, M> intoMap,\n" +
+			"    Function<ArrayList<T>, L> intoList,\n" +
+			"    Supplier<Stream<T>> supplier,\n" +
+			"    Class<E> classOfE) throws E {\n" +
+			"  	return terminalAsCollected(\n" +
+			"  	  classOfE,\n" +
+			"  	  Collectors.collectingAndThen(\n" +
+			"  	    Collectors.groupingBy(\n" +
+			"  	      classifier,\n" +
+			"  	      HashMap<K, L>::new,\n" +
+			"  	      Collectors.collectingAndThen(\n" +
+			"  	      	// The type ArrayList<T> does not define add(ArrayList<T>, Object) that is applicable here\n" +
+			"  	      	// from ArrayList<T>::add:\n" +
+			"  	        Collector.of(ArrayList<T>::new, ArrayList<T>::add, (ArrayList<T> left, ArrayList<T> right) -> { \n" +
+			"  		        left.addAll(right);\n" +
+			"  		        return left;\n" +
+			"  	        }),\n" +
+			"  	        intoList)),\n" +
+			"  	    intoMap),\n" +
+			"  	  supplier);\n" +
+			"  }\n" +
+			"	static <E extends Exception, T, M> M terminalAsCollected(\n" +
+			"    Class<E> class1,\n" +
+			"    Collector<T, ?, M> collector,\n" +
+			"    Supplier<Stream<T>> supplier) throws E {\n" +
+			"  	try(Stream<T> s = supplier.get()) {\n" +
+			"  		return s.collect(collector);\n" +
+			"  	} catch(RuntimeException e) {\n" +
+			"  		throw unwrapCause(class1, e);\n" +
+			"  	}\n" +
+			"  }\n" +
+			"	static <E extends Exception> E unwrapCause(Class<E> classOfE, RuntimeException e) throws E {\n" +
+			"		Throwable cause = e.getCause();\n" +
+			"		if(classOfE.isInstance(cause) == false) {\n" +
+			"			throw e;\n" +
+			"		}\n" +
+			"		throw classOfE.cast(cause);\n" +
+			"}\n" +
+			"}\n"
+	},
+	"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=432605, [1.8] Incorrect error "The type ArrayList<T> does not define add(ArrayList<T>, Object) that is applicable here"
+public void testreduced432605() {
+	this.runConformTest(
+		new String[] {
+			"X.java", 
+			"import java.util.ArrayList;\n" +
+			"import java.util.HashMap;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.stream.Collector;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"public class X {\n" +
+			"    static <T, K, L, M> void foo() {\n" +
+			"	Collector<T, ?, M> cat = \n" +
+			"            Collectors.collectingAndThen(\n" +
+			"		Collectors.groupingBy((Function<? super T, ? extends K>) null, \n" +
+			"				HashMap<K, L>::new, \n" +
+			"				(Collector<T, ArrayList<T>, L>) null), \n" +
+			"				(Function<HashMap<K, L>, M>) null);\n" +
+			"	}\n" +
+			"}\n"
+	},
+	"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=448802, [1.8][compiler] Poly invocations interleaved by a impertinent lambda may need some more changes,
+public void test448802() throws Exception {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.Optional;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		Optional<String> userName = Optional.of(\"sa\");\n" +
+			"		Optional<String> password = Optional.of(\"sa\");\n" +
+			"		boolean isValid = userName.flatMap((String u) -> {\n" +
+			"			return password.map((String p) -> {\n" +
+			"				return u.equals(\"sa\") && p.equals(\"sa\");\n" +
+			"			});\n" +
+			"		}).orElse(false);\n" +
+			"		System.out.println(isValid);\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"true");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.invoke.SerializedLambda;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test {\n" + 
+			"    public static interface Map<IN, OUT> {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = (in) -> new Tuple<>();\n" + 
+			"        for(Method m : Test.class.getDeclaredMethods()) {\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"            if (m.getName().contains(\"lambda\")) {\n" +
+			"              System.out.println(m.getGenericReturnType());\n" + 
+			"              for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"                  System.out.println(t);\n" + 
+			"              }\n" +
+			"            }\n" +
+			"        }\n" +
+			"    }\n" + 
+			"}"
+			},
+			"Test.Test$Tuple<java.lang.Integer, java.lang.String>\n" +
+			"Test.Test$Tuple<java.lang.String, java.lang.Double>",
+			customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063a() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.invoke.SerializedLambda;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test {\n" + 
+			"    public static interface Map<IN, OUT> extends Serializable {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = (in) -> new Tuple<>();\n" + 
+			"        SerializedLambda sl = getSerializedLambda(map);      \n" + 
+			"        Method m = getLambdaMethod(sl);\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"        System.out.println(m.getGenericReturnType());\n" + 
+			"        for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"            System.out.println(t);\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"    public static Method getLambdaMethod(SerializedLambda lambda) throws Exception {\n" + 
+			"        String implClassName = lambda.getImplClass().replace(\'/\', \'.\');\n" + 
+			"        Class<?> implClass = Class.forName(implClassName);\n" + 
+			"        String lambdaName = lambda.getImplMethodName();\n" + 
+			"        for (Method m : implClass.getDeclaredMethods()) {\n" + 
+			"            if (m.getName().equals(lambdaName)) {\n" + 
+			"                return m;\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"        throw new Exception(\"Lambda Method not found\");\n" + 
+			"    }\n" + 
+			"    public static SerializedLambda getSerializedLambda(Object function) throws Exception {\n" + 
+			"        if (function == null || !(function instanceof java.io.Serializable)) {\n" + 
+			"            throw new IllegalArgumentException();\n" + 
+			"        }\n" + 
+			"        for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {\n" + 
+			"            try {\n" + 
+			"                Method replaceMethod = clazz.getDeclaredMethod(\"writeReplace\");\n" + 
+			"                replaceMethod.setAccessible(true);\n" + 
+			"                Object serializedForm = replaceMethod.invoke(function);\n" + 
+			"                if (serializedForm instanceof SerializedLambda) {\n" + 
+			"                    return (SerializedLambda) serializedForm;\n" + 
+			"                }\n" + 
+			"            }\n" + 
+			"            catch (NoSuchMethodError e) {\n" + 
+			"                // fall through the loop and try the next class\n" + 
+			"            }\n" + 
+			"            catch (Throwable t) {\n" + 
+			"                throw new RuntimeException(\"Error while extracting serialized lambda\", t);\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"        throw new Exception(\"writeReplace method not found\");\n" + 
+			"    }\n" + 
+			"}"
+			},
+			"Test.Test$Tuple<java.lang.Integer, java.lang.String>\n" +
+			"Test.Test$Tuple<java.lang.String, java.lang.Double>",
+			customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063b() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.DO_NOT_GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.invoke.SerializedLambda;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test {\n" + 
+			"    public static interface Map<IN, OUT> {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = (in) -> new Tuple<>();\n" + 
+			"        for(Method m : Test.class.getDeclaredMethods()) {\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"            if (m.getName().contains(\"lambda\")) {\n" +
+			"              System.out.println(m.getGenericReturnType());\n" + 
+			"              for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"                  System.out.println(t);\n" + 
+			"              }\n" +
+			"            }\n" +
+			"        }\n" +
+			"    }\n" + 
+			"}"
+			},
+			"class Test$Tuple\n" +
+			"class Test$Tuple",
+			customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063c() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.DO_NOT_GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.invoke.SerializedLambda;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test {\n" + 
+			"    public static interface Map<IN, OUT> extends Serializable {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = (in) -> new Tuple<>();\n" + 
+			"        SerializedLambda sl = getSerializedLambda(map);      \n" + 
+			"        Method m = getLambdaMethod(sl);\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"        System.out.println(m.getGenericReturnType());\n" + 
+			"        for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"            System.out.println(t);\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"    public static Method getLambdaMethod(SerializedLambda lambda) throws Exception {\n" + 
+			"        String implClassName = lambda.getImplClass().replace(\'/\', \'.\');\n" + 
+			"        Class<?> implClass = Class.forName(implClassName);\n" + 
+			"        String lambdaName = lambda.getImplMethodName();\n" + 
+			"        for (Method m : implClass.getDeclaredMethods()) {\n" + 
+			"            if (m.getName().equals(lambdaName)) {\n" + 
+			"                return m;\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"        throw new Exception(\"Lambda Method not found\");\n" + 
+			"    }\n" + 
+			"    public static SerializedLambda getSerializedLambda(Object function) throws Exception {\n" + 
+			"        if (function == null || !(function instanceof java.io.Serializable)) {\n" + 
+			"            throw new IllegalArgumentException();\n" + 
+			"        }\n" + 
+			"        for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {\n" + 
+			"            try {\n" + 
+			"                Method replaceMethod = clazz.getDeclaredMethod(\"writeReplace\");\n" + 
+			"                replaceMethod.setAccessible(true);\n" + 
+			"                Object serializedForm = replaceMethod.invoke(function);\n" + 
+			"                if (serializedForm instanceof SerializedLambda) {\n" + 
+			"                    return (SerializedLambda) serializedForm;\n" + 
+			"                }\n" + 
+			"            }\n" + 
+			"            catch (NoSuchMethodError e) {\n" + 
+			"                // fall through the loop and try the next class\n" + 
+			"            }\n" + 
+			"            catch (Throwable t) {\n" + 
+			"                throw new RuntimeException(\"Error while extracting serialized lambda\", t);\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"        throw new Exception(\"writeReplace method not found\");\n" + 
+			"    }\n" + 
+			"}"
+			},
+			"class Test$Tuple\n" +
+			"class Test$Tuple",
+			customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063d() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.invoke.SerializedLambda;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test {\n" + 
+			"    public static interface Map<IN, OUT> {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static Tuple<Integer, String> noop(Tuple<String, Double> t){return null;}\n" +
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = Test::noop;\n" + 
+			"        for(Method m : Test.class.getDeclaredMethods()) {\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"            if (m.getName().contains(\"lambda\")) {\n" +
+			"              System.out.println(m.getGenericReturnType());\n" + 
+			"              for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"                  System.out.println(t);\n" + 
+			"              }\n" +
+			"            }\n" +
+			"        }\n" +
+			"    }\n" + 
+			"}"
+			},
+			"",
+			customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063e() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.DO_NOT_GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.invoke.SerializedLambda;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test {\n" + 
+			"    public static interface Map<IN, OUT> extends Serializable {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static Tuple<Integer, String> noop(Tuple<String, Double> t){return null;}\n" +
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = Test::noop;\n" + 
+			"        SerializedLambda sl = getSerializedLambda(map);      \n" + 
+			"        Method m = getLambdaMethod(sl);\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"        System.out.println(m.getGenericReturnType());\n" + 
+			"        for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"            System.out.println(t);\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"    public static Method getLambdaMethod(SerializedLambda lambda) throws Exception {\n" + 
+			"        String implClassName = lambda.getImplClass().replace(\'/\', \'.\');\n" + 
+			"        Class<?> implClass = Class.forName(implClassName);\n" + 
+			"        String lambdaName = lambda.getImplMethodName();\n" + 
+			"        for (Method m : implClass.getDeclaredMethods()) {\n" + 
+			"            if (m.getName().equals(lambdaName)) {\n" + 
+			"                return m;\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"        throw new Exception(\"Lambda Method not found\");\n" + 
+			"    }\n" + 
+			"    public static SerializedLambda getSerializedLambda(Object function) throws Exception {\n" + 
+			"        if (function == null || !(function instanceof java.io.Serializable)) {\n" + 
+			"            throw new IllegalArgumentException();\n" + 
+			"        }\n" + 
+			"        for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {\n" + 
+			"            try {\n" + 
+			"                Method replaceMethod = clazz.getDeclaredMethod(\"writeReplace\");\n" + 
+			"                replaceMethod.setAccessible(true);\n" + 
+			"                Object serializedForm = replaceMethod.invoke(function);\n" + 
+			"                if (serializedForm instanceof SerializedLambda) {\n" + 
+			"                    return (SerializedLambda) serializedForm;\n" + 
+			"                }\n" + 
+			"            }\n" + 
+			"            catch (NoSuchMethodError e) {\n" + 
+			"                // fall through the loop and try the next class\n" + 
+			"            }\n" + 
+			"            catch (Throwable t) {\n" + 
+			"                throw new RuntimeException(\"Error while extracting serialized lambda\", t);\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"        throw new Exception(\"writeReplace method not found\");\n" + 
+			"    }\n" + 
+			"}"
+			},
+			"Test.Test$Tuple<java.lang.Integer, java.lang.String>\n" +
+			"Test.Test$Tuple<java.lang.String, java.lang.Double>",
+			customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449063, [1.8][compiler] Bring back generic signatures for Lambda Expressions 
+public void test449063f() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_LambdaGenericSignature, CompilerOptions.GENERATE);
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.Serializable;\n" + 
+			"import java.lang.reflect.Method;\n" + 
+			"import java.lang.reflect.Type;\n" + 
+			"public class Test implements Serializable{\n" + 
+			"    public static interface Map<IN, OUT> {\n" + 
+			"        public OUT map(IN in);\n" + 
+			"    }\n" + 
+			"    public static Tuple<Integer, String> noop(Tuple<String, Double> t){return null;}\n" +
+			"    public static class Tuple<T1, T2> {\n" + 
+			"        private T1 field1;\n" + 
+			"        private T2 field2;\n" + 
+			"    }\n" + 
+			"    public static void main(String[] strings) throws Exception {\n" + 
+			"        Map<Tuple<String, Double>, Tuple<Integer, String>> map = Test::noop;\n" + 
+			"        for(Method m : Test.class.getDeclaredMethods()) {\n" + 
+			"        // Use the type information stored in signature\n" + 
+			"            if (m.getName().contains(\"lambda\")) {\n" +
+			"              System.out.println(m.getGenericReturnType());\n" + 
+			"              for (Type t : m.getGenericParameterTypes()) {\n" + 
+			"                  System.out.println(t);\n" + 
+			"              }\n" +
+			"            }\n" +
+			"        }\n" +
+			"    }\n" + 
+			"}"
+			},
+			"",
+			customOptions);
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=445949, Lambda parameter not shadowing in nested scope producing non-existent compilation error
+public void test445949() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.function.Consumer;\n" +
+			"public class X {\n" +
+			"	void methodInFirstLevel(int y) {\n" +
+			"		class Second {\n" +
+			"			int t = y;\n" +
+			"			Consumer<Integer> myConsumer1 = (z) -> {\n" +
+			"				System.out.println(\"z = \" + z);\n" +
+			"				System.out.println(\"y = \" + y);\n" +
+			"				System.out.println(\"t = \" + t);\n" +
+			"			};\n" +
+			"			Consumer<Integer> myConsumer2 = (y) -> {\n" +
+			"				System.out.println(\"y = \" + y);\n" +
+			"				System.out.println(\"t = \" + t);\n" +
+			"			};\n" +
+			"			void foo( int y) {\n" +
+			"				System.out.println(\"y = \" + y);\n" +
+			"			}\n" +
+			"			class Third {\n" +
+			"				Consumer<Integer> myConsumer3 = (y) -> {\n" +
+			"					System.out.println(\"y = \" + y);\n" +
+			"				};\n" +
+			"			}\n" +
+			"			void bar(int y) {\n" +
+			"				new Third().myConsumer3.accept(y);\n" +
+			"			}\n" +
+			" 		}\n" +
+			"		new Second().myConsumer1.accept(10);\n" +
+			"		new Second().myConsumer2.accept(20);\n" +
+			"		new Second().foo(30);\n" +
+			"		new Second().bar(40);\n" +
+			"		\n" +
+			"	}\n" +
+			"	void foo() {\n" +
+			"  		Consumer<Integer> myConsumer2 = (y) -> {\n" +
+			"		class Inner {\n" +
+			"	  	Consumer<Integer> myConsumer4 = (y) -> { \n" +
+			"		class InnerMost {\n" +
+			"		Consumer<Integer> myConsumer3 = (y /*error without fix*/) -> {};\n" +
+			"		}\n" +
+			"	  	};\n" +
+			"		}\n" +
+			"		new Inner().myConsumer4.accept(10);\n" +
+			"	};\n" +
+			"	}\n" +
+			"	public static void main(String[] args) {\n" +
+			"		new X().methodInFirstLevel(5);\n" +
+			"		new X().foo();\n" +
+			"	}\n" +
+			"}\n"
+	},
+	"z = 10\ny = 5\nt = 5\ny = 20\nt = 5\ny = 30\ny = 40");
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=445949, Lambda parameter not shadowing in nested scope producing non-existent compilation error
+public void test445949a() {
+	this.runNegativeTest(
+		new String[] {
+			"X.java",
+			"import java.util.function.Consumer;\n" +
+			"class X {\n" +
+			"	void foo(int y) {\n" +
+			"		Consumer<Integer> c1 = (y)-> {};\n" +
+			"	}\n" +
+			"	void foo2() {\n" +
+			"		int y;\n" +
+			"		Consumer<Integer> c1 = (y)-> {};\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"----------\n" +
+		"1. ERROR in X.java (at line 4)\n" +
+		"	Consumer<Integer> c1 = (y)-> {};\n" +
+		"	                        ^\n" +
+		"Lambda expression's parameter y cannot redeclare another local variable defined in an enclosing scope. \n" +
+		"----------\n" +
+		"2. ERROR in X.java (at line 8)\n" +
+		"	Consumer<Integer> c1 = (y)-> {};\n" +
+		"	                        ^\n" +
+		"Lambda expression's parameter y cannot redeclare another local variable defined in an enclosing scope. \n" +
+		"----------\n");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=456395, can't compile the Java8 code
+public void test456395() {
+	this.runConformTest(
+			new String[] {
+			"Test.java",
+			"import java.io.*;\n" +
+			"import java.util.*;\n" +
+			"import java.util.stream.*;\n" +
+			"import static java.util.stream.Collectors.*;\n" +
+			"public class Test {\n" +
+			"   public static void main(String[] args) throws IOException {\n" +
+			"      Stream<Locale> locales = Stream.of(Locale.getAvailableLocales());\n" +
+			"      locales = Stream.of(Locale.getAvailableLocales());\n" +
+			"      Map<String, Set<String>> countryToLanguages = locales.collect(\n" +
+			"         groupingBy(Locale::getDisplayCountry, \n" +
+			"            mapping(Locale::getDisplayLanguage,\n" +
+			"               toSet())));\n" +
+			"   }\n" +
+			"}\n"});
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=459305
+public void test459305() {
+	this.runConformTest(
+			new String[] {
+			"X.java",
+			"import java.io.Serializable;\n" +
+			"import java.util.function.BiConsumer;\n" +
+			"import java.util.function.Consumer;\n" +
+			"public class X {\n" +
+			"   public static void main(String[] args) {\n" +
+			"      foo(arg1 -> bar(X::baz));\n" +
+			"   }\n" +
+			"   private static <A1> void foo(Consumer<A1> c) { c.accept(null); }\n" +
+			"   private static void baz(String s1, String s2) { System.out.println(s1 + \"::\" + s2); }\n" +
+			"   private static void bar(VoidMethodRef2<String, String> mr2) { mr2.accept(\"one\", \"two\"); }\n" +
+			"   private static interface VoidMethodRef2<A1, A2> extends BiConsumer<A1, A2>, Serializable {}\n" +
+			"}\n"},
+			"one::two");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=467825 Missing code implementation in the compiler
+public void test467825() {
+	this.runConformTest(
+		new String[] {
+			"Main.java",
+			"import java.util.function.Function;\n" + 
+			"public class Main {\n" + 
+			"    public Function<String, String> f(int x) {\n" + 
+			"    	class A {\n" + 
+			"    		void g() {\n" + 
+			"    	        System.out.println(x);\n" + 
+			"    		}\n" + 
+			"    	}\n" + 
+			"        return s -> {\n" + 
+			"        	A a = new A();\n" + 
+			"            return s;\n" + 
+			"        };\n" + 
+			"    }\n" + 
+			"}\n" 
+	});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=467825 Missing code implementation in the compiler
+public void test467825a() {
+	this.runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.util.function.Function;\n" + 
+			"interface Foo {void alpha(Bar pBar);}\n" + 
+			"class Bar {Object bravo() {return null;}}\n" + 
+			"class Test {\n" + 
+			"	Foo foo(Function pFunction) {\n" + 
+			"	    class Baz {\n" + 
+			"	    	public Baz(Object pObj) {\n" + 
+			"	    	}\n" + 
+			"	    	class NestedBaz extends Baz {\n" + 
+			"	    		NestedBaz(Object pObj) {\n" + 
+			"	    			super(pObj);\n" + 
+			"	    			pFunction.apply(pObj);\n" + 
+			"	    		}\n" + 
+			"	    	}\n" + 
+			"	    }\n" + 
+			"	    return pBar -> {\n" + 
+			"	    		Object o = new Baz(pBar).new NestedBaz(pBar.bravo());\n" + 
+			"	    	};\n" + 
+			"	  }\n" + 
+			"	  void charlie(Object pRemovals) {}\n" + 
+			"	  void delta(Foo pListener) {}\n" + 
+			"}\n"
+	});
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=461004 Multiple spurious errors compiling FunctionalJava project
+public void test461004() {
+	this.runConformTest(
+		new String[] {
+			"Ice.java",
+			"import java.util.function.BiPredicate;\n" + 
+			"import java.util.function.Function;\n" + 
+			"class Ice {\n" + 
+			"  static <T> BiPredicate<T, T> create(BiPredicate<? super T, ? super T> fn) {\n" + 
+			"    return null;\n" + 
+			"  }\n" + 
+			"  static <T, K> BiPredicate<T, T> create(Function<? super T, ? super K> map) {\n" + 
+			"    return null;\n" + 
+			"  }\n" + 
+			"  void someMethod(BiPredicate<String, String> b) {}\n" + 
+			"  void method() {\n" + 
+			"    BiPredicate<String, String> eq = String::equalsIgnoreCase;\n" + 
+			"    // these all compile:\n" + 
+			"    BiPredicate<String, String> ok1 = create( eq );\n" + 
+			"    BiPredicate<String, String> ok2 = create( (a, b) -> true );\n" + 
+			"    BiPredicate<String, String> ok3 = create( String::valueOf );\n" + 
+			"    // this causes an internal compiler error, ArrayIndexOutOfBoundsException: 1\n" + 
+			"    someMethod(create( String::equalsIgnoreCase ));\n" + 
+			"  }\n" + 
+			"}\n"
 	});
 }
 public static Class testClass() {

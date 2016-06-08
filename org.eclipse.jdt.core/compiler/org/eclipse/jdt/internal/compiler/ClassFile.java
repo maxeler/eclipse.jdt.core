@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,6 +20,12 @@
  *                          Bug 415399 - [1.8][compiler] Type annotations on constructor results dropped by the code generator
  *                          Bug 415470 - [1.8][compiler] Type annotations on class declaration go vanishing
  *                          Bug 405104 - [1.8][compiler][codegen] Implement support for serializeable lambdas
+ *                          Bug 434556 - Broken class file generated for incorrect annotation usage
+ *                          Bug 442416 - $deserializeLambda$ missing cases for nested lambdas
+ *     Stephan Herrmann - Contribution for
+ *							Bug 438458 - [1.8][null] clean up handling of null type annotations wrt type variables
+ *     Olivier Tardieu tardieu@us.ibm.com - Contributions for
+ *							Bug 442416 - $deserializeLambda$ missing cases for nested lambdas
  *******************************************************************************/
 package org.eclipse.jdt.internal.compiler;
 
@@ -135,7 +141,7 @@ public class ClassFile implements TypeConstants, TypeIds {
 	public byte[] header;
 	// that collection contains all the remaining bytes of the .class file
 	public int headerOffset;
-	public Set innerClassesBindings;
+	public Map<TypeBinding, Boolean> innerClassesBindings;
 	public List bootstrapMethods = null;
 	public int methodCount;
 	public int methodCountOffset;
@@ -388,11 +394,22 @@ public class ClassFile implements TypeConstants, TypeIds {
 		int numberOfInnerClasses = this.innerClassesBindings == null ? 0 : this.innerClassesBindings.size();
 		if (numberOfInnerClasses != 0) {
 			ReferenceBinding[] innerClasses = new ReferenceBinding[numberOfInnerClasses];
-			this.innerClassesBindings.toArray(innerClasses);
+			this.innerClassesBindings.keySet().toArray(innerClasses);
 			Arrays.sort(innerClasses, new Comparator() {
 				public int compare(Object o1, Object o2) {
 					TypeBinding binding1 = (TypeBinding) o1;
 					TypeBinding binding2 = (TypeBinding) o2;
+					Boolean onBottom1 = ClassFile.this.innerClassesBindings.get(o1);
+					Boolean onBottom2 = ClassFile.this.innerClassesBindings.get(o2);
+					if (onBottom1) {
+						if (!onBottom2) {
+							return 1;
+						}
+					} else {
+						if (onBottom2) {
+							return -1;
+						}
+					}
 					return CharOperation.compareTo(binding1.constantPoolName(), binding2.constantPoolName());
 				}
 			});
@@ -871,6 +888,7 @@ public class ClassFile implements TypeConstants, TypeIds {
 		
 		// add synthetic methods infos
 		int emittedSyntheticsCount = 0;
+		SyntheticMethodBinding deserializeLambdaMethod = null;
 		boolean continueScanningSynthetics = true;
 		while (continueScanningSynthetics) {
 			continueScanningSynthetics = false;
@@ -931,13 +949,15 @@ public class ClassFile implements TypeConstants, TypeIds {
 							addSyntheticFactoryMethod(syntheticMethod);
 							break;	
 						case SyntheticMethodBinding.DeserializeLambda:
-							// TODO [andy] do we need to do this after the loop to ensure it is done last?
-							addSyntheticDeserializeLambda(syntheticMethod,this.referenceBinding.syntheticMethods()); 
+							deserializeLambdaMethod = syntheticMethod; // delay processing
 							break;
 					}
 				}
 				emittedSyntheticsCount = currentSyntheticsCount;
 			}
+		}
+		if (deserializeLambdaMethod != null) {
+			addSyntheticDeserializeLambda(deserializeLambdaMethod,this.referenceBinding.syntheticMethods()); 
 		}
 	}
 
@@ -2256,7 +2276,7 @@ public class ClassFile implements TypeConstants, TypeIds {
 				LocalVariableBinding localVariable = annotationContext.variableBinding;
 				int actualSize = 0;
 				int initializationCount = localVariable.initializationCount;
-				actualSize += 6 * initializationCount;
+				actualSize += 2 /* for number of entries */ + (6 * initializationCount);
 				// reserve enough space
 				if (this.contentsOffset + actualSize >= this.contents.length) {
 					resizeContents(actualSize);
@@ -2322,9 +2342,11 @@ public class ClassFile implements TypeConstants, TypeIds {
 			MemberValuePair[] memberValuePairs = normalAnnotation.memberValuePairs;
 			int memberValuePairOffset = this.contentsOffset;
 			if (memberValuePairs != null) {
+				int memberValuePairsCount = 0;
+				int memberValuePairsLengthPosition = this.contentsOffset;
+				this.contentsOffset += 2; // leave space to fill in the pair count later
+				int resetPosition = this.contentsOffset;
 				final int memberValuePairsLength = memberValuePairs.length;
-				this.contents[this.contentsOffset++] = (byte) (memberValuePairsLength >> 8);
-				this.contents[this.contentsOffset++] = (byte) memberValuePairsLength;
 				loop: for (int i = 0; i < memberValuePairsLength; i++) {
 					MemberValuePair memberValuePair = memberValuePairs[i];
 					if (this.contentsOffset + 2 >= this.contents.length) {
@@ -2335,7 +2357,7 @@ public class ClassFile implements TypeConstants, TypeIds {
 					this.contents[this.contentsOffset++] = (byte) elementNameIndex;
 					MethodBinding methodBinding = memberValuePair.binding;
 					if (methodBinding == null) {
-						this.contentsOffset = startingContentsOffset;
+						this.contentsOffset = resetPosition;
 					} else {
 						try {
 							generateElementValue(memberValuePair.value, methodBinding.returnType, memberValuePairOffset);
@@ -2345,13 +2367,17 @@ public class ClassFile implements TypeConstants, TypeIds {
 								this.contents[this.contentsOffset++] = 0;
 								break loop;
 							}
+							memberValuePairsCount++;
+							resetPosition = this.contentsOffset;
 						} catch(ClassCastException e) {
-							this.contentsOffset = startingContentsOffset;
+							this.contentsOffset = resetPosition;
 						} catch(ShouldNotImplement e) {
-							this.contentsOffset = startingContentsOffset;
+							this.contentsOffset = resetPosition;
 						}
 					}
 				}
+				this.contents[memberValuePairsLengthPosition++] = (byte) (memberValuePairsCount >> 8);
+				this.contents[memberValuePairsLengthPosition++] = (byte) memberValuePairsCount;
 			} else {
 				this.contents[this.contentsOffset++] = 0;
 				this.contents[this.contentsOffset++] = 0;
@@ -2375,9 +2401,8 @@ public class ClassFile implements TypeConstants, TypeIds {
 				try {
 					generateElementValue(singleMemberAnnotation.memberValue, methodBinding.returnType, memberValuePairOffset);
 					if (this.contentsOffset == memberValuePairOffset) {
-						// ignore annotation value
-						this.contents[this.contentsOffset++] = 0;
-						this.contents[this.contentsOffset++] = 0;
+						// completely remove the annotation as its value is invalid
+						this.contentsOffset = startingContentsOffset;
 					}
 				} catch(ClassCastException e) {
 					this.contentsOffset = startingContentsOffset;
@@ -2883,7 +2908,8 @@ public class ClassFile implements TypeConstants, TypeIds {
 		// functional expressions, we know the size ahead of time - this less general
 		// than the full invokedynamic scope, but fine for Java 8
 		
-		int exSize = 10 * numberOfBootstraps + 8;
+		final int contentsEntries = 10;
+		int exSize = contentsEntries * numberOfBootstraps + 8;
 		if (exSize + localContentsOffset >= this.contents.length) {
 			resizeContents(exSize);
 		}
@@ -2917,8 +2943,8 @@ public class ClassFile implements TypeConstants, TypeIds {
 					// 2 for bridge count then 2 per bridge method type.
 					extraSpace += (2 + 2 * bridges.length);
 				}
-				if (extraSpace + localContentsOffset >= this.contents.length) {
-					resizeContents(extraSpace);
+				if (extraSpace + contentsEntries + localContentsOffset >= this.contents.length) {
+					resizeContents(extraSpace + contentsEntries);
 				} 
 				
 				if (indexForAltMetaFactory == 0) {
@@ -3559,6 +3585,14 @@ public class ClassFile implements TypeConstants, TypeIds {
 		}
 	}
 
+	private boolean jdk16packageInfoAnnotation(final long annotationMask, final long targetMask) {
+		if (this.targetJDK <= ClassFileConstants.JDK1_6 &&
+				targetMask == TagBits.AnnotationForPackage && annotationMask != 0 &&
+				(annotationMask & TagBits.AnnotationForPackage) == 0) {
+			return true;
+		}
+		return false;
+	}
 	/**
 	 * @param annotations
 	 * @param targetMask allowed targets
@@ -3573,7 +3607,9 @@ public class ClassFile implements TypeConstants, TypeIds {
 			Annotation annotation;
 			if ((annotation = annotations[i].getPersistibleAnnotation()) == null) continue; // already packaged into container.
 			long annotationMask = annotation.resolvedType != null ? annotation.resolvedType.getAnnotationTagBits() & TagBits.AnnotationTargetMASK : 0;
-			if (annotationMask != 0 && (annotationMask & targetMask) == 0) continue;
+			if (annotationMask != 0 && (annotationMask & targetMask) == 0) {
+				if (!jdk16packageInfoAnnotation(annotationMask, targetMask)) continue;
+			}
 			if (annotation.isRuntimeInvisible() || annotation.isRuntimeTypeInvisible()) {
 				invisibleAnnotationsCounter++;
 			} else if (annotation.isRuntimeVisible() || annotation.isRuntimeTypeVisible()) {
@@ -3604,7 +3640,9 @@ public class ClassFile implements TypeConstants, TypeIds {
 				Annotation annotation;
 				if ((annotation = annotations[i].getPersistibleAnnotation()) == null) continue; // already packaged into container.
 				long annotationMask = annotation.resolvedType != null ? annotation.resolvedType.getAnnotationTagBits() & TagBits.AnnotationTargetMASK : 0;
-				if (annotationMask != 0 && (annotationMask & targetMask) == 0) continue;
+				if (annotationMask != 0 && (annotationMask & targetMask) == 0) {
+					if (!jdk16packageInfoAnnotation(annotationMask, targetMask)) continue;
+				}
 				if (annotation.isRuntimeInvisible() || annotation.isRuntimeTypeInvisible()) {
 					int currentAnnotationOffset = this.contentsOffset;
 					generateAnnotation(annotation, currentAnnotationOffset);
@@ -3654,7 +3692,9 @@ public class ClassFile implements TypeConstants, TypeIds {
 				Annotation annotation;
 				if ((annotation = annotations[i].getPersistibleAnnotation()) == null) continue; // already packaged into container.
 				long annotationMask = annotation.resolvedType != null ? annotation.resolvedType.getAnnotationTagBits() & TagBits.AnnotationTargetMASK : 0;
-				if (annotationMask != 0 && (annotationMask & targetMask) == 0) continue;
+				if (annotationMask != 0 && (annotationMask & targetMask) == 0) {
+					if (!jdk16packageInfoAnnotation(annotationMask, targetMask)) continue;
+				}
 				if (annotation.isRuntimeVisible() || annotation.isRuntimeTypeVisible()) {
 					visibleAnnotationsCounter--;
 					int currentAnnotationOffset = this.contentsOffset;
@@ -5148,15 +5188,18 @@ public class ClassFile implements TypeConstants, TypeIds {
 	}
 
 	public void recordInnerClasses(TypeBinding binding) {
+		recordInnerClasses(binding, false);
+	}
+	public void recordInnerClasses(TypeBinding binding, boolean onBottomForBug445231) {
 		if (this.innerClassesBindings == null) {
-			this.innerClassesBindings = new HashSet(INNER_CLASSES_SIZE);
+			this.innerClassesBindings = new HashMap(INNER_CLASSES_SIZE);
 		}
 		ReferenceBinding innerClass = (ReferenceBinding) binding;
-		this.innerClassesBindings.add(innerClass.erasure().unannotated());  // should not emit yet another inner class for Outer.@Inner Inner.
+		this.innerClassesBindings.put(innerClass.erasure().unannotated(), onBottomForBug445231);  // should not emit yet another inner class for Outer.@Inner Inner.
 		ReferenceBinding enclosingType = innerClass.enclosingType();
 		while (enclosingType != null
 				&& enclosingType.isNestedType()) {
-			this.innerClassesBindings.add(enclosingType.erasure().unannotated());
+			this.innerClassesBindings.put(enclosingType.erasure().unannotated(), onBottomForBug445231);
 			enclosingType = enclosingType.enclosingType();
 		}
 	}
@@ -6570,11 +6613,9 @@ public class ClassFile implements TypeConstants, TypeIds {
 					int dimensions = u1At(bytecodes, 3, pc); // dimensions
 					frame.numberOfStackItems -= dimensions;
 					classNameLength = className.length;
-					constantPoolName = new char[classNameLength + dimensions];
-					for (int i = 0; i < dimensions; i++) {
-						constantPoolName[i] = '[';
-					}
-					System.arraycopy(className, 0, constantPoolName, dimensions, classNameLength);
+					// class name is already the name of the right array type with all dimensions
+					constantPoolName = new char[classNameLength];
+					System.arraycopy(className, 0, constantPoolName, 0, classNameLength);
 					frame.addStackItem(new VerificationTypeInfo(0, constantPoolName));
 					pc += 4;
 					break;

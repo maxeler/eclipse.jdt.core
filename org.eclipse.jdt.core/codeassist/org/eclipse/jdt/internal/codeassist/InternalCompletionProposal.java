@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -29,6 +29,9 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.env.IBinaryMethod;
 import org.eclipse.jdt.internal.compiler.env.IBinaryType;
+import org.eclipse.jdt.internal.compiler.lookup.Binding;
+import org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import org.eclipse.jdt.internal.core.BinaryType;
 import org.eclipse.jdt.internal.core.JavaElement;
 import org.eclipse.jdt.internal.core.JavaModelManager;
@@ -133,6 +136,13 @@ public class InternalCompletionProposal extends CompletionProposal {
 	 * Defaults to null.
 	 */
 	private char[] name = null;
+
+	/**
+	 * Binding of the method or constructor being proposed, or
+	 * <code>null</code> if none.
+	 * Defaults to null.
+	 */
+	private Binding binding = null;
 
 	/**
 	 * Signature of the method, field type, member type,
@@ -912,6 +922,45 @@ public class InternalCompletionProposal extends CompletionProposal {
 	 */
 	public void setName(char[] name) {
 		this.name = name;
+	}
+
+	/**
+	 * Returns a binding of the method or field corresponding to this proposal or <code>null</code> if none.
+	 * <p>
+	 * The binding <em>may</em> be available for the following kinds of completion proposals:
+	 * <ul>
+	 *  <li><code>ANONYMOUS_CLASS_CONSTRUCTOR_INVOCATION</code> - {@link MethodBinding}
+	 * of the constructor being proposed</li>
+	 *  <li><code>CONSTRUCTOR_INVOCATION</code> - {@link MethodBinding}
+	 * of the constructor being proposed</li>
+	 *  <li><code>FIELD_REF</code> - {@link FieldBinding}
+	 * of the field being proposed</li>
+	 *  <li><code>FIELD_REF_WITH_CASTED_RECEIVER</code> - {@link FieldBinding}
+	 * of the field being proposed</li>
+	 *  <li><code>JAVADOC_FIELD_REF</code> - {@link FieldBinding}
+	 * of the field being proposed</li>
+	 *  <li><code>JAVADOC_METHOD_REF</code> - {@link MethodBinding}
+	 * of the method or constructor being proposed</li>
+	 *  <li><code>METHOD_DECLARATION</code> - {@link MethodBinding}
+	 * of the method or constructor being proposed</li>
+	 *  <li><code>METHOD_NAME_REFERENCE</code> - {@link MethodBinding}
+	 * of the method or constructor being proposed</li>
+	 *  <li><code>METHOD_REF</code> - {@link MethodBinding}
+	 * of the method or constructor being proposed</li>
+	 *  <li><code>METHOD_REF_WITH_CASTED_RECEIVER</code> - {@link MethodBinding}
+	 * of the method or constructor being proposed</li>
+	 * </ul>
+	 * For other kinds of completion proposals, this method returns <code>null</code>.
+	 * </p>
+	 *
+	 * @return the binding corresponding to this proposal (if available), or <code>null</code> if none
+	 */
+	public Binding getBinding() {
+		return this.binding;
+	}
+
+	public void setBinding(Binding binding) {
+		this.binding = binding;
 	}
 
 	/**
@@ -1751,7 +1800,7 @@ public class InternalCompletionProposal extends CompletionProposal {
 				buffer.append("POTENTIAL_METHOD_DECLARATION"); //$NON-NLS-1$
 				break;
 			case CompletionProposal.METHOD_NAME_REFERENCE :
-				buffer.append("METHOD_IMPORT"); //$NON-NLS-1$
+				buffer.append("METHOD_NAME_REFERENCE"); //$NON-NLS-1$
 				break;
 			case CompletionProposal.ANNOTATION_ATTRIBUTE_REF :
 				buffer.append("ANNOTATION_ATTRIBUTE_REF"); //$NON-NLS-1$

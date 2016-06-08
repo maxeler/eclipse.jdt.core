@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013 IBM Corporation and others.
+ * Copyright (c) 2013, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,7 +19,9 @@ import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
+import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
+@SuppressWarnings("rawtypes")
 public class ASTRewritingReferenceExpressionTest extends ASTRewritingTest {
 
 	public ASTRewritingReferenceExpressionTest(String name) {
@@ -476,6 +478,7 @@ public class ASTRewritingReferenceExpressionTest extends ASTRewritingTest {
 	 */
 	public void testReferenceExpressions_test006_since_8() throws Exception {
 		IPackageFragment pack1= this.sourceFolder.createPackageFragment("test407131", false, null);
+		this.project1.setOption(CompilerOptions.OPTION_Source, CompilerOptions.VERSION_1_8);
 		String contents = "package test407131;\n" +
 				"import java.lang.annotation.*;\n" +
 				"interface J {\n" +

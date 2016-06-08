@@ -316,13 +316,8 @@ public char[] computeConstantPoolName(LocalTypeBinding localType) {
 }
 
 void connectTypeHierarchy() {
-	this.connectingHierarchy = true;
-	try {
-		for (int i = 0, length = this.topLevelTypes.length; i < length; i++)
-			this.topLevelTypes[i].scope.connectTypeHierarchy();
-	} finally {
-		this.connectingHierarchy = false;
-	}
+	for (int i = 0, length = this.topLevelTypes.length; i < length; i++)
+		this.topLevelTypes[i].scope.connectTypeHierarchy();
 }
 void faultInImports() {
 	boolean unresolvedFound = false;
@@ -799,6 +794,8 @@ public String toString() {
 	return "--- CompilationUnit Scope : " + new String(this.referenceContext.getFileName()); //$NON-NLS-1$
 }
 private ReferenceBinding typeToRecord(TypeBinding type) {
+	if (type == null)
+		return null;
 	while (type.isArrayType())
 		type = ((ArrayBinding) type).leafComponentType();
 
@@ -807,7 +804,7 @@ private ReferenceBinding typeToRecord(TypeBinding type) {
 		case Binding.TYPE_PARAMETER :
 		case Binding.WILDCARD_TYPE :
 		case Binding.INTERSECTION_TYPE :
-		case Binding.INTERSECTION_CAST_TYPE: // constituents would have been recorded.
+		case Binding.INTERSECTION_TYPE18: // constituents would have been recorded.
 		case Binding.POLY_TYPE: // not a real type, will mutate into one, hopefully soon.
 			return null;
 		case Binding.PARAMETERIZED_TYPE :

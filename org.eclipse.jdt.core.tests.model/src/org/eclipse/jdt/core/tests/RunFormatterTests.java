@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2014 IBM Corporation and others.
+ * Copyright (c) 2005, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@
  *     IBM Corporation - initial API and implementation
  *     Jesper S Moller - Contribution for bug 402173
  *                       Contribution for bug 402892
+ *     Mateusz Matela <mateusz.matela@gmail.com> - [formatter] follow up bug for comments - https://bugs.eclipse.org/458208
  *******************************************************************************/
 package org.eclipse.jdt.core.tests;
 
@@ -27,6 +28,7 @@ import org.eclipse.jdt.core.tests.junit.extension.TestCase;
 /**
  * Runs all formatter tests.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class RunFormatterTests extends junit.framework.TestCase {
 
 	public final static List TEST_SUITES = new ArrayList();
@@ -36,6 +38,7 @@ public class RunFormatterTests extends junit.framework.TestCase {
 		TEST_SUITES.add(FormatterCommentsClearBlankLinesTests.class);
 		TEST_SUITES.add(FormatterJavadocDontIndentTagsTests.class);
 		TEST_SUITES.add(FormatterJavadocDontIndentTagsDescriptionTests.class);
+		TEST_SUITES.add(FormatterOldBugsGistTests.class);
 	}
 
 	public static Class[] getTestClasses() {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -35,24 +35,8 @@ import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.IWorkspaceRunnable;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.ISafeRunnable;
-import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.core.runtime.PerformanceStats;
-import org.eclipse.core.runtime.SafeRunner;
-import org.eclipse.jdt.core.ElementChangedEvent;
-import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.jdt.core.IElementChangedListener;
-import org.eclipse.jdt.core.IJavaElement;
-import org.eclipse.jdt.core.IJavaElementDelta;
-import org.eclipse.jdt.core.IJavaModel;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IPackageFragment;
-import org.eclipse.jdt.core.IPackageFragmentRoot;
-import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.core.runtime.*;
+import org.eclipse.jdt.core.*;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.SourceElementParser;
 import org.eclipse.jdt.internal.core.JavaModelManager.PerProjectInfo;
@@ -152,7 +136,7 @@ public class DeltaProcessor {
 			IPackageFragmentRoot tRoot = null;
 			Object target = JavaModel.getTarget(this.rootPath, false/*don't check existence*/);
 			if (target instanceof IResource) {
-				tRoot = this.project.getPackageFragmentRoot((IResource)target);
+				tRoot = this.project.getPackageFragmentRoot((IResource)target, this.rootPath);
 			} else {
 				tRoot = this.project.getPackageFragmentRoot(this.rootPath.toOSString());
 			}
@@ -828,7 +812,6 @@ public class DeltaProcessor {
 					JavaProject javaProject = (JavaProject)delta.getElement();
 					projectsToTouch[i] = javaProject.getProject();
 				}
-							
 						// touch the projects to force them to be recompiled while taking the workspace lock
 						//	 so that there is no concurrency with the Java builder
 						// see https://bugs.eclipse.org/bugs/show_bug.cgi?id=96575

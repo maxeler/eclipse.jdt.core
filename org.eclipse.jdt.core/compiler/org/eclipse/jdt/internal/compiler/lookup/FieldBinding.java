@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,15 +11,21 @@
  *								bug 185682 - Increment/decrement operators mark local variables as read
  *								bug 331649 - [compiler][null] consider null annotations for fields
  *								Bug 417295 - [1.8[[null] Massage type annotated null analysis to gel well with deep encoded type bindings.
+ *								Bug 447088 - [null] @Nullable on fully qualified field type is ignored
+ *								Bug 435805 - [1.8][compiler][null] Java 8 compiler does not recognize declaration style null annotations
+ *								Bug 458396 - NPE in CodeStream.invoke()
+ *								Bug 446217 - [null] @NonNullByDefault in package-info.java causes bogus "null type safety" warning
  *******************************************************************************/
 package org.eclipse.jdt.internal.compiler.lookup;
 
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.Constant;
+import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 
 public class FieldBinding extends VariableBinding {
 	public ReferenceBinding declaringClass;
@@ -226,16 +232,32 @@ public Constant constant() {
 	return fieldConstant;
 }
 
+public Constant constant(Scope scope) {
+	if (this.constant != null)
+		return this.constant;
+	ProblemReporter problemReporter = scope.problemReporter();
+	IErrorHandlingPolicy suspendedPolicy = problemReporter.suspendTempErrorHandlingPolicy();
+	try {
+		return constant();
+	} finally {
+		problemReporter.resumeTempErrorHandlingPolicy(suspendedPolicy);
+	}
+}
+
 public void fillInDefaultNonNullness(FieldDeclaration sourceField, Scope scope) {
 	LookupEnvironment environment = scope.environment();
-	if (   this.type != null
-		&& !this.type.isBaseType()
-		&& (this.tagBits & TagBits.AnnotationNullMASK) == 0)
+	if (this.type == null)
+		return;
+	if (environment.usesNullTypeAnnotations() && !this.type.acceptsNonNullDefault())
+		return;
+	if (   !this.type.isBaseType()
+		&& (this.tagBits & TagBits.AnnotationNullMASK) == 0 		// declaration annotation?
+		&& (this.type.tagBits & TagBits.AnnotationNullMASK) == 0)	// type annotation? (java.lang.@Nullable String)
 	{
-		if (environment.globalOptions.sourceLevel < ClassFileConstants.JDK1_8)
-			this.tagBits |= TagBits.AnnotationNonNull;
-		else
+		if (environment.usesNullTypeAnnotations())
 			this.type = environment.createAnnotatedType(this.type, new AnnotationBinding[]{environment.getNonNullAnnotation()});
+		else
+			this.tagBits |= TagBits.AnnotationNonNull;
 	} else if ((this.tagBits & TagBits.AnnotationNonNull) != 0) {
 		scope.problemReporter().nullAnnotationIsRedundant(sourceField);
 	}

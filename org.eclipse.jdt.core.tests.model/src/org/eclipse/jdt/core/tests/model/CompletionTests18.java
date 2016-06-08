@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 IBM Corporation and others.
+ * Copyright (c) 2014, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,6 +12,7 @@
 package org.eclipse.jdt.core.tests.model;
 
 import java.util.Map;
+
 import junit.framework.Test;
 
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -19,7 +20,9 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.eval.IEvaluationContext;
+import org.eclipse.jdt.internal.codeassist.RelevanceConstants;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class CompletionTests18 extends AbstractJavaModelCompletionTests {
 
 static {
@@ -687,8 +690,9 @@ public void test018a() throws JavaModelException { // computing visible elements
 			"expectedTypesKeys={Z,C,I,J,F,D,[C,Ljava/lang/String;,Ljava/lang/Object;}\n" +
 			"completion token location=UNKNOWN\n" +
 			"visibleElements={\n" +
+			"	xLambdaLocal [in main(String[]) [in X [in [Working copy] X.java [in <default> [in src [in Completion]]]]]],\n" +
+			"	xyz [in main(String[]) [in X [in [Working copy] X.java [in <default> [in src [in Completion]]]]]],\n" +
 			"	xLocal [in main(String[]) [in X [in [Working copy] X.java [in <default> [in src [in Completion]]]]]],\n" +
-	        "	xLambdaLocal [in main(String[]) [in X [in [Working copy] X.java [in <default> [in src [in Completion]]]]]],\n" +
 			"	xField {key=LX;.xField)LX;} [in X [in [Working copy] X.java [in <default> [in src [in Completion]]]]],\n" +
 			"	goo(String) {key=LX;.goo(Ljava/lang/String;)LX;} [in X [in [Working copy] X.java [in <default> [in src [in Completion]]]]],\n" +
 			"}" , requestor.getContext());
@@ -915,7 +919,10 @@ public void test425084() throws JavaModelException {
 	String completeBehind = "try";
 	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
-	assertResults("tryit[LOCAL_VARIABLE_REF]{tryit, null, I, null, null, tryit, null, [99, 102], 27}", requestor.getResults());
+	assertResults(
+			"tryit[LOCAL_VARIABLE_REF]{tryit, null, I, null, null, tryit, null, [99, 102], 27}\n" +
+			"try[KEYWORD]{try, null, null, null, null, try, null, [99, 102], 28}", 
+			requestor.getResults());
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=422901, [1.8][code assist] Code assistant sensitive to scope.referenceContext type identity.
 public void test422901() throws JavaModelException {
@@ -1302,7 +1309,7 @@ public void test402081() throws JavaModelException {
 	String completeBehind = "long";
 	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
-	assertResults("longMethodName[METHOD_IMPORT]{longMethodName, LX;, (Ljava.lang.String;)Ljava.lang.String;, null, null, longMethodName, (x), [183, 187], 35}", requestor.getResults());
+	assertResults("longMethodName[METHOD_NAME_REFERENCE]{longMethodName, LX;, (Ljava.lang.String;)Ljava.lang.String;, null, null, longMethodName, (x), [183, 187], 35}", requestor.getResults());
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=402081, [1.8][code complete] No proposals while completing at method/constructor references
 public void test402081a() throws JavaModelException {
@@ -1332,7 +1339,7 @@ public void test402081a() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-			"longMethodName[METHOD_IMPORT]{longMethodName, Ltest.X;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
+			"longMethodName[METHOD_NAME_REFERENCE]{longMethodName, Ltest.X;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
 			requestor.getResults());
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=402081, [1.8][code complete] No proposals while completing at method/constructor references
@@ -1358,7 +1365,7 @@ public void test402081b() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-			"longMethodName[METHOD_IMPORT]{longMethodName, Ltest.X<Ljava.lang.String;>;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
+			"longMethodName[METHOD_NAME_REFERENCE]{longMethodName, Ltest.X<Ljava.lang.String;>;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
 			requestor.getResults());
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=402081, [1.8][code complete] No proposals while completing at method/constructor references
@@ -1387,7 +1394,7 @@ public void test402081c() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-			"longMethodName[METHOD_IMPORT]{longMethodName, Ltest.Y;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
+			"longMethodName[METHOD_NAME_REFERENCE]{longMethodName, Ltest.Y;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
 			requestor.getResults());
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=402081, [1.8][code complete] No proposals while completing at method/constructor references
@@ -1416,7 +1423,7 @@ public void test402081d() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-			"longMethodName[METHOD_IMPORT]{longMethodName, Ltest.Y;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
+			"longMethodName[METHOD_NAME_REFERENCE]{longMethodName, Ltest.Y;, (Ljava.lang.String;)Ljava.lang.String;, longMethodName, (x), 35}",
 			requestor.getResults());
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=431402, [assist] NPE in AssistParser.triggerRecoveryUponLambdaClosure:483 using Content Assist
@@ -1532,5 +1539,918 @@ public void test430441() throws JavaModelException {
 	IEvaluationContext context = javaProject.newEvaluationContext();
 	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
 	context.codeComplete(str, cursorLocation, requestor);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430656, [1.8][content assist] Content assist does not work for method reference argument 
+public void test430656() throws JavaModelException {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy(
+				"/Completion/src/test/X.java",
+				"import java.util.ArrayList;\n" +
+				"import java.util.Collections;\n" +
+				"import java.util.Comparator;\n" +
+				"import java.util.List;\n" +
+				"public class X {\n" +
+				"	public void bar() {\n" +
+				"		List<Person> people = new ArrayList<>();\n" +
+				"		Collections.sort(people, Comparator.comparing(Person::get)); \n" +
+				"	}\n" +
+				"}\n" +
+				"class Person {\n" +
+				"	String getLastName() {\n" +
+				"		return null;\n" +
+				"	}\n" +
+				"}\n");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "get";
+		int cursorLocation = str.indexOf(completeBehind) + completeBehind.length();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+		assertResults(
+			"getClass[METHOD_NAME_REFERENCE]{getClass, Ljava.lang.Object;, ()Ljava.lang.Class<*>;, getClass, null, 35}\n" +
+			"getLastName[METHOD_NAME_REFERENCE]{getLastName, Ltest.Person;, ()Ljava.lang.String;, getLastName, null, 35}",
+			requestor.getResults());
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433178
+public void test433178() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"interface I {\n" +
+			"    String foo(String x);\n" +
+			"}\n" +
+			"public class X {\n" +
+			"    public  String longMethodName(String x) {\n" +
+			"        return null;\n" +
+			"    }\n" +
+			"    void foo() {\n" +
+			"    	X x = new X();\n" +
+			"    	I i = x::ne\n" +
+			"       System.out.println();\n" +
+			"    }\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "ne";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("new[KEYWORD]{new, null, null, null, null, new, null, [183, 185], " + 
+											(RelevanceConstants.R_DEFAULT + RelevanceConstants.R_RESOLVED + RelevanceConstants.R_INTERESTING + RelevanceConstants.R_NON_RESTRICTED
+											+ RelevanceConstants.R_CASE + RelevanceConstants.R_UNQUALIFIED) + "}", requestor.getResults());
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433178
+public void test433178a() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"interface I {\n" +
+			"    String foo(String x);\n" +
+			"}\n" +
+			"public class X {\n" +
+			"    public  String longMethodName(String x) {\n" +
+			"        return null;\n" +
+			"    }\n" +
+			"    void foo() {\n" +
+			"    	X x = new X();\n" +
+			"    	I i = I::ne\n" +
+			"       System.out.println();\n" +
+			"    }\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "ne";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		new Thread(()->System.o);\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "System.o";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("out[FIELD_REF]{out, Ljava.lang.System;, Ljava.io.PrintStream;, null, null, out, null, [83, 84], 26}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219a() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		new Thread(()->System.out.p);\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "System.out.p";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("print[METHOD_REF]{print(), Ljava.io.PrintStream;, (C)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (D)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (F)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (I)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (J)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (Ljava.lang.Object;)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (Ljava.lang.String;)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, (Z)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"print[METHOD_REF]{print(), Ljava.io.PrintStream;, ([C)V, null, null, print, (arg0), [87, 88], 35}\n" +
+			"printf[METHOD_REF]{printf(), Ljava.io.PrintStream;, (Ljava.lang.String;[Ljava.lang.Object;)Ljava.io.PrintStream;, null, null, printf, (arg0, arg1), [87, 88], 35}\n" +
+			"printf[METHOD_REF]{printf(), Ljava.io.PrintStream;, (Ljava.util.Locale;Ljava.lang.String;[Ljava.lang.Object;)Ljava.io.PrintStream;, null, null, printf, (arg0, arg1, arg2), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, ()V, null, null, println, null, [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (C)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (D)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (F)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (I)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (J)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (Ljava.lang.Object;)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (Ljava.lang.String;)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, (Z)V, null, null, println, (arg0), [87, 88], 35}\n" +
+			"println[METHOD_REF]{println(), Ljava.io.PrintStream;, ([C)V, null, null, println, (arg0), [87, 88], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219b() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		new Thread(()->System.out.println(\"foo\")).st);\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "st";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("start[METHOD_REF]{start(), Ljava.lang.Thread;, ()V, null, null, start, null, [103, 105], 35}\n" +
+			"stop[METHOD_REF]{stop(), Ljava.lang.Thread;, ()V, null, null, stop, null, [103, 105], 35}\n" +
+			"stop[METHOD_REF]{stop(), Ljava.lang.Thread;, (Ljava.lang.Throwable;)V, null, null, stop, (arg0), [103, 105], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219c() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<Integer> list = Arrays.asList(1, 2, 3);\n" +
+			"		list.stream().map((x) -> x * x.h);\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "x.h";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("hashCode[METHOD_REF]{hashCode(), Ljava.lang.Integer;, (I)I, null, null, hashCode, (arg0), [187, 188], 54}\n" +
+			"highestOneBit[METHOD_REF]{highestOneBit(), Ljava.lang.Integer;, (I)I, null, null, highestOneBit, (arg0), [187, 188], 54}\n" +
+			"hashCode[METHOD_REF]{hashCode(), Ljava.lang.Integer;, ()I, null, null, hashCode, null, [187, 188], 65}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219d() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<Integer> list = Arrays.asList(1, 2, 3);\n" +
+			"		list.stream().map((x) -> x * x.hashCode()).forEach(System.out::pri);\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "pri";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (C)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (D)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (F)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (I)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (J)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (Ljava.lang.Object;)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (Ljava.lang.String;)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (Z)V, null, null, print, null, [219, 222], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, ([C)V, null, null, print, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, ()V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (C)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (D)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (F)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (I)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (J)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (Ljava.lang.Object;)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (Ljava.lang.String;)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (Z)V, null, null, println, null, [219, 222], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, ([C)V, null, null, println, null, [219, 222], 30}\n" +
+			"printf[METHOD_NAME_REFERENCE]{printf, Ljava.io.PrintStream;, (Ljava.lang.String;[Ljava.lang.Object;)Ljava.io.PrintStream;, null, null, printf, null, [219, 222], 35}\n" +
+			"printf[METHOD_NAME_REFERENCE]{printf, Ljava.io.PrintStream;, (Ljava.util.Locale;Ljava.lang.String;[Ljava.lang.Object;)Ljava.io.PrintStream;, null, null, printf, null, [219, 222], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219e() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+			"		   double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+			"		        //                        .y                   .n             .y\n" +
+			"		      .reduce((sum, cost) -> sum.dou\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "dou";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("doubleToLongBits[METHOD_REF]{doubleToLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToLongBits, (arg0), [355, 358], 24}\n" +
+			"doubleToRawLongBits[METHOD_REF]{doubleToRawLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToRawLongBits, (arg0), [355, 358], 24}\n" +
+			"doubleValue[METHOD_REF]{doubleValue(), Ljava.lang.Double;, ()D, null, null, doubleValue, null, [355, 358], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219f() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+			"		   double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+			"		        //                        .y                   .n             .y\n" +
+			"		      .reduce((sum, cost) -> sum.doubleValue() + cost.doubleValue()).g\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "g";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("getClass[METHOD_REF]{getClass(), Ljava.lang.Object;, ()Ljava.lang.Class<*>;, null, null, getClass, null, [391, 392], 35}\n" +
+			"get[METHOD_REF]{get(), Ljava.util.Optional<Ljava.lang.Double;>;, ()Ljava.lang.Double;, null, null, get, null, [391, 392], 55}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219g() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+			"		   double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+			"		        //                        .y                   .n             .y\n" +
+			"		      .reduce((sum, cost) -> sum.doubleValue() + cost.dou\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "dou";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("doubleToLongBits[METHOD_REF]{doubleToLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToLongBits, (arg0), [376, 379], 54}\n" +
+				  "doubleToRawLongBits[METHOD_REF]{doubleToRawLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToRawLongBits, (arg0), [376, 379], 54}\n" +
+				  "doubleValue[METHOD_REF]{doubleValue(), Ljava.lang.Double;, ()D, null, null, doubleValue, null, [376, 379], 65}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435682, [1.8] content assist not working inside lambda expression 
+public void test435682() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<String> words = Arrays.asList(\"hi\", \"hello\", \"hola\", \"bye\", \"goodbye\");\n" +
+			"		List<String> list1 = words.stream().map(so -> so.tr).collect(Collectors.toList());\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "so.tr";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("trim[METHOD_REF]{trim(), Ljava.lang.String;, ()Ljava.lang.String;, null, null, trim, null, [237, 239], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435682, [1.8] content assist not working inside lambda expression 
+public void test435682a() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		List<String> words = Arrays.asList(\"hi\", \"hello\", \"hola\", \"bye\", \"goodbye\");\n" +
+			"		List<String> list1 = words.stream().map((String so) -> so.tr).collect(Collectors.toList());\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "so.tr";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("trim[METHOD_REF]{trim(), Ljava.lang.String;, ()Ljava.lang.String;, null, null, trim, null, [246, 248], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field 
+public void test430667() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"interface D_FI {\n" +
+			"	void print(String value, int n);\n" +
+			"}\n" +
+			"class D_DemoRefactorings {\n" +
+			"	\n" +
+			"	D_FI fi1= (String value, int n) -> {\n" +
+			"		for (int j = 0; j < n; j++) {\n" +
+			"			System.out.println(value); 			\n" +
+			"		}\n" +
+			"	};\n" +
+			"	D_F\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "D_F";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("D_F[POTENTIAL_METHOD_DECLARATION]{D_F, LD_DemoRefactorings;, ()V, null, null, D_F, null, [195, 198], 14}\n" +
+				  "D_FI[TYPE_REF]{D_FI, , LD_FI;, null, null, null, null, [195, 198], 27}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field 
+public void test430667a() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"class D_DemoRefactorings {\n" +
+			"	\n" +
+			"	D_FI fi1= (String value, int n) -> {\n" +
+			"		for (int j = 0; j < n; j++) {\n" +
+			"			System.out.println(value); 			\n" +
+			"		}\n" +
+			"	};\n" +
+			"	/*HERE*/D_F\n" +
+			"}\n" +
+			"interface D_FI {\n" +
+			"	void print(String value, int n);\n" +
+			"}\n"
+			);
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/*HERE*/D_F";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("D_F[POTENTIAL_METHOD_DECLARATION]{D_F, LD_DemoRefactorings;, ()V, null, null, D_F, null, [150, 153], 14}\n" +
+			"D_FI[TYPE_REF]{D_FI, , LD_FI;, null, null, null, null, [150, 153], 27}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field 
+public void test430667b() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"class D_DemoRefactorings {\n" +
+			"	/*HERE*/D_F\n" +
+			"	D_FI fi1= (String value, int n) -> {\n" +
+			"		for (int j = 0; j < n; j++) {\n" +
+			"			System.out.println(value); 			\n" +
+			"		}\n" +
+			"	};\n" +
+			"}\n" +
+			"interface D_FI {\n" +
+			"	void print(String value, int n);\n" +
+			"}\n"
+			);
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/*HERE*/D_F";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("D_F[POTENTIAL_METHOD_DECLARATION]{D_F, LD_DemoRefactorings;, ()V, null, null, D_F, null, [36, 39], 14}\n" +
+			"D_FI[TYPE_REF]{D_FI, , LD_FI;, null, null, null, null, [36, 39], 27}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=443932, [1.8][code complete] method reference proposals not applied when caret inside method name
+public void test443932() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.function.IntFunction;\n" +
+			"public class X {\n" +
+			"	IntFunction<String> ts= Integer::toString;\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "to";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("toBinaryString[METHOD_NAME_REFERENCE]{toBinaryString, Ljava.lang.Integer;, (I)Ljava.lang.String;, null, null, toBinaryString, null, [90, 98], 24}\n" +
+			"toHexString[METHOD_NAME_REFERENCE]{toHexString, Ljava.lang.Integer;, (I)Ljava.lang.String;, null, null, toHexString, null, [90, 98], 24}\n" +
+			"toOctalString[METHOD_NAME_REFERENCE]{toOctalString, Ljava.lang.Integer;, (I)Ljava.lang.String;, null, null, toOctalString, null, [90, 98], 24}\n" +
+			"toString[METHOD_NAME_REFERENCE]{toString, Ljava.lang.Integer;, (I)Ljava.lang.String;, null, null, toString, null, [90, 98], 24}\n" +
+			"toString[METHOD_NAME_REFERENCE]{toString, Ljava.lang.Integer;, (II)Ljava.lang.String;, null, null, toString, null, [90, 98], 24}\n" +
+			"toUnsignedLong[METHOD_NAME_REFERENCE]{toUnsignedLong, Ljava.lang.Integer;, (I)J, null, null, toUnsignedLong, null, [90, 98], 24}\n" +
+			"toUnsignedString[METHOD_NAME_REFERENCE]{toUnsignedString, Ljava.lang.Integer;, (I)Ljava.lang.String;, null, null, toUnsignedString, null, [90, 98], 24}\n" +
+			"toUnsignedString[METHOD_NAME_REFERENCE]{toUnsignedString, Ljava.lang.Integer;, (II)Ljava.lang.String;, null, null, toUnsignedString, null, [90, 98], 24}\n" +
+			"toString[METHOD_NAME_REFERENCE]{toString, Ljava.lang.Integer;, ()Ljava.lang.String;, null, null, toString, null, [90, 98], 35}", requestor.getResults());
+	assertTrue(str.substring(90, 98).equals("toString"));
+	
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444300, [1.8] content assist not working inside lambda expression in case of fields
+public void test444300() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"public class Test {\n" +
+			"	List<String> words = Arrays.asList(\"hi\", \"hello\", \"hola\", \"bye\", \"goodbye\");\n" +
+			"	List<String> list1 = words.stream().map(so -> so.ch).collect(Collectors.toList());\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "so.ch";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("charAt[METHOD_REF]{charAt(), Ljava.lang.String;, (I)C, null, null, charAt, (arg0), [232, 234], 35}\n" +
+			"chars[METHOD_REF]{chars(), Ljava.lang.CharSequence;, ()Ljava.util.stream.IntStream;, null, null, chars, null, [232, 234], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444300, [1.8] content assist not working inside lambda expression in case of fields
+public void test435219h() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	List<Integer> list = Arrays.asList(1, 2, 3);\n" +
+			"	List<String> list1 = list.stream().map((x) -> x * x.h).collect(Collectors.toList());\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "x.h";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("hashCode[METHOD_REF]{hashCode(), Ljava.lang.Integer;, (I)I, null, null, hashCode, (arg0), [164, 165], 54}\n" +
+			"highestOneBit[METHOD_REF]{highestOneBit(), Ljava.lang.Integer;, (I)I, null, null, highestOneBit, (arg0), [164, 165], 54}\n" +
+			"hashCode[METHOD_REF]{hashCode(), Ljava.lang.Integer;, ()I, null, null, hashCode, null, [164, 165], 65}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444300, [1.8] content assist not working inside lambda expression in case of fields
+public void test435219i() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"		List<Integer> list = Arrays.asList(1, 2, 3);\n" +
+			"		Object o = list.stream().map((x) -> x * x.hashCode()).forEach(System.out::pri);\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "pri";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (C)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (D)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (F)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (I)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (J)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (Ljava.lang.Object;)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (Ljava.lang.String;)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, (Z)V, null, null, print, null, [188, 191], 30}\n" +
+			"print[METHOD_NAME_REFERENCE]{print, Ljava.io.PrintStream;, ([C)V, null, null, print, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, ()V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (C)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (D)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (F)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (I)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (J)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (Ljava.lang.Object;)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (Ljava.lang.String;)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, (Z)V, null, null, println, null, [188, 191], 30}\n" +
+			"println[METHOD_NAME_REFERENCE]{println, Ljava.io.PrintStream;, ([C)V, null, null, println, null, [188, 191], 30}\n" +
+			"printf[METHOD_NAME_REFERENCE]{printf, Ljava.io.PrintStream;, (Ljava.lang.String;[Ljava.lang.Object;)Ljava.io.PrintStream;, null, null, printf, null, [188, 191], 35}\n" +
+			"printf[METHOD_NAME_REFERENCE]{printf, Ljava.io.PrintStream;, (Ljava.util.Locale;Ljava.lang.String;[Ljava.lang.Object;)Ljava.io.PrintStream;, null, null, printf, null, [188, 191], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444300, [1.8] content assist not working inside lambda expression in case of fields
+public void test435219j() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+			"		double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+			"		      .reduce((sum, cost) -> sum.dou\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "dou";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("doubleToLongBits[METHOD_REF]{doubleToLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToLongBits, (arg0), [235, 238], 24}\n" +
+			"doubleToRawLongBits[METHOD_REF]{doubleToRawLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToRawLongBits, (arg0), [235, 238], 24}\n" +
+			"doubleValue[METHOD_REF]{doubleValue(), Ljava.lang.Double;, ()D, null, null, doubleValue, null, [235, 238], 35}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444300, [1.8] content assist not working inside lambda expression in case of fields
+public void test435219k() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+			"		double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+			"		      .reduce((sum, cost) -> sum.doubleValue() + cost.doubleValue()).g\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "g";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("getClass[METHOD_REF]{getClass(), Ljava.lang.Object;, ()Ljava.lang.Class<*>;, null, null, getClass, null, [271, 272], 35}\n" +
+			"get[METHOD_REF]{get(), Ljava.util.Optional<Ljava.lang.Double;>;, ()Ljava.lang.Double;, null, null, get, null, [271, 272], 55}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=444300, [1.8] content assist not working inside lambda expression in case of fields
+public void test435219l() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Arrays;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+			"		double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+			"		      .reduce((sum, cost) -> sum.doubleValue() + cost.dou\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "dou";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("doubleToLongBits[METHOD_REF]{doubleToLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToLongBits, (arg0), [256, 259], 54}\n" +
+			"doubleToRawLongBits[METHOD_REF]{doubleToRawLongBits(), Ljava.lang.Double;, (D)J, null, null, doubleToRawLongBits, (arg0), [256, 259], 54}\n" +
+			"doubleValue[METHOD_REF]{doubleValue(), Ljava.lang.Double;, ()D, null, null, doubleValue, null, [256, 259], 65}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435281, [1.8][code assist] No import or completion proposal for anonymous class inside lambda
+public void test435281() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[3];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/FI1.java",
+			"package p4a;\n" +
+			"@FunctionalInterface\n" +
+			"public interface FI1<R> {\n" +
+			"    public R foo1();\n" +
+			"}\n");
+	this.workingCopies[1] = getWorkingCopy(
+			"/Completion/src/FI2.java",
+			"package p4a;\n" +
+			"@FunctionalInterface\n" +
+			"public interface FI2 {\n" +
+			"    public void foo2();\n" +
+			"}\n");
+
+	this.workingCopies[2] = getWorkingCopy(
+			"/Completion/src/Test.java",
+			"package p4b;\n" +
+			"import p4a.FI1;\n" +
+			"public class Test {\n" +
+			"	{\n" +
+			"                new FI2() {};\n" +
+			"		FI1 fi1 = () -> new FI2() {\n" +
+			"		    @Override\n" +
+			"		    public void foo2() {}\n" +
+			"		};\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[2].getSource();
+	String completeBehind = "FI2";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[2].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("FI2[TYPE_REF]{p4a.FI2, p4a, Lp4a.FI2;, null, null, null, null, [104, 107], 28}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=431811, content assist should propose keyword 'super' after type name
+public void test431811() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/FI1.java",
+			"interface Intf {\n" +
+			"	void foo();\n" +
+			"}\n" +
+			"public class X implements Intf {\n" +
+			"    class Inner {\n" +
+			"        {\n" +
+			"            X.super.hashCode();\n" +
+			"        }\n" +
+			"    }\n" +
+			"    @Override\n" +
+			"    public void foo() {\n" +
+			"        Intf.su;\n" +
+			"    }\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "su";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("super[KEYWORD]{super, null, null, null, null, super, null, [192, 194], 26}", requestor.getResults());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447774, Auto complete does not work when using lambdas with cast
+public void test447774() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.io.Serializable;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.function.Predicate;\n" +
+			"public final class X {\n" +
+			"    public static <T, R> Predicate<T> apply(Predicate<R> predicate, Function<? super T, ? extends R> function) {\n" +
+			"	     syso\n" +
+			"        return (Predicate<T> & Serializable) t -> predicate.test(function.apply(t));\n" +
+			"    }\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "syso";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("", requestor.getResults());
+	assertEquals("completion offset=248\n" +
+			"completion range=[244, 247]\n" +
+			"completion token=\"syso\"\n" +
+			"completion token kind=TOKEN_KIND_NAME\n" +
+			"expectedTypesSignatures=null\n" +
+			"expectedTypesKeys=null\n" +
+			"completion token location={STATEMENT_START}", requestor.getContext());
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449358, Content assist inside lambda broken in all methods except last 
+public void test449358() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Optional;\n" +
+			"public class LambdaBug {\n" +
+			"	private final String field = \"final field\";\n" +
+			"	void localmethod1() {\n" +
+			"		Optional.of(\"test\").map(s -> {\n" +
+			"			String local;\n" +
+			"			/*HERE*/localMeth\n" +
+			"			return s;\n" +
+			"		}).get();\n" +
+			"	}\n" +
+			"	void localmethod2() {\n" +
+			"		Optional.of(\"test\").map(s -> {\n" +
+			"			String local;\n" +
+			"			// content assist works there\n" +
+			"			return s;\n" +
+			"		}).get();\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/*HERE*/localMeth";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("localmethod1[METHOD_REF]{localmethod1(), LLambdaBug;, ()V, null, null, localmethod1, null, [181, 190], 17}\n" +
+                  "localmethod2[METHOD_REF]{localmethod2(), LLambdaBug;, ()V, null, null, localmethod2, null, [181, 190], 17}", requestor.getResults());
+	
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=449358, Content assist inside lambda broken in all methods except last 
+public void test449358a() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.Optional;\n" +
+			"public class LambdaBug {\n" +
+			"	private final String field = \"final field\";\n" +
+			"	void localmethod1() {\n" +
+			"		Optional.of(\"test\").map(s -> {\n" +
+			"			String local;\n" +
+			"			return s;\n" +
+			"		}).get();\n" +
+			"	}\n" +
+			"	void localmethod2() {\n" +
+			"		Optional.of(\"test\").map(s -> {\n" +
+			"			String local;\n" +
+			"			/*HERE*/localMeth\n" +
+			"			return s;\n" +
+			"		}).get();\n" +
+			"	}\n" +
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true, true, true, false);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/*HERE*/localMeth";
+	int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("localmethod1[METHOD_REF]{localmethod1(), LLambdaBug;, ()V, null, null, localmethod1, null, [282, 291], 17}\n" +
+				  "localmethod2[METHOD_REF]{localmethod2(), LLambdaBug;, ()V, null, null, localmethod2, null, [282, 291], 17}", requestor.getResults());
+	
+}
+public void testBug459189_001() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"public class X {\n"+
+			"	Integer foo(){\n"+
+			"		I <Integer, X> i2 = (x) -> {ret /* type ctrl-space after ret */};\n"+
+			"		return 0;\n"+
+			"	}\n"+
+			"	Integer bar(Integer x) { return null;}\n"+
+			"}\n"+
+			"interface I <T,R> {\n"+
+			"	R apply(T t);\n"+
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "ret";
+	int cursorLocation = str.indexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults(
+			"Retention[TYPE_REF]{java.lang.annotation.Retention, java.lang.annotation, Ljava.lang.annotation.Retention;, null, null, 14}\n"+
+			"RetentionPolicy[TYPE_REF]{java.lang.annotation.RetentionPolicy, java.lang.annotation, Ljava.lang.annotation.RetentionPolicy;, null, null, 14}\n"+
+			"return[KEYWORD]{return, null, null, return, null, 24}",
+			requestor.getResults());
+}
+public void testBug459189_002() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"	Integer bar(Integer x) { return null;}\n"+
+			"public class X {\n"+
+			"	Integer foo(){\n"+
+			"		I <Integer, X> i2 = (x) -> {/* HERE */ret /* type ctrl-space after ret */};\n"+
+			"		return 0;\n"+
+			"	}\n"+
+			"}\n"+
+			"interface I <T,R> {\n"+
+			"	R apply(T t);\n"+
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/* HERE */ret";
+	int cursorLocation = str.indexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults(
+			"Retention[TYPE_REF]{java.lang.annotation.Retention, java.lang.annotation, Ljava.lang.annotation.Retention;, null, null, 14}\n"+
+			"RetentionPolicy[TYPE_REF]{java.lang.annotation.RetentionPolicy, java.lang.annotation, Ljava.lang.annotation.RetentionPolicy;, null, null, 14}\n" +
+			"return[KEYWORD]{return, null, null, return, null, 24}",
+			requestor.getResults());
+}
+public void testBug459189_003() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"public class X {\n"+
+			"	Integer foo(){\n"+
+			"		I <Integer, X> i2 = (x) -> {try{} /* HERE */\n"+
+			"		return 0;\n"+
+			"	}\n"+
+			"	Integer bar(Integer x) { return null;}\n"+
+			"}\n"+
+			"interface I <T,R> {\n"+
+			"	R apply(T t);\n"+
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/* HERE */";
+	int cursorLocation = str.indexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults(
+			"catch[KEYWORD]{catch, null, null, catch, null, 24}\n"+
+			"finally[KEYWORD]{finally, null, null, finally, null, 24}",
+			requestor.getResults());
+}
+public void testBug459189_004() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"public class X {\n"+
+			"	Integer foo(){\n"+
+			"		I <Integer, X> i2 = (x) -> {do{} /* HERE */\n"+
+			"		return 0;\n"+
+			"	}\n"+
+			"	Integer bar(Integer x) { return null;}\n"+
+			"}\n"+
+			"interface I <T,R> {\n"+
+			"	R apply(T t);\n"+
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/* HERE */";
+	int cursorLocation = str.indexOf(completeBehind) + completeBehind.length();
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults(
+			"while[KEYWORD]{while, null, null, while, null, 24}",
+			requestor.getResults());
+}
+public void testBug460410() throws JavaModelException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy(
+			"/Completion/src/X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.function.Supplier;\n" +
+			"public class X {\n"+
+			"	public static void main(String[] args) {\n"+
+			"		ArrayList<Supplier<Runnable>> list = new ArrayList<>();\n"+
+			"		list.forEach((supp) -> {\n"+
+			"			Supplier<Run/* HERE */>}\n"+
+			"		});\n"+
+			"	}\n"+
+			"}\n");
+
+	CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(true);
+	requestor.allowAllRequiredProposals();
+	String str = this.workingCopies[0].getSource();
+	String completeBehind = "/* HERE */";
+	int cursorLocation = str.indexOf(completeBehind);
+	this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
+	assertResults("", requestor.getResults());
 }
 }

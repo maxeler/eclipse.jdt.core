@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013 GK Software AG, IBM Corporation and others.
+ * Copyright (c) 2013, 2014 GK Software AG, IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,15 +11,20 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.tests.compiler.regression;
 
+import java.io.File;
 import java.util.Map;
 
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.ToolFactory;
+import org.eclipse.jdt.core.tests.util.Util;
+import org.eclipse.jdt.core.util.ClassFileBytesDisassembler;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
 import junit.framework.Test;
 
 // See https://bugs.eclipse.org/380501
 // Bug 380501 - [1.8][compiler] Add support for default methods (JSR 335)
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class InterfaceMethodsTest extends AbstractComparableTest {
 
 // Static initializer to specify tests subset using TESTS_* static variables
@@ -2501,5 +2506,294 @@ public class InterfaceMethodsTest extends AbstractComparableTest {
 					"}\n"
 			},
 			"");
+	}
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=438471, Java 1.8 functional interface rejected if it extends an interface which overrides another interface's method
+	public void test438471() throws Exception {
+		this.runConformTest(
+			new String[] {
+				"Bar.java",
+				"@FunctionalInterface\n" +
+				"public interface Bar extends Overridden {\n" + 
+					"	void foo();\n" + 
+					"	@Override\n" + 
+					"	default void close() {\n" + 
+					"		System.out.println(\"bar\");\n" + 
+					"	}\n" + 
+					"}\n" + 
+					"\n" + 
+					"interface Overridden extends AutoCloseable {\n" + 
+					"	// Works without this overridden method\n" + 
+					"	@Override\n" + 
+					"	void close();\n" + 
+					"}"
+			},
+			"");
+	}
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=436350, [1.8][compiler] Missing bridge method in interface results in AbstractMethodError
+	public void test436350() throws Exception {
+		this.runConformTest(
+			new String[] {
+				"X.java",
+				"public class X {\n" +
+				"    public static void main(String [] args) {\n" +
+				"    }\n" +
+				"}\n" +
+				"interface GenericInterface<T> {\n" +
+				"	T reduce(Integer i);\n" +
+				"}\n" +
+				"interface DoubleInterface extends GenericInterface<Double> {\n" +
+				"	default Double reduce(Integer i) {\n" +
+				"		return 0.0;\n" +
+				"	}\n" +
+				"	double reduce(String s);\n" +
+				"}\n", // =================
+			},
+			"");
+		// 	ensure bridge methods are generated in interfaces.
+		String expectedOutput =
+				"  public bridge synthetic java.lang.Object reduce(java.lang.Integer arg0);\n" + 
+				"    0  aload_0 [this]\n" + 
+				"    1  aload_1 [arg0]\n" + 
+				"    2  invokeinterface DoubleInterface.reduce(java.lang.Integer) : java.lang.Double [24] [nargs: 2]\n" + 
+				"    7  areturn\n";
+
+		File f = new File(OUTPUT_DIR + File.separator + "DoubleInterface.class");
+		byte[] classFileBytes = org.eclipse.jdt.internal.compiler.util.Util.getFileByteContent(f);
+		ClassFileBytesDisassembler disassembler = ToolFactory.createDefaultClassFileBytesDisassembler();
+		String result = disassembler.disassemble(classFileBytes, "\n", ClassFileBytesDisassembler.DETAILED);
+		int index = result.indexOf(expectedOutput);
+		if (index == -1 || expectedOutput.length() == 0) {
+			System.out.println(Util.displayString(result, 3));
+		}
+		if (index == -1) {
+			assertEquals("Wrong contents", expectedOutput, result);
+		}
+	}
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=436350, [1.8][compiler] Missing bridge method in interface results in AbstractMethodError
+	public void test436350a() throws Exception {
+		this.runConformTest(
+			new String[] {
+				"X.java",
+				"import java.util.Iterator;\n" +
+				"import java.util.PrimitiveIterator;\n" +
+				"import java.util.PrimitiveIterator.OfDouble;\n" +
+				"/**\n" +
+				" * @author Tobias Grasl\n" +
+				" */\n" +
+				"public class X {\n" +
+				"	public static void main(String[] args) {\n" +
+				"		final double[] doubles = new double[]{1,2,3};\n" +
+				"		OfDouble doubleIterator = new DoubleArrayIterator(doubles);\n" +
+				"		Double value = new Reducer<Double>().reduce(doubleIterator, new DoubleInterface() {\n" +
+				"			@Override\n" +
+				"			public double reduce(OfDouble iterator_) {\n" +
+				"				double sum = 0;\n" +
+				"				while(iterator_.hasNext()) {\n" +
+				"					sum += iterator_.nextDouble();\n" +
+				"				}\n" +
+				"				return sum;\n" +
+				"			}\n" +
+				"		});\n" +
+				"		System.out.println(\"Anonymous class value: \"+value);\n" +
+				"		doubleIterator = new DoubleArrayIterator(doubles);\n" +
+				"		value = new Reducer<Double>().reduce(doubleIterator, (DoubleInterface) iterator_ -> {\n" +
+				"			double sum = 0;\n" +
+				"			while(iterator_.hasNext()) {\n" +
+				"				sum += iterator_.nextDouble();\n" +
+				"			}\n" +
+				"			return sum;\n" +
+				"		});\n" +
+				"		System.out.println(\"Lambda expression value: \"+value);\n" +
+				"	}\n" +
+				"	private static class DoubleArrayIterator implements PrimitiveIterator.OfDouble {\n" +
+				"		int index = 0;\n" +
+				"		private double[] _doubles;\n" +
+				"		public DoubleArrayIterator(double[] doubles_) {\n" +
+				"			_doubles = doubles_;\n" +
+				"		}\n" +
+				"		@Override\n" +
+				"		public boolean hasNext() {\n" +
+				"			return index < _doubles.length;\n" +
+				"		}\n" +
+				"		@Override\n" +
+				"		public double nextDouble() {\n" +
+				"			return _doubles[index++];\n" +
+				"		}\n" +
+				"	};\n" +
+				"	interface GenericInterface<T> {\n" +
+				"		T reduce(Iterator<T> iterator_);\n" +
+				"	}\n" +
+				"	interface DoubleInterface extends GenericInterface<Double> {\n" +
+				"		default Double reduce(Iterator<Double> iterator_) {\n" +
+				"			if(iterator_ instanceof PrimitiveIterator.OfDouble) {\n" +
+				"				return reduce((PrimitiveIterator.OfDouble)iterator_);\n" +
+				"			}\n" +
+				"			return Double.NaN;\n" +
+				"		};\n" +
+				"		double reduce(PrimitiveIterator.OfDouble iterator_);\n" +
+				"	}\n" +
+				"	static class Reducer<T> {\n" +
+				"		T reduce(Iterator<T> iterator_, GenericInterface<T> reduction_) {\n" +
+				"			return reduction_.reduce(iterator_);\n" +
+				"		}\n" +
+				"	}\n" +
+				"}\n", // =================
+			},
+			"Anonymous class value: 6.0\n" + 
+			"Lambda expression value: 6.0");
+	}
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=437522, [1.8][compiler] Missing compile error in Java 8 mode for Interface.super.field access
+	public void testBug437522() throws Exception {
+		runNegativeTest(
+			new String[] {
+				"X.java",
+				"interface T {\n" +
+				"    int f = 0;\n" +
+				"    void foo();\n" +
+				"    default String def() { return \"T.def\"; }\n" +
+				"}\n" +
+				"class S {\n" +
+				"    public static final int f = 0;\n" +
+				"}\n" +
+				"class C extends S implements T {\n" +
+				"    @Override\n" +
+				"    public void foo() {\n" +
+				"        System.out.println(T.super.f); // no error in Java 8 (wrong) without fix\n" +
+				"        System.out.println(T.super.def()); // new JLS8 15.12.1 form (OK)\n" +
+				"        System.out.println(S.super.f); // compile error (correct)\n" +
+				"    }\n" +
+				"}\n" +
+				"class X {\n" +
+				"    T f = new T() {\n" +
+				"        @Override\n" +
+				"        public void foo() {\n" +
+				"            System.out.println(T.super.f); // no error in Java 8 (wrong) without fix\n" +
+				"        }\n" +
+				"    };\n" +
+				"}\n" +
+				"class Y { int f = 1;}\n" +
+				"class Z extends Y {\n" +
+				"	int foo2() { return super.f;}\n" +
+				"	static int foo() { return super.f;}\n" +
+				"}\n" +
+				"interface T2 { int f = 0; }\n" +
+				"class X2  implements T2 {	\n" +
+				"	int i = T2.super.f;\n" +
+				"}\n" +
+				"interface T3 { int f = 0; }\n" +
+				"interface T4 extends T3 { int f = 0; }\n" +
+				"class X3  implements T4 {	\n" +
+				"	int i = T4.super.f;\n" +
+				"}\n" +
+				"interface T5 { int f = 0; }\n" +
+				"class X5 implements T5 {	\n" +
+				"	static int i = T5.super.f;\n" +
+				"}\n" +
+				"interface T6 { int f = 0; }\n" +
+				"class X6 implements T6 {	\n" +
+				"	static int i = T6.super.f;\n" +
+				"}\n",
+			},
+			"----------\n" +
+			"1. ERROR in X.java (at line 12)\n" +
+			"	System.out.println(T.super.f); // no error in Java 8 (wrong) without fix\n" +
+			"	                   ^^^^^^^\n" +
+			"No enclosing instance of the type T is accessible in scope\n" +
+			"----------\n" +
+			"2. ERROR in X.java (at line 14)\n" +
+			"	System.out.println(S.super.f); // compile error (correct)\n" +
+			"	                   ^^^^^^^\n" +
+			"No enclosing instance of the type S is accessible in scope\n" +
+			"----------\n" +
+			"3. ERROR in X.java (at line 21)\n" +
+			"	System.out.println(T.super.f); // no error in Java 8 (wrong) without fix\n" +
+			"	                   ^^^^^^^\n" +
+			"No enclosing instance of the type T is accessible in scope\n" +
+			"----------\n" +
+			"4. ERROR in X.java (at line 28)\n" +
+			"	static int foo() { return super.f;}\n" +
+			"	                          ^^^^^\n" +
+			"Cannot use super in a static context\n" +
+			"----------\n" +
+			"5. ERROR in X.java (at line 32)\n" +
+			"	int i = T2.super.f;\n" +
+			"	        ^^^^^^^^\n" +
+			"No enclosing instance of the type T2 is accessible in scope\n" +
+			"----------\n" +
+			"6. ERROR in X.java (at line 37)\n" +
+			"	int i = T4.super.f;\n" +
+			"	        ^^^^^^^^\n" +
+			"No enclosing instance of the type T4 is accessible in scope\n" +
+			"----------\n" +
+			"7. ERROR in X.java (at line 41)\n" +
+			"	static int i = T5.super.f;\n" +
+			"	               ^^^^^^^^\n" +
+			"Cannot use super in a static context\n" +
+			"----------\n" +
+			"8. ERROR in X.java (at line 41)\n" +
+			"	static int i = T5.super.f;\n" +
+			"	               ^^^^^^^^\n" +
+			"No enclosing instance of the type T5 is accessible in scope\n" +
+			"----------\n" +
+			"9. ERROR in X.java (at line 45)\n" +
+			"	static int i = T6.super.f;\n" +
+			"	               ^^^^^^^^\n" +
+			"Cannot use super in a static context\n" +
+			"----------\n" +
+			"10. ERROR in X.java (at line 45)\n" +
+			"	static int i = T6.super.f;\n" +
+			"	               ^^^^^^^^\n" +
+			"No enclosing instance of the type T6 is accessible in scope\n" +
+			"----------\n");
+	}
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=437522, [1.8][compiler] Missing compile error in Java 8 mode for Interface.super.field access
+	// Example JLS: 15.11.2-1.
+	public void testBug437522a() throws Exception {
+		runConformTest(
+			true,
+			new String[] {
+				"X.java",
+				"interface I  { int x = 0; }\n" +
+				"class T1 implements I { int x = 1; }\n" +
+				"class T2 extends T1   { int x = 2; }\n" +
+				"class T3 extends T2 {\n" +
+				"    int x = 3;\n" +
+				"    void test() {\n" +
+				"        System.out.println(\"x= \"          + x);\n" +
+				"        System.out.println(\"super.x= \"    + super.x);\n" +
+				"        System.out.println(\"((T2)this).x= \" + ((T2)this).x);\n" +
+				"        System.out.println(\"((T1)this).x= \" + ((T1)this).x);\n" +
+				"        System.out.println(\"((I)this).x= \"  + ((I)this).x);\n" +
+				"    }\n" +
+				"}\n" +
+				"public class X {\n" +
+				"    public static void main(String[] args) {\n" +
+				"        new T3().test();\n" +
+				"    }\n" +
+				"}\n",
+			},
+			null, null,
+			"----------\n" +
+			"1. WARNING in X.java (at line 3)\n" +
+			"	class T2 extends T1   { int x = 2; }\n" +
+			"	                            ^\n" +
+			"The field T2.x is hiding a field from type T1\n" +
+			"----------\n" +
+			"2. WARNING in X.java (at line 5)\n" +
+			"	int x = 3;\n" +
+			"	    ^\n" +
+			"The field T3.x is hiding a field from type T2\n" +
+			"----------\n" +
+			"3. WARNING in X.java (at line 11)\n" +
+			"	System.out.println(\"((I)this).x= \"  + ((I)this).x);\n" +
+			"	                                                ^\n" +
+			"The static field I.x should be accessed in a static way\n" +
+			"----------\n",
+			"x= 3\n" +
+			"super.x= 2\n" +
+			"((T2)this).x= 2\n"	+
+			"((T1)this).x= 1\n" +
+			"((I)this).x= 0",
+			"", JavacTestOptions.DEFAULT);
 	}
 }

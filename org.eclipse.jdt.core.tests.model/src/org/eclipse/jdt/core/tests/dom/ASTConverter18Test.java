@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -27,8 +27,10 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.core.ResolvedBinaryMethod;
 
+@SuppressWarnings({"rawtypes"})
 public class ASTConverter18Test extends ConverterTestSetup {
 
 	ICompilationUnit workingCopy;
@@ -1578,7 +1580,8 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		assertEquals("vlambda -> {\n  return 200;\n}\n", lambdaExpression.toString());
 		assertTrue(lambdaExpression.parameters().size() == 1);
 		IMethodBinding binding = lambdaExpression.resolveMethodBinding();
-		assertEquals("private static int lambda$0(int) ", binding.toString());
+		assertEquals("public int foo(int) ", binding.toString());
+		assertEquals("real modifiers", ClassFileConstants.AccPublic, binding.getModifiers());
 		VariableDeclaration variableDeclaration = (VariableDeclaration) lambdaExpression.parameters().get(0);
 		assertTrue(variableDeclaration instanceof VariableDeclarationFragment);
 		fragment = (VariableDeclarationFragment)variableDeclaration;
@@ -1613,7 +1616,8 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		LambdaExpression lambdaExpression = (LambdaExpression)expression;
 		assertEquals("vlambda -> 200", lambdaExpression.toString());
 		IMethodBinding binding = lambdaExpression.resolveMethodBinding();
-		assertEquals("private static int lambda$0(int) ", binding.toString());
+		assertEquals("public int foo(int) ", binding.toString());
+		assertEquals("real modifiers", ClassFileConstants.AccPublic, binding.getModifiers());
 		assertTrue(lambdaExpression.parameters().size() == 1);
 		VariableDeclaration variableDeclaration = (VariableDeclaration) lambdaExpression.parameters().get(0);
 		assertTrue(variableDeclaration instanceof VariableDeclarationFragment);
@@ -1647,7 +1651,8 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		LambdaExpression lambdaExpression = (LambdaExpression)expression;
 		assertEquals("(int[] ia) -> {\n  return ia.clone();\n}\n", lambdaExpression.toString());
 		IMethodBinding binding = lambdaExpression.resolveMethodBinding();
-		assertEquals("private static java.lang.Object lambda$0(int[]) ", binding.toString());
+		assertEquals("public java.lang.Object foo(int[]) ", binding.toString());
+		assertEquals("real modifiers", ClassFileConstants.AccPublic, binding.getModifiers());
 		assertTrue(lambdaExpression.parameters().size() == 1);
 		VariableDeclaration variableDeclaration = (VariableDeclaration) lambdaExpression.parameters().get(0);
 		assertTrue(variableDeclaration instanceof SingleVariableDeclaration);
@@ -1689,7 +1694,8 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		LambdaExpression lambdaExpression = (LambdaExpression)expression;
 		assertEquals("() -> {\n  System.out.println(this);\n  I j=() -> {\n    System.out.println(this);\n    I k=() -> {\n      System.out.println(this);\n    }\n;\n  }\n;\n}\n", lambdaExpression.toString());
 		IMethodBinding binding = lambdaExpression.resolveMethodBinding();
-		assertEquals("private void lambda$0() ", binding.toString());
+		assertEquals("public void doit() ", binding.toString());
+		assertEquals("real modifiers", ClassFileConstants.AccPublic, binding.getModifiers());
 		assertTrue(lambdaExpression.parameters().size() == 0);
 	}
 
@@ -1768,7 +1774,7 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		ITypeBinding typeBinding = typeMethodReference.resolveTypeBinding();
 		assertNotNull(typeBinding);
 		IMethodBinding methodBinding = typeMethodReference.resolveMethodBinding();
-		assertNotNull(methodBinding);
+		assertNull(methodBinding);
 		Type type = typeMethodReference.getType();
 		checkSourceRange(type, "@Marker int []", contents);
 		assertTrue(type.isArrayType());
@@ -1942,7 +1948,8 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		LambdaExpression lambdaExpression = (LambdaExpression)expression;
 		assertEquals("() -> () -> 10", lambdaExpression.toString());
 		IMethodBinding binding = lambdaExpression.resolveMethodBinding();
-		assertEquals("private static test399793.J lambda$0() ", binding.toString());
+		assertEquals("public test399793.J foo() ", binding.toString());
+		assertEquals("real modifiers", ClassFileConstants.AccPublic, binding.getModifiers());
 		assertTrue(lambdaExpression.parameters().size() == 0);
 	}	
 	
@@ -2892,11 +2899,7 @@ public class ASTConverter18Test extends ConverterTestSetup {
 		Expression expression = fragment.getInitializer();
 		CreationReference creationReference = (CreationReference) expression;
 		IMethodBinding methodBinding = creationReference.resolveMethodBinding();
-		assertNotNull(methodBinding);
-		assertEquals("Wrong name", "lambda$0", methodBinding.getName());
-		ITypeBinding [] parameterTypes = methodBinding.getParameterTypes();
-		assertTrue("Incorrect Number of parameter type", parameterTypes.length == 1);
-		assertEquals("Incorrect parameter type", "int", parameterTypes[0].getName());
+		assertNull(methodBinding);
 	}
 
 	/**
@@ -4316,7 +4319,7 @@ public void testBug425183a() throws JavaModelException {
 	IJavaElement[] elements = this.workingCopy.codeSelect(start, length);
 	assertElementsEqual(
 		"Unexpected elements",
-		"naturalOrder() {key=LBug425183a~Comparator<>;.naturalOrder<T::Ljava/lang/Comparable<-TT;>;>()LComparator<TT;>;%<^{267#0};>} [in Comparator [in [Working copy] Bug425183a.java [in <default> [in src [in Converter18]]]]]",
+		"naturalOrder() {key=LBug425183a~Comparator<>;.naturalOrder<T::Ljava/lang/Comparable<-TT;>;>()LComparator<TT;>;%<^{291#0};>} [in Comparator [in [Working copy] Bug425183a.java [in <default> [in src [in Converter18]]]]]",
 		elements,
 		true
 	);
@@ -4704,5 +4707,489 @@ public void test436347() throws CoreException, IOException {
 	}
 }
 
+
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433879, org.eclipse.jdt.internal.compiler.lookup.ArrayBinding cannot be cast to org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
+//@throws ClassCastException without the fix
+//Array type access in catch block. Test case picked up from the bug.
+public void testBug433879() throws JavaModelException {
+	String contents =
+			"package Bug433879;\r\n"+
+			"public class X {\n" +
+			"Class<? extends Exception>[] exceptions;\n" +
+			"	void foo() {\n" +
+			"	try {\n" +
+			"		// some stuff here\n" +
+			"	} catch (exceptions[0] e) {\n" +
+			"   	// some more stuff here\n" +
+			"	}\n" +
+			"	}\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/Bug433879/X.java", true/*computeProblems*/);
+	try {
+		buildAST(AST.JLS8, contents, this.workingCopy, false, true, true);
+	} catch (ClassCastException e) {
+		fail(e.getMessage());
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433879, org.eclipse.jdt.internal.compiler.lookup.ArrayBinding cannot be cast to org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
+//@throws ClassCastException without the fix
+//Simplified version of the test case picked up from the bug report.
+public void testBug433879a() throws JavaModelException {
+	String contents =
+			"package Bug433879a;\n"+
+			"public class X {\n" +
+			"	void foo() {\n" +
+			"		try {\n" +
+			"		    // some stuff here\n" +
+			"		} catch (A[0] e) {\n" +
+			"		    // some more stuff here\n" +
+			"		}\n" +
+			"	}\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/Bug433879a/X.java", true/*computeProblems*/);
+	try {
+		buildAST(AST.JLS8, contents, this.workingCopy, false, true, true);
+	} catch (ClassCastException e) {
+		fail(e.getMessage());
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433879, org.eclipse.jdt.internal.compiler.lookup.ArrayBinding cannot be cast to org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
+//Catch parameters Union Type
+public void testBug433879b() throws JavaModelException {
+	String contents =
+			"package Bug433879c;\n"+
+			"public class X {\n" +
+			"	void foo() {\n" +
+			"		try {\n" +
+			"		    // some stuff here\n" +
+			"		} catch (A[0] | B[0] e) {\n" +
+			"		    // some more stuff here\n" +
+			"		}\n" +
+			"	}\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/Bug433879c/X.java", true/*computeProblems*/);
+	try {
+		buildAST(AST.JLS8, contents, this.workingCopy, false, true, true);
+	} catch (ClassCastException e) {
+		fail(e.getMessage());
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433879, org.eclipse.jdt.internal.compiler.lookup.ArrayBinding cannot be cast to org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
+//@throws ClassCastException without the fix
+//Catch parameters union type. Multiple Catch handlers.
+public void testBug433879c() throws JavaModelException {
+	String contents =
+			"package Bug433879d;\n"+
+			"class E1 extends Exception {private static final long serialVersionUID = 1L;}\n" +
+			"class E2 extends Exception { private static final long serialVersionUID = 1L;}\n" +
+			"\n" +
+			"\n" +
+			"public class X {\n" +
+			"	Class<? extends Exception>[] exceptions;\n" +
+			"	void foo() {\n" +
+			"		try {\n" +
+			"			bar();\n" +
+			"		} catch (exceptions[0] e) {\n" +
+			"		} catch (E1 | E2 eU) {}\n" +
+			"	}\n" +
+			"	private void bar() throws E1, E2 {}\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/Bug433879d/X.java", true/*computeProblems*/);
+	try {
+		buildAST(AST.JLS8, contents, this.workingCopy, false, true, true);
+	} catch (ClassCastException e) {
+		fail(e.getMessage());
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433879, org.eclipse.jdt.internal.compiler.lookup.ArrayBinding cannot be cast to org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
+//@throws ClassCastException without the fix
+//Multiple Catch handlers.
+public void testBug433879d() throws JavaModelException {
+	String contents =
+			"package Bug433879e;\n"+
+			"class E1 extends Exception {private static final long serialVersionUID = 1L;}\n" +
+			"class E2 extends Exception { private static final long serialVersionUID = 1L;}\n" +
+			"public class X {\n" +
+			"	Class<? extends Exception>[] exceptions;\n" +
+			"	Class<? extends Exception>[] exceptions2;\n" +
+			"	void foo() {\n" +
+			"		try {\n" +
+			"			bar();\n" +
+			"		} catch (E2 e2) {\n" +
+			"		} catch (exceptions[0] e) {\n" +
+			"		} catch (E1 e1) {\n" +
+			"		} catch (exceptions2[0] e) {\n" +
+			"       }\n" +
+			"	}\n" +
+			"	private void bar() throws E1, E2 {}\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/Bug433879e/X.java", true/*computeProblems*/);
+	try {
+		buildAST(AST.JLS8, contents, this.workingCopy, false, true, true);
+	} catch (ClassCastException e) {
+		fail(e.getMessage());
+	}
+}
+public void testBug432175() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/testBug432175/X.java",
+			true/* resolve */);
+	String contents = "package testBug432175;\n" +
+			"interface Collection <T> {}\n" +
+			"class Collections {\n" +
+			"    public static final <T> T emptyList() {  return null; }\n" +
+			"}\n" +
+			"public class X {\n" +
+			"    public static <T extends Number & Comparable<?>> void method2(Collection<T> coll) {}\n" +
+			"\n" +
+			"    public static void main(String[] args) {\n" +
+			"        method2(Collections.emptyList());\n" +
+			"    }\n" +
+			"}\n" ;
+
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typeDeclaration = (TypeDeclaration) getASTNode(cu, 2);
+	MethodDeclaration [] methods =  typeDeclaration.getMethods();
+
+	{
+		MethodDeclaration method = methods[1];
+		ExpressionStatement expressionStatement = (ExpressionStatement) method.getBody().statements().get(0);
+		MethodInvocation methodInvocation = (MethodInvocation) expressionStatement.getExpression();
+		methodInvocation = (MethodInvocation) methodInvocation.arguments().get(0);
+		ITypeBinding typeBinding = methodInvocation.resolveTypeBinding();
+		typeBinding = typeBinding.getTypeArguments()[0];
+		String res = typeBinding.getTypeDeclaration().getName();
+		this.ast.newSimpleType(this.ast.newName(res));
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=435348, [1.8][compiler] NPE in JDT Core during AST creation
+// NPE without fix
+public void testBug435348() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/testBug435348/X.java",
+		true/* resolve */);
+	String contents = "package testBug435348;\n" +
+		"class Y {}\n" +
+		"class Z{}\n" +
+		"class X {\n" +
+		"  void bar2(@ Z z) {}\n" +
+		"  //        ^  Illegal @ \n" +
+		"  static  {\n" +
+		"        bar(new Y() {});\n" +
+		"  }\n" +
+		"}\n";
+	buildAST(contents, this.workingCopy, false);
+}
+
+public void testBug432614() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/testBug432614/X.java", true);
+	String contents = "package testBug432614;\n" +
+			"import java.lang.annotation.ElementType;\n" +
+			"import java.lang.annotation.Target;\n" +
+			"public class X {\n" +
+			"	FI fi1= (@T2 int i) -> {};\n" +
+			"}\n" +
+			"interface FI {\n" +
+			"	void foo(@T1 int iii);\n" +
+			"}\n" +
+			"@Target(ElementType.TYPE_USE) @interface T1 {}\n" +
+			"@Target(ElementType.TYPE_USE) @interface T2 {}";
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typedeclaration = (TypeDeclaration) getASTNode(cu, 0);
+	FieldDeclaration fieldDeclaration = (FieldDeclaration) typedeclaration.bodyDeclarations().get(0);
+	VariableDeclarationFragment fragment = (VariableDeclarationFragment)fieldDeclaration.fragments().get(0);
+	Expression expression = fragment.getInitializer();
+	assertTrue(expression instanceof LambdaExpression);
+	LambdaExpression lambdaExpression = (LambdaExpression)expression;
+	assertEquals("(@T2 int i) -> {\n}\n", lambdaExpression.toString());
+	assertTrue(lambdaExpression.parameters().size() == 1);
+	IMethodBinding binding = lambdaExpression.resolveMethodBinding();
+	ITypeBinding[] params = binding.getParameterTypes();
+	assertEquals("Incorrect no of parameters", 1, params.length);
+	ITypeBinding thatParam = params[0];
+	assertEquals("Incorrect param", "@T2 int", thatParam.toString());
+}
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=447062
+ * 
+ * @throws JavaModelException
+ */
+public void testBug447062() throws JavaModelException {
+	String contents =
+			"public class X {\n" +
+			"    Runnable foo = () -> {\n" +
+			"    \n" +
+			"    }\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/test447062/X.java", contents, true/*computeProblems*/);
+	IJavaProject javaProject = this.workingCopy.getJavaProject();
+	class BindingRequestor extends ASTRequestor {
+		ITypeBinding _result = null;
+		public void acceptBinding(String bindingKey, IBinding binding) {
+			if (this._result == null && binding != null && binding.getKind() == IBinding.TYPE)
+				this._result = (ITypeBinding) binding;
+		}
+	}
+	final BindingRequestor requestor = new BindingRequestor();
+	final ASTParser parser = ASTParser.newParser(AST.JLS8);
+	parser.setResolveBindings(false);
+	parser.setProject(javaProject);
+	parser.setIgnoreMethodBodies(true);
+	try {
+		parser.createASTs(new ICompilationUnit[] {this.workingCopy}, new String[0], requestor, null);
+	} catch (IllegalArgumentException e) {
+		assertTrue("Test Failed", false);
+	}
+}
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=399793
+ * 
+ * @throws JavaModelException
+ */
+public void testBug425601_001() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/testBug425601_001/Outer.java",
+			true/* resolve */);
+	String contents = "package testBug425601_001;\n" +
+			"@Deprecated\n"+
+			"public class Outer<O> {\n"+
+			"    @Deprecated\n"+
+			"    public class Middle<X> {\n"+
+			"        @Deprecated\n"+
+			"        public class Inner<E> {\n"+
+			"        }\n"+
+			"    }\n"+
+			"    \n"+
+			"    Outer<String> o;\n"+
+			"    Middle<String> m; // Middle should be deprecated - Middle Case one\n"+
+			"    Outer<String>.Middle<String> m2; // Middle should be deprecated - Middle Case Two \n"+
+			"    @SuppressWarnings(\"rawtypes\")"+
+			"    Outer.Middle m3; \n"+
+			"    Middle<String>.Inner<Object> i; // Inner should be deprecated - Inner Case One\n"+
+			"}\n"+
+			"class Ref {\n"+
+			"    Outer<String> o;\n"+
+			"    Outer<String>.Middle<String> m;\n"+
+			"    Outer<String>.Middle<String>.Inner<Object> i;\n"+
+			"}\n";
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typedeclaration = (TypeDeclaration) getASTNode(cu, 0);
+	FieldDeclaration[] fields = typedeclaration.getFields();
+	ITypeBinding binding = fields[0].getType().resolveBinding();
+	assertTrue(binding.isDeprecated());
+	binding = fields[3].getType().resolveBinding(); 
+	assertTrue(binding.isDeprecated());
+	binding = fields[1].getType().resolveBinding(); // Middle Case One
+	assertTrue(binding.isDeprecated());
+	binding = fields[2].getType().resolveBinding(); // Middle Case Two
+	assertTrue(binding.isDeprecated());
+	binding = fields[4].getType().resolveBinding(); // Inner Case One
+	assertTrue(binding.isDeprecated());
+}
+
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=399793
+ * 
+ * @throws JavaModelException
+ */
+public void testBug425601_002() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/testBug425601_002/Outer.java",
+			true/* resolve */);
+	String contents = "package testBug425601_002;\n" +
+			//"@Deprecated\n"+
+			"public class Outer<O> {\n"+
+			"    @Deprecated\n"+
+			"    public class Middle<X> {\n"+
+			"        @Deprecated\n"+
+			"        public class Inner<E> {\n"+
+			"        }\n"+
+			"    }\n"+
+			"    \n"+
+			"    Outer<String> o;\n"+
+			"    Middle<String> m; // Middle should be deprecated - Middle Case one\n"+
+			"    Outer<String>.Middle<String> m2; // Middle should be deprecated - Middle Case Two \n"+
+			"    @SuppressWarnings(\"rawtypes\")"+
+			"    Outer.Middle m3; \n"+
+			"    Middle<String>.Inner<Object> i; // Inner should be deprecated - Inner Case One\n"+
+			"}\n"+
+			"class Ref {\n"+
+			"    Outer<String> o;\n"+
+			"    Outer<String>.Middle<String> m;\n"+
+			"    Outer<String>.Middle<String>.Inner<Object> i;\n"+
+			"}\n";
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typedeclaration = (TypeDeclaration) getASTNode(cu, 0);
+	FieldDeclaration[] fields = typedeclaration.getFields();
+	ITypeBinding binding = fields[0].getType().resolveBinding();
+	assertTrue(!binding.isDeprecated());
+	binding = fields[3].getType().resolveBinding(); 
+	assertTrue(binding.isDeprecated());
+	binding = fields[1].getType().resolveBinding(); // Middle Case One
+	assertTrue(binding.isDeprecated());
+	binding = fields[2].getType().resolveBinding(); // Middle Case Two
+	assertTrue(binding.isDeprecated());
+	binding = fields[4].getType().resolveBinding(); // Inner Case One
+	assertTrue(binding.isDeprecated());
+}
+
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=44000
+ * 
+ * @bug Bug 440000 [1.8][dom] MethodReference#resolveMethodBinding() API should return null for CreationReference of an ArrayType 
+ * @throws JavaModelException
+ */
+public void testBug440000_001() throws JavaModelException {
+	String contents =
+			"interface I<T, R> {\n" +
+			"    R apply(T t);\n" +
+			"}\n" +
+			"public class X {\n" +
+			"    I<Integer, int[]> m1 = int[]::new;\n" +
+			"}\n";
+	this.workingCopy = getWorkingCopy("/Converter18/src/X.java", contents, true/*computeProblems*/);
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typedeclaration = (TypeDeclaration) getASTNode(cu, 1);
+	FieldDeclaration fieldDeclaration = (FieldDeclaration) typedeclaration.bodyDeclarations().get(0);
+	VariableDeclarationFragment fragment = (VariableDeclarationFragment)fieldDeclaration.fragments().get(0);
+	Expression expression = fragment.getInitializer();
+	assertTrue(expression instanceof CreationReference);
+	CreationReference creationReference = (CreationReference) expression;
+	assertEquals("int[]::new", creationReference.toString());
+	IMethodBinding binding = creationReference.resolveMethodBinding();
+	assertNull(binding);
+}
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=459344
+ * 
+ * @throws JavaModelException
+ */
+public void testBug459344_001() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/test459344/X.java",
+			true/* resolve */);
+	String contents = "package test459344;" +
+			"interface I {\n" +
+			"	int foo();\n" +
+			"}\n" +
+			"public class X {\n" +
+			"	private void foo(Object arg) {\n" +
+			"		I i = arg :: hashCode;\n" +
+			"	}\n" +
+			"}\n";
+
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typeDeclaration = (TypeDeclaration) getASTNode(cu, 1);
+	MethodDeclaration methodDeclaration = typeDeclaration.getMethods()[0];
+	VariableDeclarationStatement stmt = (VariableDeclarationStatement) methodDeclaration.getBody().statements().get(0);
+	VariableDeclarationFragment fragment = (VariableDeclarationFragment) stmt.fragments().get(0);
+	ExpressionMethodReference reference = (ExpressionMethodReference) fragment.getInitializer();
+	IMethodBinding methodBinding = reference.resolveMethodBinding();
+	assertNotNull(methodBinding);
+	assertEquals("Wrong name", "hashCode", methodBinding.getName());
+	assertNull("Non-Null",cu.findDeclaringNode(methodBinding));
+}
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=460186
+ * @bug Bug 460186 IAE in ASTNode.setSourceRange with broken code case 2
+ * @throws JavaModelException
+ */
+public void testBug460186() throws JavaModelException {
+	String contents =
+			"package test460186;\n" +
+			"public class NPE {\n" + 
+			"	void foo(String[] args) throws Exception {\n" + 
+			"		if (args == null) error(); \n" + 
+			"		error();[]\n" + 
+			"	}\n" + 
+			"	void error() throws Exception {\n" + 
+			"		throw new Exception();\n" + 
+			"	}\n" + 
+			"}";
+	this.workingCopy = getWorkingCopy("/Converter18/src/test460186/NPE.java", contents, false/*computeProblems*/);
+	IJavaProject javaProject = this.workingCopy.getJavaProject();
+
+	final ASTParser parser = ASTParser.newParser(AST.JLS8);
+	parser.setResolveBindings(false);
+	parser.setProject(javaProject);
+	parser.setIgnoreMethodBodies(false);
+	ASTRequestor requestor = new ASTRequestor() {};
+	try {
+		parser.createASTs(new ICompilationUnit[] {this.workingCopy}, new String[0], requestor, null);
+	} catch (IllegalArgumentException e) {
+		assertTrue("Test Failed", false);
+	}
+}
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=443232
+ * @bug Bug 443232 IAE in ASTNode.setSourceRange with broken code
+ * @throws JavaModelException
+ */
+public void testBug443232() throws JavaModelException {
+	String contents =
+			"package test443232;\n" +
+			"public class E21 {\n" + 
+			"	{private int[] nums;\n" + 
+			"	void foo() {\n" + 
+			"        nums\n" + 
+			"	}\n" + 
+			"}";
+	this.workingCopy = getWorkingCopy("/Converter18/src/test443232/E21.java", contents, false/*computeProblems*/);
+	IJavaProject javaProject = this.workingCopy.getJavaProject();
+
+	final ASTParser parser = ASTParser.newParser(AST.JLS8);
+	parser.setResolveBindings(false);
+	parser.setProject(javaProject);
+	parser.setIgnoreMethodBodies(false);
+	ASTRequestor requestor = new ASTRequestor() {};
+	try {
+		parser.createASTs(new ICompilationUnit[] {this.workingCopy}, new String[0], requestor, null);
+	} catch (IllegalArgumentException e) {
+		assertTrue("Test Failed", false);
+	}
+}
+/**
+ * https://bugs.eclipse.org/bugs/show_bug.cgi?id=429813
+ * 
+ * @throws JavaModelException
+ */
+public void test429813() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/test429813/Snippet.java",
+			true/* resolve */);
+	String contents = "package test429813;"
+			+ "public class Snippet {\n"
+			+ "		Function<Integer, int[]> m1L = n -> new int[n];\n"
+			+ "}"
+			+ "interface Function<T, R> {\n"
+			+ "   public R apply(T t);\n"
+			+ "}\n";
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typedeclaration = (TypeDeclaration) getASTNode(cu, 0);
+	FieldDeclaration fieldDeclaration = (FieldDeclaration) typedeclaration.bodyDeclarations().get(0);
+	VariableDeclarationFragment fragment = (VariableDeclarationFragment)fieldDeclaration.fragments().get(0);
+	Expression expression = fragment.getInitializer();
+	assertTrue(expression instanceof LambdaExpression);
+	LambdaExpression lambdaExpression = (LambdaExpression)expression;
+	IMethodBinding binding = lambdaExpression.resolveMethodBinding();
+	IJavaElement element = binding.getJavaElement();
+	assertEquals("Not a method", IJavaElement.METHOD, element.getElementType());
+	assertFalse("Should not be a synthetic", binding.isSynthetic());
+}
+
+public void test429813a() throws JavaModelException {
+	this.workingCopy = getWorkingCopy("/Converter18/src/test429813/Snippet.java",
+			true/* resolve */);
+	String contents = "package test429813;"
+			+ "interface FTest {\n"
+			+ "		Object foo (int[]... ints);\n"
+			+ "};"
+			+ "class TestX {"
+			+ "		FTest fi= ints -> null;\n"
+			+ "}\n";
+	CompilationUnit cu = (CompilationUnit) buildAST(contents, this.workingCopy);
+	TypeDeclaration typedeclaration = (TypeDeclaration) getASTNode(cu, 1);
+	FieldDeclaration fieldDeclaration = (FieldDeclaration) typedeclaration.bodyDeclarations().get(0);
+	VariableDeclarationFragment fragment = (VariableDeclarationFragment)fieldDeclaration.fragments().get(0);
+	Expression expression = fragment.getInitializer();
+	assertTrue(expression instanceof LambdaExpression);
+	LambdaExpression lambdaExpression = (LambdaExpression)expression;
+	IMethodBinding binding = lambdaExpression.resolveMethodBinding();
+	assertTrue("Should be a varargs", binding.isVarargs());
+}
 
 }

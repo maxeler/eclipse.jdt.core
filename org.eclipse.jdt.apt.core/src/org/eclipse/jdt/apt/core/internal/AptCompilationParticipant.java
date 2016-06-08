@@ -7,7 +7,7 @@
  *
  * Contributors:
  *    mkaufman@bea.com - initial API and implementation
- *    
+ *    het@google.com - Bug 459601 - [clean up] Use CompilationParticipant.buildFinished() in AptCompilationParticipant 
  *******************************************************************************/
 
 package org.eclipse.jdt.apt.core.internal;
@@ -23,9 +23,6 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IResourceChangeEvent;
-import org.eclipse.core.resources.IResourceChangeListener;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.apt.core.internal.util.FactoryPath;
 import org.eclipse.jdt.apt.core.util.AptConfig;
@@ -54,7 +51,7 @@ public class AptCompilationParticipant extends CompilationParticipant
 	private Set<AnnotationProcessorFactory> _previousRoundsBatchFactories = new LinkedHashSet<AnnotationProcessorFactory>();
 	private int _buildRound = 0;
 	private boolean _isBatch = false; 
-	private static AptCompilationParticipant INSTANCE;
+	private static final AptCompilationParticipant INSTANCE = new AptCompilationParticipant();
 	/** 
 	 * Files that has been processed by apt during the current build.
 	 * Files that has been compiled may need re-compilation (from jdt's perspective) 
@@ -85,18 +82,7 @@ public class AptCompilationParticipant extends CompilationParticipant
 	 * org.eclipse.jdt.core.compilationParticipants extension point.  Other
 	 * clients should NOT construct this object.
 	 */
-	public AptCompilationParticipant()
-	{
-		INSTANCE = this;
-
-		// Bug 180107: there is no CompilationParticipant.buildComplete() method,
-		// so we have to use a resource change listener instead.
-		IResourceChangeListener listener = new IResourceChangeListener() {
-			public void resourceChanged(IResourceChangeEvent event) {
-				buildComplete();
-			}
-		};
-		ResourcesPlugin.getWorkspace().addResourceChangeListener(listener, IResourceChangeEvent.POST_BUILD);
+	private AptCompilationParticipant()	{
 	}
 	
 	public boolean isAnnotationProcessor(){
@@ -111,6 +97,10 @@ public class AptCompilationParticipant extends CompilationParticipant
         // this gets called.
 		if( _buildRound == 0 )
 			_isBatch = isBatch;
+	}
+	
+	public void buildFinished(IJavaProject project) {
+		buildComplete();
 	}
 	
 	public void processAnnotations(BuildContext[] allfiles) {	

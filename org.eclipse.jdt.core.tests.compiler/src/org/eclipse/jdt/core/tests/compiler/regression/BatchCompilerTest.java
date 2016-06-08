@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,6 +24,9 @@
  *								bug 381443 - [compiler][null] Allow parameter widening from @NonNull to unannotated
  *								bug 383368 - [compiler][null] syntactic null analysis for field references
  *								Bug 392099 - [1.8][compiler][null] Apply null annotation on types for null analysis 
+ *								Bug 440477 - [null] Infrastructure for feeding external annotations into compilation
+ *								Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+ *								Bug 408815 - [batch][null] Add CLI option for COMPILER_PB_SYNTACTIC_NULL_ANALYSIS_FOR_FIELDS
  *     Jesper Steen Moller - Contributions for
  *								bug 404146 - [1.7][compiler] nested try-catch-finally-blocks leads to unrunnable Java byte code
  *								bug 407297 - [1.8][compiler] Control generation of parameter names by option
@@ -56,6 +59,7 @@ import org.eclipse.jdt.internal.compiler.batch.ClasspathLocation;
 import org.eclipse.jdt.internal.compiler.batch.Main;
 import org.eclipse.jdt.internal.compiler.util.ManifestAnalyzer;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class BatchCompilerTest extends AbstractRegressionTest {
 	public static final String OUTPUT_DIR_PLACEHOLDER = "---OUTPUT_DIR_PLACEHOLDER---";
 	public static final String LIB_DIR_PLACEHOLDER = "---LIB_DIR_PLACEHOLDER---";
@@ -75,7 +79,7 @@ public class BatchCompilerTest extends AbstractRegressionTest {
 			"import java.lang.annotation.*;\n" +
 			"@Documented\n" +
 			"@Retention(RetentionPolicy.CLASS)\n" +
-			"@Target({ METHOD, PARAMETER })\n" +
+			"@Target({ METHOD, PARAMETER, FIELD })\n" +
 			"public @interface Nullable{\n" +
 			"}\n";
 	private static final String NONNULL_ANNOTATION_CONTENT = "package org.eclipse.jdt.annotation;\n" +
@@ -83,12 +87,65 @@ public class BatchCompilerTest extends AbstractRegressionTest {
 			"import java.lang.annotation.*;\n" +
 			"@Documented\n" +
 			"@Retention(RetentionPolicy.CLASS)\n" +
-			"@Target({ METHOD, PARAMETER })\n" +
+			"@Target({ METHOD, PARAMETER, FIELD })\n" +
 			"public @interface NonNull{\n" +
 			"}\n";
 
+	private static final String ELEMENT_TYPE_18_CONTENT = "package java.lang.annotation;\n" + 
+			"public enum ElementType {\n" + 
+			"    TYPE,\n" + 
+			"    FIELD,\n" + 
+			"    METHOD,\n" + 
+			"    PARAMETER,\n" + 
+			"    CONSTRUCTOR,\n" + 
+			"    LOCAL_VARIABLE,\n" + 
+			"    ANNOTATION_TYPE,\n" + 
+			"    PACKAGE,\n" + 
+			"    TYPE_PARAMETER,\n" + 
+			"    TYPE_USE\n" + 
+			"}\n" + 
+			"";
+	private static final String NONNULL_ANNOTATION_18_CONTENT = "package org.eclipse.jdt.annotation;\n" +
+			"import java.lang.annotation.ElementType;\n" +
+			"import java.lang.annotation.*;\n" +
+			"@Documented\n" +
+			"@Retention(RetentionPolicy.CLASS)\n" +
+			"@Target({ ElementType.TYPE_USE })\n" +
+			"public @interface NonNull{\n" +
+			"}\n";
+	private static final String NULLABLE_ANNOTATION_18_CONTENT = "package org.eclipse.jdt.annotation;\n" +
+			"import java.lang.annotation.ElementType;\n" +
+			"import java.lang.annotation.*;\n" +
+			"@Documented\n" +
+			"@Retention(RetentionPolicy.CLASS)\n" +
+			"@Target({ ElementType.TYPE_USE })\n" +
+			"public @interface Nullable{\n" +
+			"}\n";
+	private static final String NONNULL_BY_DEFAULT_ANNOTATION_18_CONTENT = "package org.eclipse.jdt.annotation;\n" +
+			"import java.lang.annotation.ElementType;\n" + 
+			"import static org.eclipse.jdt.annotation.DefaultLocation.*;\n" + 
+			"\n" + 
+			"import java.lang.annotation.Retention;\n" + 
+			"import java.lang.annotation.RetentionPolicy;\n" + 
+			"import java.lang.annotation.Target;\n" + 
+			"@Retention(RetentionPolicy.CLASS)\n" + 
+			"@Target({ ElementType.PACKAGE, ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.LOCAL_VARIABLE })\n" + 
+			"public @interface NonNullByDefault {\n" + 
+			"	DefaultLocation[] value() default { PARAMETER, RETURN_TYPE, FIELD, TYPE_BOUND, TYPE_ARGUMENT };\n" + 
+			"}\n";
+	private static final String DEFAULT_LOCATION_CONTENT = "package org.eclipse.jdt.annotation;\n" +
+			"public enum DefaultLocation {\n" + 
+			"	PARAMETER,\n" + 
+			"	RETURN_TYPE,\n" + 
+			"	FIELD,\n" + 
+			"	TYPE_PARAMETER,\n" + 
+			"	TYPE_BOUND,\n" + 
+			"	TYPE_ARGUMENT,\n" + 
+			"	ARRAY_CONTENTS\n" + 
+			"}\n";
+
 	static {
-//		TESTS_NAMES = new String[] { "test320_warn_options" };
+//		TESTS_NAMES = new String[] { "test440477" };
 //		TESTS_NUMBERS = new int[] { 306 };
 //		TESTS_RANGE = new int[] { 298, -1 };
 	}
@@ -1653,9 +1710,15 @@ public void test012(){
         "    -inlineJSR         inline JSR bytecode (implicit if target >= 1.5)\n" +
         "    -enableJavadoc     consider references in javadoc\n" +
         "    -parameters        generate method parameters attribute (for target >= 1.8)\n" +
+        "    -genericsignature  generate generic signature for lambda expressions\n" +
         "    -Xemacs            used to enable emacs-style output in the console.\n" +
         "                       It does not affect the xml log output\n" +
-        "    -missingNullDefault  report missing default nullness annotation\n" + 
+        "    -missingNullDefault  report missing default nullness annotation\n" +
+        "    -annotationpath <directories and ZIP archives separated by " + File.pathSeparator + ">\n" + 
+        "                       specify locations where to find external annotations\n" + 
+        "                       to support annotation-based null analysis.\n" + 
+        "                       The special name CLASSPATH will cause lookup of\n" + 
+        "                       external annotations from the classpath and sourcepath.\n" + 
         " \n" + 
         "    -? -help           print this help message\n" +
         "    -v -version        print compiler version\n" +
@@ -1669,7 +1732,7 @@ public void test012(){
         "    -O                 optimize for execution time (ignored)\n" +
         "\n";
 	String expandedExpectedOutput =
-		MessageFormat.format(expectedOutput, new String[] {
+		MessageFormat.format(expectedOutput, new Object[] {
 				MAIN.bind("compiler.name"),
 				MAIN.bind("compiler.version"),
 				MAIN.bind("compiler.copyright")
@@ -1797,8 +1860,9 @@ public void test012b(){
         "      suppress           + enable @SuppressWarnings\n" + 
         "                           When used with -err:, it can also silent optional\n" + 
         "                           errors and warnings\n" + 
-        "      switchDefault      + switch statement lacking a default case\n" + 
+        "      switchDefault        switch statement lacking a default case\n" +
         "      syncOverride         missing synchronized in synchr. method override\n" + 
+        "      syntacticAnalysis    perform syntax-based null analysis for fields\n" + 
         "      syntheticAccess      synthetic access for innerclass\n" + 
         "      tasks(<tags separated by |>) tasks identified by tags inside comments\n" + 
         "      typeHiding         + type parameter hiding another type\n" + 
@@ -1809,9 +1873,11 @@ public void test012b(){
         "      unqualifiedField     unqualified reference to field\n" + 
         "      unused               macro for unusedAllocation, unusedArgument,\n" + 
         "                               unusedImport, unusedLabel, unusedLocal,\n" + 
-        "                               unusedPrivate, unusedThrown, and unusedTypeArgs\n" + 
+        "                               unusedPrivate, unusedThrown, and unusedTypeArgs,\n" + 
+        "								unusedExceptionParam\n"+
         "      unusedAllocation     allocating an object that is not used\n" + 
-        "      unusedArgument       unread method parameter\n" + 
+        "      unusedArgument       unread method parameter\n" +
+        "      unusedExceptionParam unread exception parameter\n" + 
         "      unusedImport       + unused import declaration\n" + 
         "      unusedLabel        + unused label\n" + 
         "      unusedLocal        + unread local variable\n" + 
@@ -1833,7 +1899,7 @@ public void test012b(){
         "      warningToken       + unsupported or unnecessary @SuppressWarnings\n" + 
         "\n";
 	String expandedExpectedOutput =
-		MessageFormat.format(expectedOutput, new String[] {
+		MessageFormat.format(expectedOutput, new Object[] {
 				MAIN.bind("compiler.name"),
 				MAIN.bind("compiler.version"),
 				MAIN.bind("compiler.copyright")
@@ -1897,6 +1963,7 @@ public void test012b(){
 			"		<option key=\"org.eclipse.jdt.core.compiler.annotation.nullable\" value=\"org.eclipse.jdt.annotation.Nullable\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.annotation.nullanalysis\" value=\"disabled\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode\" value=\"disabled\"/>\n" + 
+			"		<option key=\"org.eclipse.jdt.core.compiler.codegen.lambda.genericSignature\" value=\"do not generate\"/>\n" +
 			"		<option key=\"org.eclipse.jdt.core.compiler.codegen.methodParameters\" value=\"do not generate\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.codegen.shareCommonFinallyBlocks\" value=\"disabled\"/>\n" +
 			"		<option key=\"org.eclipse.jdt.core.compiler.codegen.targetPlatform\" value=\"1.5\"/>\n" + 
@@ -1909,7 +1976,6 @@ public void test012b(){
 			"		<option key=\"org.eclipse.jdt.core.compiler.emulateJavacBug8031744\" value=\"enabled\"/>\n" +
 			"		<option key=\"org.eclipse.jdt.core.compiler.generateClassFiles\" value=\"enabled\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.maxProblemPerUnit\" value=\"100\"/>\n" + 
-			"		<option key=\"org.eclipse.jdt.core.compiler.postResolutionRawTypeCompatibilityCheck\" value=\"enabled\"/>\n" +
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.annotationSuperInterface\" value=\"warning\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.assertIdentifier\" value=\"warning\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.autoboxing\" value=\"ignore\"/>\n" + 
@@ -1999,6 +2065,7 @@ public void test012b(){
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionExemptExceptionAndThrowable\" value=\"enabled\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionIncludeDocCommentReference\" value=\"enabled\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionWhenOverriding\" value=\"disabled\"/>\n" + 
+			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedExceptionParameter\" value=\"ignore\"/>\n" +
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedImport\" value=\"warning\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedLabel\" value=\"warning\"/>\n" + 
 			"		<option key=\"org.eclipse.jdt.core.compiler.problem.unusedLocal\" value=\"warning\"/>\n" + 
@@ -2041,7 +2108,7 @@ public void test012b(){
 		String normalizedExpectedLogContents =
 				MessageFormat.format(
 						expectedLogContents,
-						new String[] {
+						new Object[] {
 								File.separator,
 								MAIN.bind("compiler.name"),
 								MAIN.bind("compiler.copyright"),
@@ -12636,7 +12703,7 @@ public void test313_warn_options() {
 		"1. WARNING in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" + 
 		"	@Nullable Object foo(Object o, Object o2) { return null; }\n" + 
 		"	^^^^^^^^^^^^^^^^\n" + 
-		"The return type is incompatible with the @NonNull return from X.foo(Object, Object)\n" + 
+		"The return type is incompatible with \'@NonNull Object\' returned from X.foo(Object, Object) (mismatching null constraints)\n" +
 		"----------\n" + 
 		"2. WARNING in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" + 
 		"	@Nullable Object foo(Object o, Object o2) { return null; }\n" + 
@@ -12685,7 +12752,7 @@ public void test314_warn_options() {
 		"1. ERROR in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" + 
 		"	@Nullable Object foo(Object o, Object o2) { return null; }\n" + 
 		"	^^^^^^^^^^^^^^^^\n" + 
-		"The return type is incompatible with the @NonNull return from X.foo(Object, Object)\n" + 
+		"The return type is incompatible with \'@NonNull Object\' returned from X.foo(Object, Object) (mismatching null constraints)\n" +
 		"----------\n" + 
 		"2. ERROR in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" + 
 		"	@Nullable Object foo(Object o, Object o2) { return null; }\n" + 
@@ -12832,6 +12899,39 @@ public void test316_warn_options() {
 		+ " -warn:+nullAnnot(foo|bar) -warn:+null -nonNullByDefault -proc:none -d \"" + OUTPUT_DIR + "\"",
 		"",
 		"Token nullAnnot(foo|bar) is not in the expected format \"nullAnnot(<non null annotation name> | <nullable annotation name> | <non-null by default annotation name>)\"\n", 
+		true);
+}
+
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=408815
+// -warn option - regression tests to check option syntacticAnalysis
+// Null warnings because of annotations, null spec violations, suppressed by null-check
+public void test316b_warn_options() {
+	this.runConformTest(
+		new String[] {
+				"p/X.java",
+				"package p;\n" +
+				"import org.eclipse.jdt.annotation.*;\n" +
+				"public class X {\n" +
+				"  @Nullable Object f;\n" +
+				"  @NonNull Object foo() {\n" +
+				"    if (this.f != null)\n" +
+				"      return this.f;\n" +
+				"	 return this;\n" +
+				"  }\n" +
+				"}\n",
+				"org/eclipse/jdt/annotation/NonNull.java",
+				NONNULL_ANNOTATION_CONTENT,
+				"org/eclipse/jdt/annotation/Nullable.java",
+				NULLABLE_ANNOTATION_CONTENT,
+				"org/eclipse/jdt/annotation/NonNullByDefault.java",				
+				NONNULL_BY_DEFAULT_ANNOTATION_CONTENT
+		},
+		"\"" + OUTPUT_DIR +  File.separator + "p" + File.separator + "X.java\""
+		+ " -sourcepath \"" + OUTPUT_DIR + "\""
+		+ " -1.5"
+		+ " -warn:+nullAnnot -warn:+null,syntacticAnalysis -proc:none -d \"" + OUTPUT_DIR + "\"",
+		"",
+		"",
 		true);
 }
 
@@ -13677,7 +13777,7 @@ public void testBug375366c() throws IOException {
 			"1. ERROR in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" + 
 			"	@Nullable Object foo(Object o, Object o2) { return null; }\n" + 
 			"	^^^^^^^^^^^^^^^^\n" + 
-			"The return type is incompatible with the @NonNull return from X.foo(Object, Object)\n" + 
+			"The return type is incompatible with \'@NonNull Object\' returned from X.foo(Object, Object) (mismatching null constraints)\n" + 
 			"----------\n" + 
 			"2. ERROR in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" + 
 			"	@Nullable Object foo(Object o, Object o2) { return null; }\n" + 
@@ -13731,7 +13831,7 @@ public void testBug375366d() throws IOException {
 			"1. ERROR in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" +
 			"	@Nullable Object foo(Object o, Object o2) { return null; }\n" +
 			"	^^^^^^^^^^^^^^^^\n" +
-			"The return type is incompatible with the @NonNull return from X.foo(Object, Object)\n" +
+			"The return type is incompatible with \'@NonNull Object\' returned from X.foo(Object, Object) (mismatching null constraints)\n" + 
 			"----------\n" +
 			"2. ERROR in ---OUTPUT_DIR_PLACEHOLDER---/p/X.java (at line 9)\n" +
 			"	@Nullable Object foo(Object o, Object o2) { return null; }\n" +
@@ -14042,5 +14142,247 @@ public void testBug419351() {
 		new File(endorsedPath).delete();
 		new File(lib1Path).delete();
 	}
+}
+// Bug 440477 - [null] Infrastructure for feeding external annotations into compilation
+// - single external annotation directory
+public void test440477() throws IOException {
+	String annots_dir = Util.getOutputDirectory() + File.separator + "annots";
+	String annots_java_util = annots_dir + File.separator + "java/util";
+	new File(annots_java_util).mkdirs();
+	Util.createFile(
+			annots_java_util + File.separator + "Map.eea", 
+			TEST_440687_MAP_EEA_CONTENT);
+
+	String o_e_j_annotation_dir = OUTPUT_DIR + File.separator +
+			"org" + File.separator + "eclipse" + File.separator + "jdt" + File.separator + "annotation";
+	String j_l_annotation_dir = OUTPUT_DIR +  File.separator +
+			"java" + File.separator + "lang" + File.separator + "annotation";
+	this.runConformTest(
+		new String[] {
+			"java/lang/annotation/ElementType.java",
+			ELEMENT_TYPE_18_CONTENT,
+			"org/eclipse/jdt/annotation/NonNull.java",
+			NONNULL_ANNOTATION_18_CONTENT,
+			"org/eclipse/jdt/annotation/Nullable.java",
+			NULLABLE_ANNOTATION_18_CONTENT,
+			"org/eclipse/jdt/annotation/DefaultLocation.java",				
+			DEFAULT_LOCATION_CONTENT,
+			"org/eclipse/jdt/annotation/NonNullByDefault.java",				
+			NONNULL_BY_DEFAULT_ANNOTATION_18_CONTENT,
+			"test1/Test1.java",
+			"package test1;\n" + 
+			"\n" + 
+			"import java.util.Map;\n" + 
+			"import org.eclipse.jdt.annotation.*;\n" + 
+			"\n" + 
+			"@NonNullByDefault\n" + 
+			"public class Test1 {\n" + 
+			"	void test(Map<String,Test1> map, String key) {\n" + 
+			"		Test1 v = map.get(key);\n" + 
+			"		if (v == null)\n" + 
+			"			throw new RuntimeException(); // should not be reported as dead code, although V is a '@NonNull Test1'\n" + 
+			"	}\n" + 
+			"}\n"
+			},
+			" -1.8 -proc:none -d none -warn:+nullAnnot -annotationpath " + annots_dir +
+			" -sourcepath \"" + OUTPUT_DIR + "\" " +
+			// explicitly mention all files to ensure a good order, cannot pull in source of NNBD on demand
+			"\"" + j_l_annotation_dir   +  File.separator + "ElementType.java\" " +
+			"\"" + o_e_j_annotation_dir +  File.separator + "NonNull.java\" " +
+			"\"" + o_e_j_annotation_dir +  File.separator + "DefaultLocation.java\" " +
+			"\"" + o_e_j_annotation_dir +  File.separator + "NonNullByDefault.java\" " +
+			"\"" + OUTPUT_DIR +  File.separator + "test1" + File.separator + "Test1.java\"",
+			"",
+			"",
+			true);
+}
+// file content for tests below:
+private static final String TEST_440687_MAP_EEA_CONTENT =
+			"class java/util/Map\n" +
+			" <K:V:>\n" + 
+			"\n" + 
+			"get\n" + 
+			" (Ljava/lang/Object;)TV;\n" + 
+			" (Ljava/lang/Object;)T0V;\n" + 
+			"put\n" + 
+			" (TK;TV;)TV;\n" + 
+			" (TK;TV;)T0V;\n" + 
+			"remove\n" + 
+			" (Ljava/lang/Object;)TV;\n" + 
+			" (Ljava/lang/Object;)T0V;\n";
+private static final String TEST_440687_OBJECT_EEA_CONTENT =
+			"class java/lang/Object\n" +
+			"\n" + 
+			"equals\n" + 
+			" (Ljava/lang/Object;)Z\n" + 
+			" (L0java/lang/Object;)Z\n";
+// Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+// work horse for tests below
+void runTest440687(String compilerPathArgs, String extraSourcePaths, String expectedCompilerMessage, boolean isSuccess) {
+
+	String[] testFiles = new String[] {
+				"java/lang/annotation/ElementType.java",
+				ELEMENT_TYPE_18_CONTENT,
+				"org/eclipse/jdt/annotation/NonNull.java",
+				NONNULL_ANNOTATION_18_CONTENT,
+				"org/eclipse/jdt/annotation/Nullable.java",
+				NULLABLE_ANNOTATION_18_CONTENT,
+				"org/eclipse/jdt/annotation/DefaultLocation.java",				
+				DEFAULT_LOCATION_CONTENT,
+				"org/eclipse/jdt/annotation/NonNullByDefault.java",				
+				NONNULL_BY_DEFAULT_ANNOTATION_18_CONTENT,
+				"test1/Test1.java",
+				"package test1;\n" + 
+				"\n" + 
+				"import java.util.Map;\n" + 
+				"import org.eclipse.jdt.annotation.*;\n" + 
+				"\n" + 
+				"@NonNullByDefault\n" + 
+				"public class Test1 {\n" + 
+				"	void test(Map<String,Test1> map, String key) {\n" + 
+				"		Test1 v = map.get(key);\n" + 
+				"		if (v == null)\n" + 
+				"			throw new RuntimeException(); // should not be reported as dead code, although V is a '@NonNull Test1'\n" + 
+				"	}\n" +
+				"	public boolean equals(@NonNull Object other) { return false; }\n" + 
+				"}\n"
+			};
+
+	String o_e_j_annotation_dir = OUTPUT_DIR + File.separator +
+			"org" + File.separator + "eclipse" + File.separator + "jdt" + File.separator + "annotation";
+	String j_l_annotation_dir = OUTPUT_DIR +  File.separator +
+			"java" + File.separator + "lang" + File.separator + "annotation";
+	
+	String commandLine = " -1.8 -proc:none -d none -warn:+nullAnnot " + compilerPathArgs +
+			" -sourcepath \"" + OUTPUT_DIR + extraSourcePaths + "\" " +
+			// explicitly mention all files to ensure a good order, cannot pull in source of NNBD on demand
+			"\"" + j_l_annotation_dir   +  File.separator + "ElementType.java\" " +
+			"\"" + o_e_j_annotation_dir +  File.separator + "NonNull.java\" " +
+			"\"" + o_e_j_annotation_dir +  File.separator + "DefaultLocation.java\" " +
+			"\"" + o_e_j_annotation_dir +  File.separator + "NonNullByDefault.java\" " +
+			"\"" + OUTPUT_DIR +  File.separator + "test1" + File.separator + "Test1.java\"";
+	
+	if (expectedCompilerMessage == null)
+		expectedCompilerMessage =
+				"----------\n" + 
+				"1. WARNING in ---OUTPUT_DIR_PLACEHOLDER---/test1/Test1.java (at line 13)\n" + 
+				"	public boolean equals(@NonNull Object other) { return false; }\n" + 
+				"	                      ^^^^^^^^^^^^^^^\n" + 
+				"Illegal redefinition of parameter other, inherited method from Object declares this parameter as @Nullable\n" + 
+				"----------\n" + 
+				"1 problem (1 warning)\n";
+	
+	if (isSuccess)
+		this.runConformTest(testFiles, commandLine, "", expectedCompilerMessage, true);
+	else
+		this.runNegativeTest(testFiles, commandLine, "", expectedCompilerMessage, true);
+}
+// Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+// - two external annotation directories as part of the sourcepath/classpath
+public void test440687a() throws IOException {
+
+	String annots_dir1 = Util.getOutputDirectory() + File.separator + "annots1";
+	String annots_java_util = annots_dir1 + File.separator + "java/util";
+	new File(annots_java_util).mkdirs();
+	Util.createFile(annots_java_util + File.separator + "Map.eea",
+			TEST_440687_MAP_EEA_CONTENT);
+
+	String annots_dir2 = Util.getOutputDirectory() + File.separator + "annots2";
+	String annots_java_lang = annots_dir2 + File.separator + "java/lang";
+	new File(annots_java_lang).mkdirs();
+	Util.createFile(annots_java_lang + File.separator + "Object.eea",
+			TEST_440687_OBJECT_EEA_CONTENT);
+
+	runTest440687("-annotationpath CLASSPATH -classpath \"" + annots_dir2 + "\"", 
+			File.pathSeparator + annots_dir1, // extra source path 
+			null, // expect normal error
+			true);
+}
+// Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+// - two external annotation directories specifically configured.
+public void test440687b() throws IOException {
+	
+	String annots_dir = Util.getOutputDirectory() + File.separator + "annots1";
+	String annots_java_util = annots_dir + File.separator + "java/util";
+	new File(annots_java_util).mkdirs();
+	Util.createFile(
+			annots_java_util + File.separator + "Map.eea", 
+			TEST_440687_MAP_EEA_CONTENT);
+
+	String annots_dir2 = Util.getOutputDirectory() + File.separator + "annots2";
+	String annots_java_lang = annots_dir2 + File.separator + "java/lang";
+	new File(annots_java_lang).mkdirs();
+	Util.createFile(
+			annots_java_lang + File.separator + "Object.eea", 
+			TEST_440687_OBJECT_EEA_CONTENT);
+	
+	runTest440687("-annotationpath \"" + annots_dir + File.pathSeparator + annots_dir2 + "\" ",
+				"", // no extra source path
+				null, // expect normal error
+				true);
+}
+// Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+// - single external annotation zip with 2 entries
+public void test440687c() throws IOException {
+	
+	String annots_dir = Util.getOutputDirectory() + File.separator + "annots";
+	new File(annots_dir).mkdirs();
+	String annotsZipFile = annots_dir+ File.separator + "jre-annots.zip";
+	Util.createSourceZip(
+		new String[] {
+			"java/util/Map.eea",
+			TEST_440687_MAP_EEA_CONTENT,
+			"java/lang/Object.eea", 
+			TEST_440687_OBJECT_EEA_CONTENT
+		},
+		annotsZipFile);
+
+	runTest440687("-annotationpath CLASSPATH -classpath \"" + annotsZipFile + "\"",
+					"", // no extra source path
+					null, // expect normal error
+					true);
+}
+// Bug 440687 - [compiler][batch][null] improve command line option for external annotations
+// - missing argument after -annotationpath
+public void test440687d() throws IOException {
+	runTest440687("-annotationpath", // missing argument 
+					"",
+					"Missing argument to -annotationpath at \'-sourcepath\'\n",
+					false);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=439750
+public void test439750() {
+	this.runConformTest(
+		new String[] {
+			"externalizable/warning/X.java",
+			"import java.io.FileInputStream;\n" +
+			"import java.io.IOException;\n" +
+			"class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		FileInputStream fis = null;\n" +
+			"		try {\n" +
+			"			fis = new FileInputStream(\"xyz\");\n" +
+			"			System.out.println(\"fis\");\n" +
+			"		} catch (IOException e) {\n" +
+			"			e.printStackTrace();\n" +
+			"		} finally {\n" +
+			"			try {\n" +
+			"				if (fis != null) fis.close();\n" +
+			"			} catch (Exception e) {}\n" +
+ 			"		}\n" +
+ 			"	}\n" +
+			"}\n"
+			},
+			"\"" + OUTPUT_DIR +  File.separator + "externalizable" + File.separator + "warning" + File.separator + "X.java\""
+			+ " -1.6 -warn:unused -warn:unusedExceptionParam -d none",
+			"",
+			"----------\n" +
+			"1. WARNING in ---OUTPUT_DIR_PLACEHOLDER---/externalizable/warning/X.java (at line 14)\n" +
+			"	} catch (Exception e) {}\n" +
+			"	                   ^\n" +
+			"The value of the exception parameter e is not used\n" +
+			"----------\n" +
+			"1 problem (1 warning)\n",
+			true);
 }
 }

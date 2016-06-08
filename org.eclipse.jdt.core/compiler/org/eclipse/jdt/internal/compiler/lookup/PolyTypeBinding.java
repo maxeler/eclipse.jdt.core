@@ -36,6 +36,21 @@ public class PolyTypeBinding extends TypeBinding {
 	public boolean isCompatibleWith(TypeBinding left, Scope scope) {
 		return this.vanillaCompatibilty ? this.expression.isCompatibleWith(left, scope) : this.expression.isBoxingCompatibleWith(left, scope);
 	}
+	
+	@Override
+	public boolean isPotentiallyCompatibleWith(TypeBinding targetType, Scope scope) {
+		return this.expression.isPotentiallyCompatibleWith(targetType, scope);
+	}
+
+	@Override
+	public boolean isPolyType() {
+		return true;
+	}
+	
+	@Override
+	public boolean isFunctionalType() {
+		return this.expression.isFunctionalType();
+	}
 
 	public char[] qualifiedSourceName() {
 		return readableName();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2014 GK Software AG, and others.
+ * Copyright (c) 2013, 2015 GK Software AG, and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,10 +18,11 @@ import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
 import junit.framework.Test;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class GenericsRegressionTest_1_8 extends AbstractRegressionTest {
 
 static {
-//	TESTS_NAMES = new String[] { "testBug428198b" };
+//	TESTS_NAMES = new String[] { "testBug434483" };
 //	TESTS_NUMBERS = new int[] { 40, 41, 43, 45, 63, 64 };
 //	TESTS_RANGE = new int[] { 11, -1 };
 }
@@ -467,10 +468,15 @@ public void testBug401850a() {
 			"}\n"
 		},
 		"----------\n" + 
-		"1. ERROR in X.java (at line 7)\n" + 
-		"	int i = m(new X<>(\"\"));\n" + 
-		"	          ^^^^^^^^^^^\n" + 
-		"The constructor X<String>(String) is ambiguous\n" + 
+		"1. WARNING in X.java (at line 1)\n" + 
+		"	import java.util.List;\n" + 
+		"	       ^^^^^^^^^^^^^^\n" + 
+		"The import java.util.List is never used\n" + 
+		"----------\n" + 
+		"2. WARNING in X.java (at line 2)\n" + 
+		"	import java.util.ArrayList;\n" + 
+		"	       ^^^^^^^^^^^^^^^^^^^\n" + 
+		"The import java.util.ArrayList is never used\n" + 
 		"----------\n");
 }
 public void testBug401850b() {
@@ -619,11 +625,6 @@ public void testBug424712a() {
 		"Y cannot be resolved to a type\n" + 
 		"----------\n" + 
 		"3. ERROR in X.java (at line 12)\n" + 
-		"	Set<Y> rosterSet = (Set<Y>) foo(null, Set::new);\n" + 
-		"	                                      ^^^^^^^^\n" + 
-		"The target type of this expression must be a functional interface\n" + 
-		"----------\n" + 
-		"4. ERROR in X.java (at line 12)\n" + 
 		"	Set<Y> rosterSet = (Set<Y>) foo(null, Set::new);\n" + 
 		"	                                      ^^^\n" + 
 		"Cannot instantiate the type Set\n" + 
@@ -1230,7 +1231,12 @@ public void testBug425493() {
 		"	^^^^^^^^^^^^\n" + 
 		"The method addAttribute(Test.Attribute<T>, T) in the type Test is not applicable for the arguments (Test.Attribute<capture#1-of ?>, capture#2-of ?)\n" + 
 		"----------\n" + 
-		"2. ERROR in Test.java (at line 5)\n" + 
+		"2. ERROR in Test.java (at line 3)\n" + 
+		"	addAttribute(java.util.Objects.requireNonNull(attribute, \"\"),\n" + 
+		"	             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Type mismatch: cannot convert from Test.Attribute<capture#1-of ?> to Test.Attribute<T>\n" + 
+		"----------\n" + 
+		"3. ERROR in Test.java (at line 5)\n" + 
 		"	addAttribute(attribute, attribute.getDefault());\n" + 
 		"	^^^^^^^^^^^^\n" + 
 		"The method addAttribute(Test.Attribute<T>, T) in the type Test is not applicable for the arguments (Test.Attribute<capture#3-of ?>, capture#4-of ?)\n" + 
@@ -1732,7 +1738,12 @@ public void testBug427164() {
 			"}\n"
 		},
 		"----------\n" + 
-		"1. ERROR in NNLambda.java (at line 13)\n" + 
+		"1. ERROR in NNLambda.java (at line 1)\n" + 
+		"	printem((i) -> {\n" + 
+		"	^^^^^^^\n" + 
+		"The method printem(FInter, INP) in the type NNLambda is not applicable for the arguments (FInter, String)\n" + 
+		"----------\n" + 
+		"2. ERROR in NNLambda.java (at line 13)\n" + 
 		"	Collections.<String>singletonList(\"const\")\n" + 
 		"	                                         ^\n" + 
 		"Syntax error, insert \";\" to complete BlockStatements\n" + 
@@ -2047,8 +2058,21 @@ public void testBug427626() {
 			"	}\n" + 
 			"}"
 		},
+		// 8u20 emits just one message inferred type not conforming to upper bound. ECJ's message is actually better.
+		// We used to emit only 1 error here. Here the lambda is broken, so inference fails leading to two messages.			
 		"----------\n" + 
-		"1. ERROR in X.java (at line 13)\n" + 
+		"1. ERROR in X.java (at line 8)\n" + 
+		"	ss.stream().map(s -> {\n" + 
+		"          class L1 {};\n" + 
+		"          class L2 {\n" + 
+		"            void mm(L1 l) {}\n" + 
+		"          }\n" + 
+		"          return new L2().mm(new L1());\n" + 
+		"        }).forEach(e -> System.out.println(e));\n" + 
+		"	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Type mismatch: cannot convert from Stream<Object> to <unknown>\n" + 
+		"----------\n" + 
+		"2. ERROR in X.java (at line 13)\n" + 
 		"	return new L2().mm(new L1());\n" + 
 		"	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
 		"Cannot return a void result\n" + 
@@ -2521,8 +2545,7 @@ public void testBug429490_comment33() {
         });
 }
 public void testBug428811() {
-	// perhaps fail is the correct answer? FIXME: validate!
-	runNegativeTest(
+	runConformTest(
 		new String[] {
 			"MoreCollectors.java",
 			"import java.util.AbstractList;\n" + 
@@ -2569,18 +2592,7 @@ public void testBug428811() {
 			"    }\n" + 
 			"}\n"
 		},
-		"----------\n" + 
-		"1. ERROR in MoreCollectors.java (at line 16)\n" + 
-		"	return Collector.of(ArrayList<T>::new,\n" + 
-		"	                 ^^\n" + 
-		"The method of(ArrayList<T>::new, List<T>::add, (<no type> left, <no type> right) -> {}" + 
-		", ImmutableList::copyOf) is undefined for the type Collector\n" + 
-		"----------\n" + 
-		"2. WARNING in MoreCollectors.java (at line 23)\n" + 
-		"	public static <T> ImmutableList<T> copyOf (Collection<T> c) {\n" + 
-		"	                                   ^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
-		"The method copyOf(Collection<T>) from the type MoreCollectors.ImmutableList<T> is never used locally\n" + 
-		"----------\n");
+		"[a, b, c]");
 }
 // all exceptions can be inferred to match
 public void testBug429430() {
@@ -2636,8 +2648,7 @@ public void testBug429430a() {
 		"----------\n");
 }
 // one of two incompatible exceptions is caught
-// FIXME: should be possible to infer X to EmptyStream
-public void _testBug429430b() {
+public void testBug429430b() {
 	runConformTest(
 		new String[] {
 			"Main.java",
@@ -2663,6 +2674,45 @@ public void _testBug429430b() {
 			"  }\n" +
 			"}\n"
 		});
+}
+public void testBug429430b2() {
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"import java.io.*;\n" +
+			"@SuppressWarnings(\"serial\") class EmptyStream extends Exception {}\n" +
+			"public class X {\n" +
+			"  public static interface Closer<T, V extends Exception> {\n" +
+			"    void closeIt(T it) throws V;\n" +
+			"  }\n" +
+			"\n" +
+			"  public static void close( Closer<InputStream, EmptyStream> closer, InputStream it ) throws EmptyStream {\n" +
+			"    closer.closeIt(it);\n" +
+			"  }\n" +
+			"\n" +
+			"  public static void main(String[] args) throws EmptyStream {\n" +
+			"    InputStream in = new ByteArrayInputStream(\"hello\".getBytes());\n" +
+			"    close( x ->  {\n" +
+			"			if (x == null)\n" +
+			"				throw new IOException();\n" +
+			"			else \n" +
+			"				throw new EmptyStream(); \n" +
+			"		},\n" +
+			"		in);\n" +
+			"  }\n" +
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in X.java (at line 16)\n" + 
+		"	throw new IOException();\n" + 
+		"	^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Unhandled exception type IOException\n" + 
+		"----------\n" + 
+		"2. WARNING in X.java (at line 18)\n" + 
+		"	throw new EmptyStream(); \n" + 
+		"	^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Statement unnecessarily nested within else clause. The corresponding then clause does not complete normally\n" + 
+		"----------\n");
 }
 // ensure type annotation on exception doesn't confuse the inference
 public void testBug429430c() {
@@ -2746,7 +2796,7 @@ public void testBug429424() {
 			"\n"
 		});
 }
-public void _testBug426537() {
+public void testBug426537() {
 	runNegativeTest(
 		new String[] {
 			"X.java",
@@ -2843,6 +2893,7 @@ public void testBug429203() {
 			"	public DTest(Function<T, T> func) { }\n" + 
 			"	\n" + 
 			"	public DTest(DTest<Integer> dti) {}\n" + 
+			"	public DTest() {}\n" + 
 			"	\n" + 
 			"	public static void main(String[] args) {\n" + 
 			"		DTest<String> t1 = new DTest<String>(new DTest<Integer>());\n" + 
@@ -2850,16 +2901,11 @@ public void testBug429203() {
 			"}\n"
 		},
 		"----------\n" + 
-		"1. ERROR in DTest.java (at line 10)\n" + 
+		"1. ERROR in DTest.java (at line 11)\n" + 
 		"	DTest<String> t1 = new DTest<String>(new DTest<Integer>());\n" + 
 		"	                       ^^^^^\n" + 
 		"Redundant specification of type arguments <String>\n" + 
-		"----------\n" + 
-		"2. ERROR in DTest.java (at line 10)\n" + 
-		"	DTest<String> t1 = new DTest<String>(new DTest<Integer>());\n" + 
-		"	                                     ^^^^^^^^^^^^^^^^^^^^\n" + 
-		"The constructor DTest<Integer>() is undefined\n" +
-		"----------\n",
+		"----------\n", 
 		null, true, customOptions);
 }
 public void testBug430296() {
@@ -2887,15 +2933,18 @@ public void testBug430296() {
 		"----------\n" + 
 		"1. ERROR in AnnotationCollector.java (at line 9)\n" + 
 		"	return persons.collect(Collectors.toMap((Person p) -> p.getLastName(),\n" + 
-		"                                                                Function::identity,\n" + 
-		"                                                        (p1, p2) -> p1));\n" + 
-		"	       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
-		"Type mismatch: cannot convert from Map<String,Object> to Map<String,Person>\n" + 
+		"	                                  ^^^^^\n" + 
+		"The method toMap(Function<? super T,? extends K>, Function<? super T,? extends U>, BinaryOperator<U>) in the type Collectors is not applicable for the arguments ((Person p) -> {}, Function::identity, BinaryOperator<U>)\n" + 
 		"----------\n" + 
-		"2. ERROR in AnnotationCollector.java (at line 10)\n" + 
+		"2. ERROR in AnnotationCollector.java (at line 9)\n" + 
+		"	return persons.collect(Collectors.toMap((Person p) -> p.getLastName(),\n" + 
+		"	                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Type mismatch: cannot convert from Function<Person,? extends K> to Function<? super T,? extends K>\n" + 
+		"----------\n" + 
+		"3. ERROR in AnnotationCollector.java (at line 10)\n" + 
 		"	Function::identity,\n" + 
 		"	^^^^^^^^^^^^^^^^^^\n" + 
-		"The type Function does not define identity(Person) that is applicable here\n" + 
+		"The type Function does not define identity(T) that is applicable here\n" + 
 		"----------\n");
 }
 public void testBug430759() {
@@ -3042,14 +3091,9 @@ public void testBug433158() {
 			"	}\n" + 
 			"}\n"
 		},
-		"----------\n" + 
-		"1. ERROR in CollectorsMaps.java (at line 20)\n" + 
-		"	p -> p.lhs.stream().map(p::keepingRhs)).collect(\n" + 
-		"	                                        ^^^^^^^\n" + 
-		"The method collect(Collector<? super Object,A,R>) in the type Stream<Object> is not applicable for the arguments (Collector<CollectorsMaps.Pair<String,String>,capture#3-of ?,Map<String,List<String>>>)\n" + 
-		"----------\n");
+		"");
 }
-public void _testBug432626() {
+public void testBug432626() {
 	runConformTest(
 		new String[] {
 			"StreamInterface2.java",
@@ -3112,6 +3156,29 @@ public void _testBug432626() {
 			"	static <T> ArrayList<T> combined(ArrayList<T> left, ArrayList<T> right) {\n" + 
 			"		left.addAll(right);\n" + 
 			"		return left;\n" + 
+			"	}\n" +
+			"}\n"
+		});
+}
+public void testBug432626_reduced() {
+	runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.HashMap;\n" +
+			"import java.util.Map;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.stream.Collector;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"public interface X {\n" +
+			"	static <T, K> Map<K, ArrayList<T>> terminalAsMapToList(Function<? super T, ? extends K> classifier)  {\n" +
+			"		return terminalAsCollected(Collectors.groupingBy(\n" +
+			"			  classifier,\n" +
+			"			  () -> new HashMap<>(),\n" +
+			"			  (Collector<T,ArrayList<T>,ArrayList<T>>) null));\n" +
+			"	}\n" +
+			"	static <T, M> M terminalAsCollected(Collector<T, ?, M> collector) {\n" +
+			"		return null;\n" +
 			"	}\n" +
 			"}\n"
 		});
@@ -3196,5 +3263,2201 @@ public void testBug435462() {
 			"  }\n" + 
 			"}"
 	});
+}
+public void testBug437007() {
+	runConformTest(
+		new String[] {
+			"ExecutorTests.java",
+			"import java.util.*;\n" + 
+			"\n" + 
+			"public class ExecutorTests {\n" + 
+			"    List<Runnable> tasks = Arrays.asList(\n" + 
+			"            () -> {\n" + 
+			"                System.out.println(\"task1 start\");\n" + 
+			"            }\n" + 
+			"    );\n" + 
+			"\n" + 
+			"    public void executeInSync(){\n" + 
+			"        tasks.stream().forEach(Runnable::run);\n" + 
+			"    }\n" + 
+			"}\n"
+		});
+}
+public void testBug435689() {
+	runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.util.function.*;\n" +
+			"class Foo<T> {\n" + 
+			"  <U> void apply(Function<T, Consumer<U>> bar) {}\n" + 
+			"}\n" + 
+			"\n" + 
+			"class Bar {\n" + 
+			"  void setBar(String bar){}\n" + 
+			"}\n" +
+			"public class Test {\n" +
+			"	void test() {\n" +
+			"		new Foo<Bar>().apply(bar -> bar::setBar);\n" + 
+			"	}\n" +
+			"}\n"
+		});
+}
+public void testBug433845() {
+	runNegativeTest(
+		new String[] {
+			"test/Test.java",
+			"package test;\n" + 
+			"\n" + 
+			"\n" + 
+			"public abstract class Test {\n" + 
+			"	public interface MUIElement {\n" + 
+			"		\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private interface Listener<W extends WWidget<?>> {\n" + 
+			"		public void call(Event<W> event);\n" + 
+			"	}\n" + 
+			"	\n" + 
+			"	public static class Event<W extends WWidget<?>> {\n" + 
+			"		\n" + 
+			"	}\n" + 
+			"	\n" + 
+			"	public interface WWidget<M extends MUIElement> {\n" + 
+			"		public void set(Listener<? extends WWidget<M>> handler);\n" + 
+			"	}\n" + 
+			"	\n" + 
+			"	public static abstract class A<M extends MUIElement, W extends WWidget<M>> {\n" + 
+			"		\n" + 
+			"		public final W createWidget(final M element) {\n" + 
+			"			W w = get(); \n" + 
+			"			// works\n" + 
+			"			w.set((Event<W>e) -> call(e));\n" + 
+			"			// fails\n" + 
+			"			w.set(this::call);\n" + 
+			"			// fails\n" + 
+			"			w.set((e) -> call(e));\n" + 
+			"			return w;\n" + 
+			"		}\n" + 
+			"		\n" + 
+			"		private W get() {\n" + 
+			"			return null;\n" + 
+			"		}\n" + 
+			"		\n" + 
+			"		private void call(Event<W> event) {\n" + 
+			"			\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in test\\Test.java (at line 28)\n" + 
+		"	w.set(this::call);\n" + 
+		"	  ^^^\n" + 
+		"The method set(Test.Listener<? extends Test.WWidget<M>>) in the type Test.WWidget<M> is not applicable for the arguments (this::call)\n" + 
+		"----------\n" + 
+		"2. ERROR in test\\Test.java (at line 28)\n" + 
+		"	w.set(this::call);\n" + 
+		"	      ^^^^^^^^^^\n" + 
+		"The type Test.A<M,W> does not define call(Test.Event<Test.WWidget<M>>) that is applicable here\n" + 
+		"----------\n" + 
+		"3. ERROR in test\\Test.java (at line 30)\n" + 
+		"	w.set((e) -> call(e));\n" + 
+		"	             ^^^^\n" + 
+		"The method call(Test.Event<W>) in the type Test.A<M,W> is not applicable for the arguments (Test.Event<Test.WWidget<M>>)\n" + 
+		"----------\n");
+}
+public void testBug435187() {
+	runNegativeTest(
+		new String[] {
+			"ExtractLocalLambda.java",
+			"\n" + 
+			"import java.util.List;\n" + 
+			"import java.util.Map;\n" + 
+			"import java.util.Map.Entry;\n" + 
+			"import java.util.function.Function;\n" + 
+			"import java.util.stream.Collector;\n" + 
+			"import java.util.stream.Stream;\n" + 
+			"\n" + 
+			"public class ExtractLocalLambda {\n" + 
+			"	static Stream<Entry<List<String>, String>> map;\n" + 
+			"	static Collector<Entry<String, String>, ?, Map<String, List<String>>> groupingBy;\n" + 
+			"	private static Stream<String> stream(Entry<List<String>, String> p) {		return null;	}\n" + 
+			"	private static Entry<String, String> keep(Entry<List<String>, String> p, String leftHS2) {		return null;	}\n" + 
+			"\n" + 
+			"	static Map<String, List<String>> beforeRefactoring() {\n" + 
+			"		// Extract local variable from the parameter to flatMap:\n" + 
+			"		return map.flatMap(\n" + 
+			"				p -> stream(p).map(leftHS -> {\n" + 
+			"					String leftHS2 = leftHS;\n" + 
+			"					return keep(p, leftHS2);\n" + 
+			"				})\n" + 
+			"		).collect(groupingBy);\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. WARNING in ExtractLocalLambda.java (at line 5)\n" + 
+		"	import java.util.function.Function;\n" + 
+		"	       ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"The import java.util.function.Function is never used\n" + 
+		"----------\n");
+}
+public void testBug435767() {
+	runConformTest(
+		new String[] {
+			"DummyClass.java",
+			"import java.util.*;\n" +
+			"import java.util.function.*;\n" +
+			"import java.util.stream.*;\n" +
+			"public class DummyClass {\n" + 
+			"\n" + 
+			"	public void method() {\n" + 
+			"\n" + 
+			"		// Cases where there is no error\n" + 
+			"		final Supplier<Set<String>> suppliers = this.memoize(() -> new HashSet<>());\n" + 
+			"\n" + 
+			"		final Supplier<Map<Object, Object>> noMemoize = () -> suppliers.get().stream()\n" + 
+			"				.filter(path -> path.startsWith(\"\"))\n" + 
+			"				.collect(Collectors.toMap(path -> this.getKey(path), path -> this.getValue(path)));\n" + 
+			"\n" + 
+			"		// Case where there is errors.\n" + 
+			"		final Supplier<Map<Object, Object>> memoize = this.memoize(() -> suppliers.get().stream()\n" + 
+			"				.filter(path -> path.startsWith(\"\"))\n" + 
+			"				.collect(Collectors.toMap(path -> this.getKey(path), path -> this.getValue(path))));\n" + 
+			"\n" + 
+			"		// Error message are : Description\n" + 
+			"		// Resource	Path	Location	Type\n" + 
+			"		// The method getKey(String) in the type DummyClass is not applicable for the arguments (Object)	DummyClass.java line 23	Java Problem\n" + 
+			"		// The method getValue(String) in the type DummyClass is not applicable for the arguments (Object)	DummyClass.java line 23	Java Problem\n" + 
+			"\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private <T> Supplier<T> memoize(final Supplier<T> delegate) {\n" + 
+			"		return delegate;\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private Object getKey(final String path) {\n" + 
+			"		return path;\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private Object getValue(final String path) {\n" + 
+			"		return path;\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		"");
+}
+public void testBug434483() {
+	runConformTest(
+		new String[] {
+			"Foo.java",
+			"import java.util.*;\n" +
+			"public class Foo {\n" + 
+			"	\n" + 
+			"  // Similar to Guava's newLinkedList()\n" + 
+			"  public static <E> LinkedList<E> newLinkedList() {\n" + 
+			"    return new LinkedList<E>();\n" + 
+			"  }\n" + 
+			"	\n" + 
+			"  private final ThreadLocal<Queue<String>> brokenQueue = ThreadLocal.withInitial(Foo::newLinkedList);\n" + 
+			"	\n" + 
+			"  private final ThreadLocal<Queue<String>> workingQueue1 = ThreadLocal.withInitial(Foo::<String>newLinkedList);\n" + 
+			"	\n" + 
+			"  private final ThreadLocal<Queue<String>> workingQueue2 = ThreadLocal.withInitial(() -> Foo.<String>newLinkedList());\n" + 
+			"\n" + 
+			"}\n"
+		});
+}
+public void testBug441734() {
+	runConformTest(
+		new String[] {
+			"Example.java",
+			"import java.util.*;\n" +
+			"import java.util.function.*;\n" +
+			"class Example {\n" + 
+			"    void foo(Iterable<Number> x) { }\n" + 
+			"\n" + 
+			"    <T> void bar(Consumer<Iterable<T>> f) { }\n" + 
+			"\n" + 
+			"    void test() {\n" + 
+			"        //call 1: lambda w/argument type - OK\n" + 
+			"        bar((Iterable<Number> x) -> foo(x));\n" + 
+			"\n" + 
+			"        //call 2: lambda w/explicit type - OK\n" + 
+			"        this.<Number> bar(x -> foo(x));\n" + 
+			"\n" + 
+			"        //call 3: method ref w/explicit type - OK\n" + 
+			"        this.<Number> bar(this::foo);\n" + 
+			"\n" + 
+			"        //call 4: lambda w/implicit type - correctly(?) fails*\n" + 
+			"        //bar(x -> foo(x));\n" + 
+			"\n" + 
+			"        //call 5: method ref w/implicit type - BUG!\n" + 
+			"        bar(this::foo); // errors!\n" + 
+			"    }\n" + 
+			"}\n"
+		});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=442245, [1.8][compiler?] These source files lead eclipse to hang (even just on copy/paste)
+public void testBug442245() {
+	runConformTest(
+		new String[] {
+			"test/Pattern.java",
+			"package test;\n" +
+			"import test.Tuples.Tuple;\n" +
+			"import test.Tuples.Tuple1;\n" +
+			"import test.Tuples.Tuple10;\n" +
+			"import test.Tuples.Tuple11;\n" +
+			"import test.Tuples.Tuple12;\n" +
+			"import test.Tuples.Tuple13;\n" +
+			"import test.Tuples.Tuple2;\n" +
+			"import test.Tuples.Tuple3;\n" +
+			"import test.Tuples.Tuple4;\n" +
+			"import test.Tuples.Tuple5;\n" +
+			"import test.Tuples.Tuple6;\n" +
+			"import test.Tuples.Tuple7;\n" +
+			"import test.Tuples.Tuple8;\n" +
+			"import test.Tuples.Tuple9;\n" +
+			"\n" +
+			"public interface Pattern<R extends Tuple> {\n" +
+			"\n" +
+			"	boolean isApplicable(Object o);\n" +
+			"\n" +
+			"	R apply(Object o);\n" +
+			"\n" +
+			"	static <T, R extends Tuple> Pattern<R> of(Decomposition<T, R> decomposition, R prototype) {\n" +
+			"		return null;\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1> Pattern<Tuple1<E1>> of(Decomposition<T, Tuple1<E1>> decomposition, E1 e1) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2> Pattern<Tuple2<E1, E2>> of(Decomposition<T, Tuple2<E1, E2>> decomposition, E1 e1, E2 e2) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3> Pattern<Tuple3<E1, E2, E3>> of(Decomposition<T, Tuple3<E1, E2, E3>> decomposition, E1 e1,\n" +
+			"			E2 e2, E3 e3) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4> Pattern<Tuple4<E1, E2, E3, E4>> of(\n" +
+			"			Decomposition<T, Tuple4<E1, E2, E3, E4>> decomposition, E1 e1, E2 e2, E3 e3, E4 e4) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5> Pattern<Tuple5<E1, E2, E3, E4, E5>> of(\n" +
+			"			Decomposition<T, Tuple5<E1, E2, E3, E4, E5>> decomposition, E1 e1, E2 e2, E3 e3, E4 e4, E5 e5) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6> Pattern<Tuple6<E1, E2, E3, E4, E5, E6>> of(\n" +
+			"			Decomposition<T, Tuple6<E1, E2, E3, E4, E5, E6>> decomposition, E1 e1, E2 e2, E3 e3, E4 e4, E5 e5, E6 e6) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7> Pattern<Tuple7<E1, E2, E3, E4, E5, E6, E7>> of(\n" +
+			"			Decomposition<T, Tuple7<E1, E2, E3, E4, E5, E6, E7>> decomposition, E1 e1, E2 e2, E3 e3, E4 e4, E5 e5,\n" +
+			"			E6 e6, E7 e7) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7, E8> Pattern<Tuple8<E1, E2, E3, E4, E5, E6, E7, E8>> of(\n" +
+			"			Decomposition<T, Tuple8<E1, E2, E3, E4, E5, E6, E7, E8>> decomposition, E1 e1, E2 e2, E3 e3, E4 e4, E5 e5,\n" +
+			"			E6 e6, E7 e7, E8 e8) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7, e8));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7, E8, E9> Pattern<Tuple9<E1, E2, E3, E4, E5, E6, E7, E8, E9>> of(\n" +
+			"			Decomposition<T, Tuple9<E1, E2, E3, E4, E5, E6, E7, E8, E9>> decomposition, E1 e1, E2 e2, E3 e3, E4 e4,\n" +
+			"			E5 e5, E6 e6, E7 e7, E8 e8, E9 e9) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7, e8, e9));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10> Pattern<Tuple10<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10>> of(\n" +
+			"			Decomposition<T, Tuple10<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10>> decomposition, E1 e1, E2 e2, E3 e3,\n" +
+			"			E4 e4, E5 e5, E6 e6, E7 e7, E8 e8, E9 e9, E10 e10) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11> Pattern<Tuple11<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11>> of(\n" +
+			"			Decomposition<T, Tuple11<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11>> decomposition, E1 e1, E2 e2, E3 e3,\n" +
+			"			E4 e4, E5 e5, E6 e6, E7 e7, E8 e8, E9 e9, E10 e10, E11 e11) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12> Pattern<Tuple12<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12>> of(\n" +
+			"			Decomposition<T, Tuple12<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12>> decomposition, E1 e1, E2 e2,\n" +
+			"			E3 e3, E4 e4, E5 e5, E6 e6, E7 e7, E8 e8, E9 e9, E10 e10, E11 e11, E12 e12) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12));\n" +
+			"	}\n" +
+			"\n" +
+			"	static <T, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12, E13> Pattern<Tuple13<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12, E13>> of(\n" +
+			"			Decomposition<T, Tuple13<E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12, E13>> decomposition, E1 e1,\n" +
+			"			E2 e2, E3 e3, E4 e4, E5 e5, E6 e6, E7 e7, E8 e8, E9 e9, E10 e10, E11 e11, E12 e12, E13 e13) {\n" +
+			"		return Pattern.of(decomposition, Tuples.of(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13));\n" +
+			"	}\n" +
+			"\n" +
+			"	static interface Decomposition<T, R extends Tuple> {\n" +
+			"\n" +
+			"		R apply(T t);\n" +
+			"	}\n" +
+			"}\n",
+			"test/Tuples.java", 
+			"package test;\n"+
+			"\n"+
+			"import java.io.Serializable;\n"+
+			"import java.util.Objects;\n"+
+			"import java.util.stream.Collectors;\n"+
+			"import java.util.stream.Stream;\n"+
+			"\n"+
+			"public final class Tuples {\n"+
+			"\n"+
+			"	private Tuples() {\n"+
+			"		throw new AssertionError(Tuples.class.getName() + \" is not intended to be instantiated.\");\n"+
+			"	}\n"+
+			"\n"+
+			"	public static Tuple0 of() {\n"+
+			"		return Tuple0.instance();\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T> Tuple1<T> of(T t) {\n"+
+			"		return new Tuple1<>(t);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2> Tuple2<T1, T2> of(T1 t1, T2 t2) {\n"+
+			"		return new Tuple2<>(t1, t2);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3> Tuple3<T1, T2, T3> of(T1 t1, T2 t2, T3 t3) {\n"+
+			"		return new Tuple3<>(t1, t2, t3);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4> Tuple4<T1, T2, T3, T4> of(T1 t1, T2 t2, T3 t3, T4 t4) {\n"+
+			"		return new Tuple4<>(t1, t2, t3, t4);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5> Tuple5<T1, T2, T3, T4, T5> of(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5) {\n"+
+			"		return new Tuple5<>(t1, t2, t3, t4, t5);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6> Tuple6<T1, T2, T3, T4, T5, T6> of(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) {\n"+
+			"		return new Tuple6<>(t1, t2, t3, t4, t5, t6);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7> Tuple7<T1, T2, T3, T4, T5, T6, T7> of(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5,\n"+
+			"			T6 t6, T7 t7) {\n"+
+			"		return new Tuple7<>(t1, t2, t3, t4, t5, t6, t7);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7, T8> Tuple8<T1, T2, T3, T4, T5, T6, T7, T8> of(T1 t1, T2 t2, T3 t3,\n"+
+			"			T4 t4, T5 t5, T6 t6, T7 t7, T8 t8) {\n"+
+			"		return new Tuple8<>(t1, t2, t3, t4, t5, t6, t7, t8);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7, T8, T9> Tuple9<T1, T2, T3, T4, T5, T6, T7, T8, T9> of(T1 t1, T2 t2,\n"+
+			"			T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9) {\n"+
+			"		return new Tuple9<>(t1, t2, t3, t4, t5, t6, t7, t8, t9);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> Tuple10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> of(T1 t1,\n"+
+			"			T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10) {\n"+
+			"		return new Tuple10<>(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> Tuple11<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> of(\n"+
+			"			T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11) {\n"+
+			"		return new Tuple11<>(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> Tuple12<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> of(\n"+
+			"			T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12) {\n"+
+			"		return new Tuple12<>(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12);\n"+
+			"	}\n"+
+			"\n"+
+			"	public static <T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> Tuple13<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> of(\n"+
+			"			T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13) {\n"+
+			"		return new Tuple13<>(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13);\n"+
+			"	}\n"+
+			"\n"+
+			"	private static String stringify(Object... objects) {\n"+
+			"		return Stream\n"+
+			"				.of(objects)\n"+
+			"				.map(o -> (o == null) ? \"null\" : o.toString())\n"+
+			"				.collect(Collectors.joining(\", \", \"(\", \")\"));\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple0 implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -8715576573413569748L;\n"+
+			"\n"+
+			"		private static final Tuple0 INSTANCE = new Tuple0();\n"+
+			"\n"+
+			"		private Tuple0() {\n"+
+			"		}\n"+
+			"\n"+
+			"		public static Tuple0 instance() {\n"+
+			"			return INSTANCE;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 0;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify();\n"+
+			"		}\n"+
+			"\n"+
+			"		private Object readResolve() {\n"+
+			"			return INSTANCE;\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple1<T> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -8005498887610699234L;\n"+
+			"\n"+
+			"		public final T _1;\n"+
+			"\n"+
+			"		public Tuple1(T t) {\n"+
+			"			this._1 = t;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 1;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple1)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple1<?> that = (Tuple1<?>) o;\n"+
+			"				return Objects.equals(this._1, that._1);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple2<T1, T2> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -1359843718617881431L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"\n"+
+			"		public Tuple2(T1 t1, T2 t2) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 2;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple2)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple2<?, ?> that = (Tuple2<?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1) && Objects.equals(this._2, that._2);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple3<T1, T2, T3> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 1353320010987934190L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"\n"+
+			"		public Tuple3(T1 t1, T2 t2, T3 t3) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 3;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple3)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple3<?, ?, ?> that = (Tuple3<?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple4<T1, T2, T3, T4> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -835853771811712181L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"\n"+
+			"		public Tuple4(T1 t1, T2 t2, T3 t3, T4 t4) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 4;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple4)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple4<?, ?, ?, ?> that = (Tuple4<?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple5<T1, T2, T3, T4, T5> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 8365094604388856720L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"\n"+
+			"		public Tuple5(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 5;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple5)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple5<?, ?, ?, ?, ?> that = (Tuple5<?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple6<T1, T2, T3, T4, T5, T6> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -5282391675740552818L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"\n"+
+			"		public Tuple6(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 6;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple6)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple6<?, ?, ?, ?, ?, ?> that = (Tuple6<?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple7<T1, T2, T3, T4, T5, T6, T7> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 6913366542759921153L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"\n"+
+			"		public Tuple7(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 7;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple7)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple7<?, ?, ?, ?, ?, ?, ?> that = (Tuple7<?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple8<T1, T2, T3, T4, T5, T6, T7, T8> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 117641715065938183L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"		public final T8 _8;\n"+
+			"\n"+
+			"		public Tuple8(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"			this._8 = t8;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 8;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple8)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple8<?, ?, ?, ?, ?, ?, ?, ?> that = (Tuple8<?, ?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7)\n"+
+			"						&& Objects.equals(this._8, that._8);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7, _8);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7, _8);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple9<T1, T2, T3, T4, T5, T6, T7, T8, T9> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -1578540921124551840L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"		public final T8 _8;\n"+
+			"		public final T9 _9;\n"+
+			"\n"+
+			"		public Tuple9(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"			this._8 = t8;\n"+
+			"			this._9 = t9;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 9;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple9)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple9<?, ?, ?, ?, ?, ?, ?, ?, ?> that = (Tuple9<?, ?, ?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7)\n"+
+			"						&& Objects.equals(this._8, that._8)\n"+
+			"						&& Objects.equals(this._9, that._9);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7, _8, _9);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7, _8, _9);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 7991284808329690986L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"		public final T8 _8;\n"+
+			"		public final T9 _9;\n"+
+			"		public final T10 _10;\n"+
+			"\n"+
+			"		public Tuple10(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"			this._8 = t8;\n"+
+			"			this._9 = t9;\n"+
+			"			this._10 = t10;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 10;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple10)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple10<?, ?, ?, ?, ?, ?, ?, ?, ?, ?> that = (Tuple10<?, ?, ?, ?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7)\n"+
+			"						&& Objects.equals(this._8, that._8)\n"+
+			"						&& Objects.equals(this._9, that._9)\n"+
+			"						&& Objects.equals(this._10, that._10);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple11<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 3493688489700741360L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"		public final T8 _8;\n"+
+			"		public final T9 _9;\n"+
+			"		public final T10 _10;\n"+
+			"		public final T11 _11;\n"+
+			"\n"+
+			"		public Tuple11(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"			this._8 = t8;\n"+
+			"			this._9 = t9;\n"+
+			"			this._10 = t10;\n"+
+			"			this._11 = t11;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 11;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple11)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple11<?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?> that = (Tuple11<?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7)\n"+
+			"						&& Objects.equals(this._8, that._8)\n"+
+			"						&& Objects.equals(this._9, that._9)\n"+
+			"						&& Objects.equals(this._10, that._10)\n"+
+			"						&& Objects.equals(this._11, that._11);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple12<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> implements Tuple, Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = -175212910367376967L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"		public final T8 _8;\n"+
+			"		public final T9 _9;\n"+
+			"		public final T10 _10;\n"+
+			"		public final T11 _11;\n"+
+			"		public final T12 _12;\n"+
+			"\n"+
+			"		public Tuple12(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"			this._8 = t8;\n"+
+			"			this._9 = t9;\n"+
+			"			this._10 = t10;\n"+
+			"			this._11 = t11;\n"+
+			"			this._12 = t12;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 12;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple12)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple12<?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?> that = (Tuple12<?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7)\n"+
+			"						&& Objects.equals(this._8, that._8)\n"+
+			"						&& Objects.equals(this._9, that._9)\n"+
+			"						&& Objects.equals(this._10, that._10)\n"+
+			"						&& Objects.equals(this._11, that._11)\n"+
+			"						&& Objects.equals(this._12, that._12);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static final class Tuple13<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> implements Tuple,\n"+
+			"			Serializable {\n"+
+			"\n"+
+			"		private static final long serialVersionUID = 2027952127515234777L;\n"+
+			"\n"+
+			"		public final T1 _1;\n"+
+			"		public final T2 _2;\n"+
+			"		public final T3 _3;\n"+
+			"		public final T4 _4;\n"+
+			"		public final T5 _5;\n"+
+			"		public final T6 _6;\n"+
+			"		public final T7 _7;\n"+
+			"		public final T8 _8;\n"+
+			"		public final T9 _9;\n"+
+			"		public final T10 _10;\n"+
+			"		public final T11 _11;\n"+
+			"		public final T12 _12;\n"+
+			"		public final T13 _13;\n"+
+			"\n"+
+			"		public Tuple13(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13) {\n"+
+			"			this._1 = t1;\n"+
+			"			this._2 = t2;\n"+
+			"			this._3 = t3;\n"+
+			"			this._4 = t4;\n"+
+			"			this._5 = t5;\n"+
+			"			this._6 = t6;\n"+
+			"			this._7 = t7;\n"+
+			"			this._8 = t8;\n"+
+			"			this._9 = t9;\n"+
+			"			this._10 = t10;\n"+
+			"			this._11 = t11;\n"+
+			"			this._12 = t12;\n"+
+			"			this._13 = t13;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int arity() {\n"+
+			"			return 13;\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public boolean equals(Object o) {\n"+
+			"			if (o == this) {\n"+
+			"				return true;\n"+
+			"			} else if (o == null || !(o instanceof Tuple13)) {\n"+
+			"				return false;\n"+
+			"			} else {\n"+
+			"				final Tuple13<?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?> that = (Tuple13<?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?>) o;\n"+
+			"				return Objects.equals(this._1, that._1)\n"+
+			"						&& Objects.equals(this._2, that._2)\n"+
+			"						&& Objects.equals(this._3, that._3)\n"+
+			"						&& Objects.equals(this._4, that._4)\n"+
+			"						&& Objects.equals(this._5, that._5)\n"+
+			"						&& Objects.equals(this._6, that._6)\n"+
+			"						&& Objects.equals(this._7, that._7)\n"+
+			"						&& Objects.equals(this._8, that._8)\n"+
+			"						&& Objects.equals(this._9, that._9)\n"+
+			"						&& Objects.equals(this._10, that._10)\n"+
+			"						&& Objects.equals(this._11, that._11)\n"+
+			"						&& Objects.equals(this._12, that._12)\n"+
+			"						&& Objects.equals(this._13, that._13);\n"+
+			"			}\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public int hashCode() {\n"+
+			"			return Objects.hash(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13);\n"+
+			"		}\n"+
+			"\n"+
+			"		@Override\n"+
+			"		public String toString() {\n"+
+			"			return Tuples.stringify(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13);\n"+
+			"		}\n"+
+			"	}\n"+
+			"\n"+
+			"	public static interface Tuple {\n"+
+			"\n"+
+			"		int arity();\n"+
+			"\n"+
+			"		@Override\n"+
+			"		boolean equals(Object obj);\n"+
+			"\n"+
+			"		@Override\n"+
+			"		int hashCode();\n"+
+			"\n"+
+			"		@Override\n"+
+			"		String toString();\n"+
+			"	}\n"+
+			"\n"+
+			"}\n"
+		});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=439594  [1.8][compiler] nested lambda type incorrectly inferred vs javac
+public void test439594() {
+	this.runNegativeTest(
+		new String[] {
+			"X.java", 
+			"import java.util.ArrayList;\n" +
+			"import java.util.List;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.function.Predicate;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"import java.util.stream.Stream;\n" +
+			"public class X {\n" +
+			"	protected static interface IListEntry {\n" +
+			"		public <T> T visitRecordsWithResult(Function<Stream<Record>,T> func);		\n" +
+			"	}\n" +
+			"	protected static final class ImmutableRecord {\n" +
+			"		public ImmutableRecord(Record r) { }\n" +
+			"	}\n" +
+			"	protected static final class Record {}\n" +
+			"	public List<ImmutableRecord> compilesWithEclipseAndJavac() \n" +
+			"	{\n" +
+			"		return visitEntriesWithResult( stream -> {\n" +
+			"			return stream.map( entry -> {\n" +
+			"				final List<ImmutableRecord> result1 = entry.visitRecordsWithResult( stream2 -> stream2\n" +
+			"						.filter( somePredicate() )\n" +
+			"						.map( ImmutableRecord::new )\n" +
+			"						.collect( Collectors.toList() )\n" +
+			"					);	\n" +
+			"				return result1;\n" +
+			"			}).flatMap( List::stream ).collect( Collectors.toCollection( ArrayList::new ) );\n" +
+			"		});		\n" +
+			"	}		\n" +
+			"	public List<ImmutableRecord> compilesWithJavacButNotEclipse1() \n" +
+			"	{\n" +
+			"		return visitEntriesWithResult( stream -> {\n" +
+			"			return stream.map( entry -> {\n" +
+			"				return entry.visitRecordsWithResult( stream2 -> stream2\n" +
+			"						.filter( somePredicate() )\n" +
+			"						.map( ImmutableRecord::new )\n" +
+			"						.collect( Collectors.toList() )\n" +
+			"					);	\n" +
+			"			}).flatMap( List::stream ).collect( Collectors.toCollection( ArrayList::new ) );\n" +
+			"		});		\n" +
+			"	}		\n" +
+			"	public List<ImmutableRecord> compilesWithJavacButNotEclipse2() \n" +
+			"	{\n" +
+			"		return visitEntriesWithResult( stream -> {\n" +
+			"			return stream.map( entry -> entry.visitRecordsWithResult( stream2 -> stream2\n" +
+			"						.filter( somePredicate() )\n" +
+			"						.map( ImmutableRecord::new )\n" +
+			"						.collect( Collectors.toList() ) )\n" +
+			"			).flatMap( List::stream ).collect( Collectors.toCollection( ArrayList::new ) );\n" +
+			"		});		\n" +
+			"	}	\n" +
+			"	public List<ImmutableRecord> compilesWithJavacButNotEclipse3() \n" +
+			"	{\n" +
+			"		return visitEntriesWithResult( stream -> stream.map( entry -> entry.visitRecordsWithResult( stream2 -> stream2\n" +
+			"						.filter( somePredicate() )\n" +
+			"						.map( ImmutableRecord::new )\n" +
+			"						.collect( Collectors.toList() ) )\n" +
+			"			)\n" +
+			"			.flatMap( List::stream )\n" +
+			"			.collect( Collectors.toCollection( ArrayList::new ) )\n" +
+			"		);		\n" +
+			"	}	\n" +
+			"	private static Predicate<Record> somePredicate() {\n" +
+			"		return record -> true;\n" +
+			"	}		\n" +
+			"	private <T> T visitEntriesWithResult(Function<Stream<IListEntry>,T> func) {\n" +
+			"		return func.apply( new ArrayList<IListEntry>().stream() );\n" +
+			"	}\n" +
+			"}\n"
+	},
+	"");
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=433852, [1.8][compiler] Javac rejects type inference results that ECJ accepts
+public void test433852() {
+	this.runNegativeTest(
+		new String[] {
+			"X.java", 
+			"import java.util.Optional;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.stream.Stream;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		System.out.println(test(Stream.of(Stream.of(\"3\"))));\n" +
+			"		System.out.println(test2(Stream.of(Stream.of(\"1\")).skip(1)));\n" +
+			"		System.out.println(test31(Stream.of(Stream.of(\"2\")).skip(1)));\n" +
+			"	}\n" +
+			"	static Optional<Stream<Object>> test(Stream<Stream<String>> s31) {\n" +
+			"		return s31.map(s2 -> s2.map(s1 -> Integer.parseInt(s1))).findAny();\n" +
+			"	}\n" +
+			"	static Object test2(Stream<Stream<String>> s3) {\n" +
+			"		return s3.map(s2 -> s2.map(s1 -> Integer.parseInt(s1))).flatMap(Function.identity()).findAny().orElse(\n" +
+			"		  X.class);\n" +
+			"	}\n" +
+			"	static Stream<Object> test31(Stream<Stream<String>> s3) {\n" +
+			"		return s3.map(s2 -> s2.map(s1 -> Integer.parseInt(s1))).findAny().orElse(Stream.of(new Object()));\n" +
+			"	}\n" +
+			"}\n"
+	},
+	"----------\n" + 
+	"1. ERROR in X.java (at line 11)\n" + 
+	"	return s31.map(s2 -> s2.map(s1 -> Integer.parseInt(s1))).findAny();\n" + 
+	"	       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+	"Type mismatch: cannot convert from Optional<Stream<Integer>> to Optional<Stream<Object>>\n" + 
+	"----------\n" + 
+	"2. ERROR in X.java (at line 14)\n" + 
+	"	return s3.map(s2 -> s2.map(s1 -> Integer.parseInt(s1))).flatMap(Function.identity()).findAny().orElse(\n" + 
+	"	                                                                                               ^^^^^^\n" + 
+	"The method orElse(Integer) in the type Optional<Integer> is not applicable for the arguments (Class<X>)\n" + 
+	"----------\n" + 
+	"3. ERROR in X.java (at line 18)\n" + 
+	"	return s3.map(s2 -> s2.map(s1 -> Integer.parseInt(s1))).findAny().orElse(Stream.of(new Object()));\n" + 
+	"	                                                                  ^^^^^^\n" + 
+	"The method orElse(Stream<Integer>) in the type Optional<Stream<Integer>> is not applicable for the arguments (Stream<Object>)\n" + 
+	"----------\n");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=442916,  [1.8][inference] Type Inference is broken for CompletableFuture then-methods  
+public void test442916() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import static java.util.concurrent.CompletableFuture.completedFuture;\n" +
+			"import java.util.Arrays;\n" +
+			"import java.util.concurrent.CompletableFuture;\n" +
+			"public class X {\n" +
+			"    public static CompletableFuture<Integer> cf(int value) {\n" +
+			"		return completedFuture(value);\n" +
+			"    }\n" +
+			"    public static void main(String[] args) {\n" +
+			"		cf(1).thenCompose((xInt) -> cf(2).thenApply((zInt) -> Arrays.asList(xInt, zInt)))\n" +
+			"		.thenAccept((ints) -> {\n" +
+			"			/* !!!! ints is incorrectly inferred to be an Object, but it is List<Integer> */\n" +
+			"			System.out.println(ints.get(0) + ints.get(1)); // should print 3;\n" +
+			"		});\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"3");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=442769, [1.8][compiler] Invalid type inference using Stream  
+public void test442769() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.nio.file.Path;\n" +
+			"import java.nio.file.Paths;\n" +
+			"import java.util.Arrays;\n" +
+			"import java.util.HashMap;\n" +
+			"import java.util.List;\n" +
+			"import java.util.Map;\n" +
+			"import java.util.Map.Entry;\n" +
+			"import java.util.stream.Collector;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"import java.util.stream.Stream;\n" +
+			"import java.io.Serializable;\n" +
+			"public class X {\n" +
+			"	public static void main(String[] args) {\n" +
+			"		Map<Object, Integer> allocated = new HashMap<>();\n" +
+			"		   Arrays.asList(\"a\", \"b\", \"c\", \"d\", \"e\") // List<String>\n" +
+			"	          .stream() // Stream<String>\n" +
+			"	          .map(Paths::get) // Stream<Path>\n" +
+			"	          .flatMap(path -> allocated.keySet() // Set<Object>\n" +
+			"	                                    .stream() // Stream<Object>\n" +
+			"	                                    .map(group -> Pair.of(group, path) /*Pair<Object,Path>*/) // Stream<Pair<Object, Path>>\n" +
+			"	          ) // Stream<Object> [FAIL]\n" +
+			"	          .collect(Collectors.toList()) // List<Object>\n" +
+			"	          .forEach(item -> System.out.println(item.getKey() + \": \" + item.getValue())); // Consumer<? super Object>\n" +
+			"	    // with explicit type\n" +
+			"	    Arrays.asList(\"a\", \"b\", \"c\", \"d\", \"e\") // List<String>\n" +
+			"	          .stream() // Stream<String>\n" +
+			"	          .map(Paths::get) // Stream<Path>\n" +
+			"	          .flatMap(path -> allocated.keySet() // Set<Object>\n" +
+			"	                                    .stream() // Stream<Object>\n" +
+			"	                                    .<Pair<Object,Path>>map(group -> Pair.of(group, path) /*Pair<Object,Path>*/) // Stream<Pair<Object, Path>>\n" +
+			"	          ) // Stream<Pair<Object, Path>>\n" +
+			"	          .collect(Collectors.toList()) // List<Pair<Object, Path>>\n" +
+			"	          .forEach(item -> System.out.println(item.getKey() + \": \" + item.getValue())); // Consumer<? super Pair<Object, Path>>\n" +
+			"	}\n" +
+			"}\n" +
+			"abstract class Pair<L, R> implements Map.Entry<L, R>, Comparable<Pair<L, R>>, Serializable {\n" +
+			"    public static <L, R> Pair<L, R> of(final L left, final R right) {\n" +
+			"        return null;\n" +
+			"    }\n" +
+			"    public final L getKey() {\n" +
+			"        return null;\n" +
+			"    }\n" +
+			"    public R getValue() {\n" +
+		"        return null;\n" +
+			"    }\n" +
+			"}\n"
+		},
+		"");
+}
+// Test allocation expression boxing compatibility
+public void testAllocationBoxingCompatibility() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"public class X  {\n" +
+			"    static <T> int m(T o1, byte o2) {return 1;}       \n" +
+			"    static boolean call() {\n" +
+			"        return m(new Long(12l), new Byte((byte)1)) == 1;\n" +
+			"    }\n" +
+			"\n" +
+			"    public static void main(String argv[]) {\n" +
+			"       System.out.println(call());\n" +
+			"    }\n" +
+			"}\n",
+		}, "true");
+}
+// NPE while building JRE8: https://bugs.eclipse.org/bugs/show_bug.cgi?id=437444#c113
+public void test437444_c113() {
+	this.runNegativeTest(
+		new String[] {
+			"X.java",
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	final List<String>[] ls = Util.cast(new List<>[] { null });\n" +
+			"	\n" +
+			"}\n" +
+			"class Util {\n" +
+			"	@SuppressWarnings(\"unchecked\")\n" +
+			"	public static <T> T cast(Object x) {\n" +
+			"		return (T) x;\n" +
+			"	}\n" +
+			"}\n",
+		}, 
+		"----------\n" + 
+		"1. ERROR in X.java (at line 3)\n" + 
+		"	final List<String>[] ls = Util.cast(new List<>[] { null });\n" + 
+		"	                                        ^^^^\n" + 
+		"Incorrect number of arguments for type List<E>; it cannot be parameterized with arguments <>\n" + 
+		"----------\n");
+}
+// Error while building JRE8: https://bugs.eclipse.org/bugs/show_bug.cgi?id=437444#c113
+public void test437444_c113a() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	final List<String>[] ls = Util.cast(new List<?>[] { null });\n" +
+			"	\n" +
+			"}\n" +
+			"class Util {\n" +
+			"	@SuppressWarnings(\"unchecked\")\n" +
+			"	public static <T> T cast(Object x) {\n" +
+			"		return (T) x;\n" +
+			"	}\n" +
+			"}\n",
+		}, 
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=434394, [1.8] inference fails in some cases when conditional expression is involved
+public void test434394() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.Collections;\n" +
+			"import java.util.Comparator;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"  public void bla() {\n" +
+			"    boolean b = Boolean.TRUE.booleanValue();\n" +
+			"    List<String> c1 = new ArrayList<>();\n" +
+			"    Collections.sort(c1, new Foo(new State<>((b ? new Val<>(\"AAAA\") : new Val<>(\"BBBB\"))))); // Cannot infer type arguments for State\n" +
+			"    Collections.sort(c1,new Foo(b ? new State<>(new Val<>(\"AAAA\")) : new State<>(new Val<>(\"BBBB\")))); // this is fine\n" +
+			"  }\n" +
+			"  static class Foo implements Comparator<String>{\n" +
+			"	  public Foo(State<String> st) {\n" +
+			"		  //\n" +
+			"	  }\n" +
+			"	@Override\n" +
+			"	public int compare(String o1, String o2) {\n" +
+			"		// TODO Auto-generated method stub\n" +
+			"		return 0;\n" +
+			"	}\n" +
+			"  }\n" +
+			"	static class State<R> {\n" +
+			"		State(Val<?> o) {\n" +
+			"		}\n" +
+			"	}\n" +
+			"	static class Val<T> {\n" +
+			"		Val(T t) {}\n" +
+			"	}\n" +
+			"}\n",
+		}, 
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=445725,  [1.8][inference] Type inference not occurring with lambda expression and constructor reference
+public void test445725() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"import java.util.ArrayList;\n" +
+			"import java.util.Arrays;\n" +
+			"import java.util.Collection;\n" +
+			"import java.util.function.Function;\n" +
+			"import java.util.stream.Collectors;\n" +
+			"import java.util.stream.Stream;\n" +
+			"public class X {\n" +
+			"/**\n" +
+			"   * Takes a collection, applies a mapper to it, and then passes the result into the finishing\n" +
+			"   * function\n" +
+			"   */\n" +
+			"  public static <FROM, TO, RESULT> RESULT mapped(Collection<FROM> collection,\n" +
+			"                                                 Function<? super FROM, ? extends TO> mapper,\n" +
+			"                                                 Function<? super Collection<TO>, RESULT> finisher)\n" +
+			"  {\n" +
+			"    return mapped(collection.stream(), mapper, finisher);\n" +
+			"  }\n" +
+			"  /**\n" +
+			"   * Takes a stream, applies a mapper to it, and then passes the result into the finishing function\n" +
+			"   */\n" +
+			"  public static <FROM, TO, RESULT> RESULT mapped(Stream<FROM> stream,\n" +
+			"                                                 Function<? super FROM, ? extends TO> mapper,\n" +
+			"                                                 Function<? super Collection<TO>, RESULT> finisher)\n" +
+			"  {\n" +
+			"    return finisher.apply(stream.map(mapper).collect(Collectors.toList()));\n" +
+			"  }\n" +
+			"  public static void example()\n" +
+			"  {\n" +
+			"    mapped(Stream.of(\"1, 2, 3\"), Integer::parseInt, ArrayList<Integer>::new);\n" +
+			"    mapped(Arrays.asList(\"1, 2, 3\"), Integer::parseInt, ArrayList<Integer>::new);\n" +
+			"\n" +
+			"    mapped(Stream.of(\"1, 2, 3\"), Integer::parseInt, IntCollection::new);\n" +
+			"    mapped(Arrays.asList(\"1, 2, 3\"), Integer::parseInt, IntCollection::new);\n" +
+			"  }\n" +
+			"  public static class IntCollection extends ArrayList<Integer>\n" +
+			"  {\n" +
+			"    public IntCollection(Collection<Integer> numbers)\n" +
+			"    {\n" +
+			"      super(numbers);\n" +
+			"    }\n" +
+			"  }\n" +
+			"}\n",
+		}, 
+		"");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=447767, [1.8][compiler] Spurious method not applicable error due to interaction between overload resolution and type inference
+public void test447767() {
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"interface I {\n" +
+			"	void bar(String t);\n" +
+			"}\n" +
+			"public class X<T> {\n" +
+			"	X(String x) {}\n" +
+			"	X(T x) { \n" +
+			"		System.out.println(\"Here\");\n" +
+			"	}\n" +
+			"	X(T x, String ...strings) {}\n" +
+			"	public void one(X<I> c){}\n" +
+			"	public void two() {\n" +
+			"		one(new X<>((String s) -> { }));\n" +
+			"	}\n" +
+			"	public static void main(String[] args) {\n" +
+			"		new X(\"\").two();\n" +
+			"	}\n" +
+			"}\n",
+		}, 
+		"Here");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=426633, [1.8][compiler] Compiler generates code that invokes inapplicable method.
+public void test426633c() {
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"interface I {\n" +
+			"	 default <T> void foo (T... p) {}\n" +
+			"}\n" +
+			"abstract class A  {\n" +
+			"	public abstract void foo(Object [] p);\n" +
+			"}\n" +
+			"abstract class B extends A implements I {\n" +
+			"}\n" +
+			"public abstract class X extends B implements I {\n" +
+			"	public static void main(B b) {\n" +
+			"		b.foo(\"hello\", \"world\");\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"----------\n" + 
+		"1. WARNING in X.java (at line 2)\n" + 
+		"	default <T> void foo (T... p) {}\n" + 
+		"	                           ^\n" + 
+		"Type safety: Potential heap pollution via varargs parameter p\n" + 
+		"----------\n");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=426633, [1.8][compiler] Compiler generates code that invokes inapplicable method.
+public void test426633d() {
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"interface I {\n" +
+			"	 default <T> void foo (T... p) {}\n" +
+			"}\n" +
+			"abstract class A  {\n" +
+			"	public void foo(Object [] p) {}\n" +
+			"}\n" +
+			"abstract class B extends A implements I {\n" +
+			"}\n" +
+			"public abstract class X extends B implements I {\n" +
+			"	public static void main(B b) {\n" +
+			"		b.foo(\"hello\", \"world\");\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"----------\n" + 
+		"1. WARNING in X.java (at line 2)\n" + 
+		"	default <T> void foo (T... p) {}\n" + 
+		"	                           ^\n" + 
+		"Type safety: Potential heap pollution via varargs parameter p\n" + 
+		"----------\n" + 
+		"2. WARNING in X.java (at line 7)\n" + 
+		"	abstract class B extends A implements I {\n" + 
+		"	               ^\n" + 
+		"Varargs methods should only override or be overridden by other varargs methods unlike A.foo(Object[]) and I.foo(Object...)\n" + 
+		"----------\n" + 
+		"3. WARNING in X.java (at line 9)\n" + 
+		"	public abstract class X extends B implements I {\n" + 
+		"	                      ^\n" + 
+		"Varargs methods should only override or be overridden by other varargs methods unlike A.foo(Object[]) and I.foo(Object...)\n" + 
+		"----------\n" + 
+		"4. ERROR in X.java (at line 11)\n" + 
+		"	b.foo(\"hello\", \"world\");\n" + 
+		"	  ^^^\n" + 
+		"The method foo(T...) of type I cannot be invoked as it is overridden by an inapplicable method\n" + 
+		"----------\n");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=426633, [1.8][compiler] Compiler generates code that invokes inapplicable method.
+public void test426633e() {
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"interface I {\n" +
+			"	 default <T> void foo (T... p) {}\n" +
+			"}\n" +
+			"abstract class A  {\n" +
+			"	public void foo(String [] p) {}\n" +
+			"}\n" +
+			"abstract class B extends A implements I {\n" +
+			"}\n" +
+			"public abstract class X extends B implements I {\n" +
+			"	public static void main(B b) {\n" +
+			"		b.foo(\"hello\", \"world\");\n" +
+			"	}\n" +
+			"}\n"
+		},
+		"----------\n" + 
+		"1. WARNING in X.java (at line 2)\n" + 
+		"	default <T> void foo (T... p) {}\n" + 
+		"	                           ^\n" + 
+		"Type safety: Potential heap pollution via varargs parameter p\n" + 
+		"----------\n");
+}
+// original:
+public void testBug452788a() {
+	runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.util.function.Function;\n" + 
+			"\n" + 
+			"interface Test<A> {\n" + 
+			"\n" + 
+			"	<B3> Test<B3> create(B3 b);\n" + 
+			"\n" + 
+			"	<B2> Test<B2> transform(Function<? extends A, Test<B2>> f);\n" + 
+			"\n" + 
+			"	default <B1> Test<B1> wrap(Function<? super A, ? extends B1> f) {\n" + 
+			"		return transform(a -> create(f.apply(a)));\n" + 
+			"	}\n" + 
+			"}\n"
+		});
+}
+// variants:
+public void testBug452788b() {
+	runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.util.function.Function;\n" + 
+			"\n" + 
+			"interface Test<A> {\n" + 
+			"\n" + 
+			"	<B3> Test<B3> create(B3 b);\n" + 
+			"\n" + 
+			"	<B2> Test<B2> transform(Function<? extends A, Test<B2>> f);\n" + 
+			"\n" + 
+			"	default <B1> Test<B1> wrap(Function<? super A, ? extends B1> f) {\n" + 
+			"		return transform((A a) -> create(f.apply(a)));\n" + // explicitly typed lambda
+			"	}\n" +
+			"	default <B> Function<? extends A, Test<B>> test1(Function<? super A, ? extends B> f) {\n" + 
+			"		return a -> create(f.apply(a));\n" + // remove outer invocation
+			"	}\n" + 
+			"	default <B> Function<? extends A, Function<? extends A, Test<B>>> test2(Function<? super A, ? extends B> f) {\n" + 
+			"		return a1 -> a2 -> create(f.apply(a2));\n" + // outer lambda instead of outer invocation
+			"	}\n" + 
+			"}\n"
+		});
+}
+// diamond allocation instead of method (was OK before the patch).
+public void testBug452788c() {
+	runConformTest(
+		new String[] {
+			"Test2.java",
+			"import java.util.function.Function;\n" + 
+			"\n" + 
+			"\n" + 
+			"public interface Test2<A> {\n" + 
+			"	<B2> Test2<B2> transform(Function<? extends A, Test2<B2>> f);\n" + 
+			"\n" + 
+			"	default <B1> Test2<B1> wrap(Function<? super A, ? extends B1> f) {\n" + 
+			"		return transform(a -> new TestImpl<>(f.apply(a)));\n" + 
+			"	}\n" + 
+			"}\n" + 
+			"\n" + 
+			"class TestImpl<A> implements Test2<A> {\n" + 
+			"\n" + 
+			"	public TestImpl(A a) { }\n" + 
+			"\n" + 
+			"	@Override\n" + 
+			"	public <B2> Test2<B2> transform(Function<? extends A, Test2<B2>> f) {\n" + 
+			"		return null;\n" + 
+			"	}	\n" + 
+			"}\n"
+		});
+}
+public void testBug457079() {
+	runConformTest(
+		new String[] {
+			"Foo.java",
+			"import java.util.Collections;\n" + 
+			"import java.util.Map;\n" + 
+			"import java.util.Set;\n" + 
+			"import java.util.function.Function;\n" + 
+			"\n" + 
+			"class Foo {\n" + 
+			"    static <K, V> Map<K, V> foo(K value, Function<? super K, V> function) {\n" + 
+			"        return null;\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    static void bar(Set<String> set) {\n" + 
+			"        Map<String, Set<String>> map = foo(\"\", e -> Collections.emptySet());\n" + 
+			"    }\n" + 
+			"}\n"
+		});
+}
+public void testBug458396() {
+	runNegativeTest(
+		new String[] {
+			"Main.java",
+			"import java.util.List;\n" + 
+			"\n" + 
+			"interface MyTickContext { }\n" + 
+			"abstract class MyEntity {\n" + 
+			"	abstract void tick(MyTickContext ctx);\n" + 
+			"}\n" + 
+			"\n" + 
+			"public class Main {\n" + 
+			"\n" + 
+			"	protected static final MyTickContext tickContext = new MyTickContext() {\n" + 
+			"		public void method1(MyEntity e) {\n" + 
+			"			removeEntity( e );\n" + 
+			"		}\n" + 
+			"	};\n" + 
+			"\n" + 
+			"	public static final class Game  {\n" + 
+			"		public void method2(List<MyEntity> ents) {\n" + 
+			"			ents.forEach( e -> e.tick(tickContext) );\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in Main.java (at line 12)\n" + 
+		"	removeEntity( e );\n" + 
+		"	^^^^^^^^^^^^\n" + 
+		"The method removeEntity(MyEntity) is undefined for the type new MyTickContext(){}\n" + 
+		"----------\n");
+}
+public void testBug455945() {
+	runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.util.function.BiFunction;\n" + 
+			"import java.util.function.Function;\n" + 
+			"import java.util.function.Predicate;\n" + 
+			"import java.util.stream.Stream;\n" + 
+			"\n" + 
+			"public class Test {\n" + 
+			"\n" + 
+			"    static <T> Tuple2<Seq<T>, Seq<T>> splitAtDoesntCompile(Stream<T> stream, long position) {\n" + 
+			"        return seq(stream)\n" + 
+			"            .zipWithIndex()\n" + 
+			"            .partition(t -> t.v2 < position)\n" + 
+			"            .map((v1, v2) -> tuple(\n" + 
+			"                v1.map(t -> t.v1),\n" + 
+			"                v2.map(t -> t.v1)\n" + 
+			"            ));\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    static <T> Tuple2<Seq<T>, Seq<T>> splitAtCompiles(Stream<T> stream, long position) {\n" + 
+			"        return seq(stream)\n" + 
+			"            .zipWithIndex()\n" + 
+			"            .partition(t -> t.v2 < position)\n" + 
+			"            .map((v1, v2) -> Test.<Seq<T>, Seq<T>>tuple(\n" + 
+			"                v1.map(t -> t.v1),\n" + 
+			"                v2.map(t -> t.v1)\n" + 
+			"            ));\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    static <T> Seq<T> seq(Stream<T> stream) {\n" + 
+			"    	return null;\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    static <T1, T2> Tuple2<T1, T2> tuple(T1 v1, T2 v2) {\n" + 
+			"    	return null;\n" + 
+			"    }\n" + 
+			"}\n" + 
+			"\n" + 
+			"interface I<T> {\n" + 
+			"	T get();\n" + 
+			"	<U> I<U> map(Function<T, U> f);\n" + 
+			"}\n" + 
+			"\n" + 
+			"interface Seq<T> {\n" + 
+			"	Seq<Tuple2<T, Long>> zipWithIndex();\n" + 
+			"	Tuple2<Seq<T>, Seq<T>> partition(Predicate<? super T> predicate);\n" + 
+			"	<R> Seq<R> map(Function<? super T, ? extends R> mapper);\n" + 
+			"}\n" + 
+			"\n" + 
+			"class Tuple2<T1, T2> {\n" + 
+			"	T1 v1;\n" + 
+			"	T2 v2;\n" + 
+			"	\n" + 
+			"	<R> R map(BiFunction<T1, T2, R> function) {\n" + 
+			"		return null;\n" + 
+			"	}\n" + 
+			"}\n"
+		});
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=445231, [compiler] IllegalAccessError running Eclipse-compiled class
+// This is a bug in Oracle JREs. Workaround in ECJ: https://bugs.eclipse.org/bugs/show_bug.cgi?id=466675
+public void testBug445231() {
+	runConformTest(
+		true,
+		new String[] {
+		"com/n/Bug.java",
+		"package com.n;\n" +
+		"public class Bug {\n" +
+		"  public static void main(String[] args) {\n" +
+		"    try {\n" +
+		"      new Bug().go();\n" +
+		"      System.err.println(\"Ok\");\n" +
+		"    } catch (IllegalAccessError e) {\n" +
+		"      System.err.println(\"Error\");\n" +
+		"      e.printStackTrace();\n" +
+		"    }\n" +
+		"  }\n" +
+		"  public void go() {\n" +
+		"    Class<?> clazz = Buggered.Foo.class;\n" +
+		"    System.err.println(\"Here we go\");\n" +
+		"    if (clazz.isAnonymousClass()) {\n" +
+		"      System.err.println(\"is anon\");\n" +
+		"    } else {\n" +
+		"      System.err.println(\"not anon\");\n" +
+		"    }\n" +
+		"  }\n" +
+		"}\n",
+		"com/g/Base.java",
+		"package com.g;\n" +
+		"class Base2{}\n" +
+		"class Base {\n" +
+		"	class A {}\n" +
+		"	static class Builder<B extends Builder<B>> {\n" +
+		"		public B setJobName() {\n" +
+		"			return null;\n" +
+		"		}\n" +
+		"		public Base2 setJobName2(B b) {\n" +
+		"			return null;\n" +
+		"		}\n" +
+
+		//  Wildcard
+		"		public void foo(H<? super H<Base3.A>> h) {\n" +
+		"			return;\n" +
+		"  		}\n" +
+		"		private class H<T> {}\n" +
+		"	}\n" +
+		"   static class Builder2 {\n" +
+		"       public <B extends Builder<B>> B setJobName3() {\n" +
+		"	        return null;\n" +
+		"       }\n" +
+		"   }\n" +
+		"	static class R {}\n" +
+		"	public static class Builder3<B extends R> {\n" +
+		"		public B setJobName() {\n" +
+		"			return null;\n" +
+		"		}\n" +
+		"	}\n" +
+		"	public static class Builder4<B extends R> {\n" +
+		"		public <Q extends R> Builder3<Q> setJobName() {\n" +
+		"			return null;\n" +
+		"		}\n" +
+		"	}\n" +
+
+		// Testing Parameters
+		"	static class Builder5 {\n" +
+		"		public <B extends Builder<B>> void  foo(B b) {}\n" +
+		"	}\n" +
+
+		"}\n" +
+
+		"class Base3 {\n" +
+		"	static class A{}\n" +
+		"}\n"
+		,
+
+		"com/g/Child.java",
+		"package com.g;\n" +
+		"import com.g.Base.R;\n" +
+		"public final class Child {\n" +
+		"  public static class Builder<I> extends Base.Builder<Builder<I>> {\n" +
+		"	  public void setDummyName(){}\n" +
+		"  }\n" +
+		"  public static class Builder2 extends Base.Builder2 {}\n" +
+		"  public static class Builder3<I> extends  Base.Builder3<R> {}\n" +
+		"  public static class Builder4<I> extends  Base.Builder4<R> {}\n" +
+
+		"  public static class Builder5 extends Base.Builder5 {} \n" +
+		"}\n",
+		"com/n/Buggered.java",
+		"package com.n;\n" +
+		"import com.g.Child;\n" +
+		"class Z{}\n" +
+		"public final class Buggered {\n" +
+		"  public static final class Foo {}\n" +
+		"  void unused() {\n" +
+		"    Child.Builder<Void> c = new Child.Builder<Void>();\n" +
+		"    c.setJobName();\n" +
+		"    c.setJobName2(new Child.Builder<Void>());\n" +
+		"    Child.Builder<Z> cb = new Child.Builder<Z>();\n" +
+		"    cb.setJobName();\n" +
+		"    cb.setJobName2(new Child.Builder<Z>());\n" +
+		"    Child.Builder2 cb2 = new Child.Builder2();\n" +
+		"    cb2.setJobName3();\n" +
+		"    Child.Builder3<Void> cb3 = new Child.Builder3<Void>();\n" +
+		"    cb3.setJobName();\n" +
+		"    Child.Builder4<Void> cb4 = new Child.Builder4<Void>();\n" +
+		"    cb4.setJobName();\n" +
+
+		"    Child.Builder5 cb5 = new Child.Builder5();\n" +
+		"    cb5.foo(null);\n" +
+
+		//   Wildcard
+		"	c.foo(null);\n" +
+		"  }\n" +
+		"}\n"
+	},
+	null, null,
+	"Here we go\n" +
+	"not anon\n" +
+	"Ok", null);
+}
+public void testBug463728() {
+	runConformTest(
+		new String[] {
+			"Main.java",
+			"import java.util.function.Function;\n" + 
+			"\n" + 
+			"\n" + 
+			"class Color {\n" + 
+			"	\n" + 
+			"}\n" + 
+			"\n" + 
+			"class TypeMapper<R> {\n" + 
+			"\n" + 
+			"	public TypeMapper() {\n" + 
+			"	}\n" + 
+			"	public R orElse(R result) {\n" + 
+			"		return result;\n" + 
+			"	}\n" + 
+			"}\n" + 
+			"\n" + 
+			"public class Main {\n" + 
+			"	Color A;\n" + 
+			"	Color B;\n" + 
+			"\n" + 
+			"	public static <T, R> TypeMapper<R> mapType(Function<T, R> mapper) {\n" + 
+			"		return new TypeMapper<R>();\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	public Color getForeground(Object element) {\n" + 
+			"		return mapType(library -> {\n" + 
+			"				return (element != null ? A : B);\n" + 
+			"			}).orElse(null);\n" + 
+			"	}\n" + 
+			"}\n"
+		});
+}
+public void testBug470942() {
+	runConformTest(
+		new String[] {
+			"EclipeMarsLamdaIssueWontBuild.java",
+			"import java.util.function.Supplier;\n" + 
+			"\n" + 
+			"public class EclipeMarsLamdaIssueWontBuild {\n" + 
+			"	class MyClass {\n" + 
+			"		long getNumber() {\n" + 
+			"			return 0;\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private interface VoidSupplier {\n" + 
+			"		void perform();\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	long processTxContent() {\n" + 
+			"		return withLogging(() -> new MyClass().getNumber());\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private static void withLogging(final VoidSupplier supplier) {\n" + 
+			"		// Do some logging\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	private static <T> T withLogging(final Supplier<T> supplier) {\n" + 
+			"		// Do some logging\n" + 
+			"		return null;\n" + 
+			"	}\n" + 
+			"}\n"
+		});
+}
+public void testBug470958() {
+	runConformTest(
+		new String[] {
+			"Bug470958.java",
+			"import java.time.*;\n" + 
+			"import java.util.*;\n" + 
+			"import java.util.concurrent.*;\n" + 
+			"import static java.util.concurrent.CompletableFuture.*;\n" + 
+			"import static java.util.stream.Collectors.*;\n" + 
+			"\n" + 
+			"class Hotel {}\n" + 
+			"\n" + 
+			"class Bug470958 {\n" + 
+			"  public Map<String, CompletableFuture<List<Hotel>>> asyncLoadMany(List<String> codes, LocalDate begin, LocalDate end) {\n" + 
+			"    return loadMany(codes, begin, end)\n" + 
+			"    .entrySet()\n" + 
+			"    .stream()\n" + 
+			"    .collect(toMap(Map.Entry::getKey, entry -> completedFuture(entry.getValue())));\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  public Map<String, List<Hotel>> loadMany(List<String> codes, LocalDate begin, LocalDate end) {\n" + 
+			"    return null;\n" + 
+			"  }\n" + 
+			"}\n"
+		});
+}
+public void testBug469753() {
+	runConformTest(
+		new String[] {
+			"LambdaBug.java",
+			"import java.util.AbstractMap;\n" + 
+			"import java.util.Iterator;\n" + 
+			"import java.util.Map.Entry;\n" + 
+			"import java.util.function.Function;\n" + 
+			"\n" + 
+			"public class LambdaBug {\n" + 
+			"\n" + 
+			"    class Item {\n" + 
+			"        String foo;\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    public void bug(String catalogKey, Iterator<Item> items) {\n" + 
+			"        go(transform(items, i -> pair(i.foo, i)));\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    public static <K, V> Entry<K, V> pair(K key, V value) {\n" + 
+			"        return new AbstractMap.SimpleImmutableEntry<K, V>(key, value);\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    void go(Iterator<Entry<String, Item>> items) {\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    public static <F, T> Iterator<T> transform(Iterator<F> fromIterator, Function<? super F, ? extends T> function) {\n" + 
+			"        return null;\n" + 
+			"    }\n" + 
+			"\n" + 
+			"}\n"
+		});
+}
+public void testBug470826() {
+	runConformTest(
+		new String[] {
+			"EcjVsCollect.java",
+			"import java.util.ArrayList;\n" + 
+			"import java.util.stream.Stream;\n" + 
+			"\n" + 
+			"public class EcjVsCollect {\n" + 
+			"\n" + 
+			"  public static void main(String[] args) {\n" + 
+			"    try (final Stream<Record<String>> stream = getStream()) {\n" + 
+			"      stream.collect(ArrayList::new, ArrayList::add, ArrayList::addAll);\n" + 
+			"//      ArrayList<Record<String>> foo = stream.collect(ArrayList::new, ArrayList::add, ArrayList::addAll);\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  private static <K> Stream<Record<K>> getStream() {\n" + 
+			"    return Stream.empty();\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  private interface Record<K> {\n" + 
+			"    K getKey();\n" + 
+			"  }\n" + 
+			"}\n"
+		});
+}
+public void testBug470542() {
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"import java.util.function.Consumer;\n" + 
+			"\n" + 
+			"public class X {\n" + 
+			"	void test() {\n" + 
+			"		process(missing::new);\n" + 
+			"	}\n" + 
+			"	\n" + 
+			"	<T> void process(Consumer<T> c) { }\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in X.java (at line 5)\n" + 
+		"	process(missing::new);\n" + 
+		"	        ^^^^^^^\n" + 
+		"missing cannot be resolved\n" + 
+		"----------\n");
+}
+public void testBug478848() {
+	runConformTest(
+		new String[] {
+			"InferenceBug.java",
+			"import java.util.*;\n" + 
+			"public class InferenceBug {\n" + 
+			"    \n" + 
+			"    static class Wrapper<T> {\n" + 
+			"        T value;\n" + 
+			"        public T getValue() {\n" + 
+			"            return null;\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"    \n" + 
+			"    static class C1 {\n" + 
+			"        //an optional array of String wrappers\n" + 
+			"        public Optional<? extends Wrapper<String>[]> optionalArrayOfStringWrappers() {\n" + 
+			"            return Optional.empty();\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"    \n" + 
+			"    public static void main(String[] args) {\n" + 
+			"        C1 c1 = new C1();\n" + 
+			"        try {\n" + 
+			"            for (Wrapper<String> attribute: c1.optionalArrayOfStringWrappers().get()) {\n" + 
+			"                // error in previous line:\n" + 
+			"                // Can only iterate over an array or an instance of java.lang.Iterable\n" +
+			"            }\n" + 
+			"        } catch (NoSuchElementException nsee) {\n" +
+			"            System.out.print(\"No such element\");\n" +
+			"        }\n" + 
+			"    }\n" + 
+			"}\n"
+		},
+		"No such element");
+}
+public void testBug479167() {
+	runConformTest(
+		new String[] {
+			"ToArray.java",
+			"import java.io.Serializable;\n" + 
+			"interface ArrayFunction<E> {\n" + 
+			"	<S extends E> E[] apply(@SuppressWarnings(\"unchecked\") S... es);\n" + 
+			"}\n" + 
+			"public class ToArray<E extends Cloneable & Serializable> implements ArrayFunction<E> {\n" + 
+			"	public final @SafeVarargs @Override <S extends E> E[] apply(S... es) {\n" + 
+			"		return es;\n" + 
+			"	}\n" + 
+			"\n" + 
+			"	public static void main(String[] args) {\n" + 
+			"		ArrayFunction<String[]> toArray = new ToArray<>();\n" + 
+			"		String[][] array = toArray.apply(args);\n" + 
+			"		System.out.print(array.getClass().getName());\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		"[[Ljava.lang.String;");
 }
 }

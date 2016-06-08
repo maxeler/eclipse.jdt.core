@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2012 GK Software AG and others.
+ * Copyright (c) 2010, 2014 GK Software AG and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,6 +18,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.osgi.framework.Bundle;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public abstract class AbstractNullAnnotationTest extends AbstractComparableTest {
 
 	// class libraries including our default null annotation types:
@@ -111,6 +112,18 @@ public abstract class AbstractNullAnnotationTest extends AbstractComparableTest 
 				testFiles,
 				expectedErrorLog,
 				this.LIBS,
+				false /*shouldFlush*/);
+	}
+	void runNegativeTestWithExtraLibs(String[] testFiles, String expectedErrorLog, String [] extraLibs) {
+		String [] libraries = new String [(this.LIBS == null ? 0 : this.LIBS.length) + (extraLibs == null ? 0 : extraLibs.length)];
+		if (this.LIBS != null)
+			System.arraycopy(this.LIBS,  0,  libraries, 0, this.LIBS.length);
+		if (extraLibs != null)
+			System.arraycopy(extraLibs, 0, libraries, (this.LIBS == null ? 0 : this.LIBS.length), extraLibs.length);
+		runNegativeTest(
+				testFiles,
+				expectedErrorLog,
+				libraries,
 				false /*shouldFlush*/);
 	}
 	void runNegativeTestWithLibs(boolean shouldFlushOutputDirectory, String[] testFiles, Map customOptions, String expectedErrorLog) {

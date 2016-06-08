@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,9 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Stephan Herrmann - Contribution for
+ *								Bug 440477 - [null] Infrastructure for feeding external annotations into compilation
+ *								Bug 440687 - [compiler][batch][null] improve command line option for external annotations
  *******************************************************************************/
 package org.eclipse.jdt.internal.compiler.batch;
 
@@ -24,9 +27,11 @@ import java.util.zip.ZipFile;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileReader;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFormatException;
+import org.eclipse.jdt.internal.compiler.classfmt.ExternalAnnotationProvider;
 import org.eclipse.jdt.internal.compiler.env.AccessRuleSet;
 import org.eclipse.jdt.internal.compiler.env.NameEnvironmentAnswer;
 import org.eclipse.jdt.internal.compiler.util.ManifestAnalyzer;
+import org.eclipse.jdt.internal.compiler.util.SuffixConstants;
 import org.eclipse.jdt.internal.compiler.util.Util;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -34,8 +39,10 @@ public class ClasspathJar extends ClasspathLocation {
 
 protected File file;
 protected ZipFile zipFile;
+protected ZipFile annotationZipFile;
 protected boolean closeZipFileAtEnd;
 protected Hashtable packageCache;
+protected List<String> annotationPaths;
 
 public ClasspathJar(File file, boolean closeZipFileAtEnd,
 		AccessRuleSet accessRuleSet, String destinationPath) {
@@ -96,14 +103,31 @@ public NameEnvironmentAnswer findClass(char[] typeName, String qualifiedPackageN
 
 	try {
 		ClassFileReader reader = ClassFileReader.read(this.zipFile, qualifiedBinaryFileName);
-		if (reader != null)
+		if (reader != null) {
+			if (this.annotationPaths != null) {
+				String qualifiedClassName = qualifiedBinaryFileName.substring(0, qualifiedBinaryFileName.length()-SuffixConstants.EXTENSION_CLASS.length()-1);
+				for (String annotationPath : this.annotationPaths) {
+					try {
+						this.annotationZipFile = reader.setExternalAnnotationProvider(annotationPath, qualifiedClassName, this.annotationZipFile, null);
+						if (reader.hasAnnotationProvider())
+							break;
+					} catch (IOException e) {
+						// don't let error on annotations fail class reading
+					}
+				}
+			}
 			return new NameEnvironmentAnswer(reader, fetchAccessRestriction(qualifiedBinaryFileName));
+		}
 	} catch(ClassFormatException e) {
 		// treat as if class file is missing
 	} catch (IOException e) {
 		// treat as if class file is missing
 	}
 	return null;
+}
+@Override
+public boolean hasAnnotationFileFor(String qualifiedTypeName) {
+	return this.zipFile.getEntry(qualifiedTypeName+'.'+ExternalAnnotationProvider.ANNOTION_FILE_EXTENSION) != null; 
 }
 public char[][][] findTypeNames(String qualifiedPackageName) {
 	if (!isPackage(qualifiedPackageName))
@@ -168,13 +192,23 @@ public boolean isPackage(String qualifiedPackageName) {
 	return this.packageCache.containsKey(qualifiedPackageName);
 }
 public void reset() {
-	if (this.zipFile != null && this.closeZipFileAtEnd) {
-		try {
-			this.zipFile.close();
-		} catch(IOException e) {
-			// ignore
+	if (this.closeZipFileAtEnd) {
+		if (this.zipFile != null) {
+			try {
+				this.zipFile.close();
+			} catch(IOException e) {
+				// ignore
+			}
+			this.zipFile = null;
 		}
-		this.zipFile = null;
+		if (this.annotationZipFile != null) {
+			try {
+				this.annotationZipFile.close();
+			} catch(IOException e) {
+				// ignore
+			}
+			this.annotationZipFile = null;
+		}
 	}
 	this.packageCache = null;
 }

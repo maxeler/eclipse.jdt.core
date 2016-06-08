@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -4642,14 +4642,14 @@ public void test75() {
 		"        super();\n" +
 		"      }\n" +
 		"      int hello() {\n" +
-		"        fo $missing$;\n" +
+		"        fo = $missing$;\n" +
 		"      }\n" +
 		"      int world() {\n" +
 		"      }\n" +
 		"      void foo() {\n" +
 		"      }\n" +
 		"    }\n" +
-		"    ba $missing$;\n" +
+		"    ba = $missing$;\n" +
 		"  }\n" +
 		"}\n";
 
@@ -4844,7 +4844,7 @@ public void test77() {
 		"    else\n" +
 		"        if ((depth > 1))\n" +
 		"            {\n" +
-		"              sol $missing$;\n" +
+		"              sol = $missing$;\n" +
 		"            }\n" +
 		"        else\n" +
 		"            ;\n" +
@@ -5999,7 +5999,7 @@ public void test99() {
 		"    restricts breakpoint;\n" +
 		"    given thread;\n" +
 		"    any other;\n" +
-		"    specified $missing$;\n" +
+		"    specified = $missing$;\n" +
 		"  }\n" +
 		"  public void removeThreadFilter(IJavaThread thread) {\n" +
 		"    removes the;\n" +
@@ -6008,7 +6008,7 @@ public void test99() {
 		"    request as;\n" +
 		"    does not;\n" +
 		"    the removal;\n" +
-		"    thread $missing$;\n" +
+		"    thread = $missing$;\n" +
 		"  }\n" +
 		"  public IJavaThread[] getThreadFilters() {\n" +
 		"    return the;\n" +
@@ -6574,7 +6574,7 @@ public void test109() {
 		expectedFullUnitToString,
 		expectedCompletionDietUnitToString, testName);
 }
-public void _test110() {
+public void test110() {
 	String s =
 		"public class X {\n" +
 		"	void bar(){\n" +
@@ -8034,6 +8034,226 @@ public void test128() {
 		"  public Try() {\n" + 
 		"  }\n" + 
 		"  void main(Shell shell) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String testName = "test";
+	checkParse(
+		s.toCharArray(),
+		expectedDietUnitToString,
+		expectedDietPlusBodyUnitToString,
+		expectedDietPlusBodyPlusStatementsRecoveryUnitToString,
+		expectedFullUnitToString,
+		expectedCompletionDietUnitToString, testName);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=405778 - [1.8][dom ast] method body recovery broken (empty body)
+public void test405778() {
+		String s =
+			"import java.util.Collection;\n" + 
+			"public class E {\n" + 
+			"    public void __test1() {\n" + 
+			"        Object o = new Object();\n" + 
+			"        if (o.hashCode() != 0) {\n" + 
+			"           o.\n" + 
+			"         \n" + 
+			"        }\n" + 
+			"     }\n" + 
+			"}" + 
+			"\n";
+
+		String expectedDietUnitToString =
+			"import java.util.Collection;\n" + 
+			"public class E {\n" + 
+			"  public E() {\n" + 
+			"  }\n" + 
+			"  public void __test1() {\n" + 
+			"  }\n" + 
+			"}\n";
+
+		String expectedDietPlusBodyUnitToString =
+			"import java.util.Collection;\n" + 
+			"public class E {\n" + 
+			"  public E() {\n" + 
+			"    super();\n" + 
+			"  }\n" + 
+			"  public void __test1() {\n" + 
+			"  }\n" + 
+			"}\n";
+
+		String expectedDietPlusBodyPlusStatementsRecoveryUnitToString =
+			"import java.util.Collection;\n" + 
+			"public class E {\n" + 
+			"  public E() {\n" + 
+			"    super();\n" + 
+			"  }\n" + 
+			"  public void __test1() {\n" +
+			"    Object o = new Object();\n" +
+			"    if ((o.hashCode() != 0))\n" + 
+			"        {\n" + 
+			"          o = $missing$;\n" + 
+			"        }\n" + 
+			"  }\n" + 
+			"}\n";
+
+		String expectedFullUnitToString =
+			"import java.util.Collection;\n" + 
+			"public class E {\n" + 
+			"  public E() {\n" + 
+			"  }\n" + 
+			"  public void __test1() {\n" + 
+			"  }\n" + 
+			"}\n";
+
+		String expectedCompletionDietUnitToString =
+			"import java.util.Collection;\n" + 
+			"public class E {\n" + 
+			"  public E() {\n" + 
+			"  }\n" + 
+			"  public void __test1() {\n" + 
+			"  }\n" + 
+			"}\n";
+
+		String testName = "test";
+		checkParse(
+			s.toCharArray(),
+			expectedDietUnitToString,
+			expectedDietPlusBodyUnitToString,
+			expectedDietPlusBodyPlusStatementsRecoveryUnitToString,
+			expectedFullUnitToString,
+			expectedCompletionDietUnitToString, testName);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=405778 - [1.8][dom ast] method body recovery broken (empty body)
+public void test405778a() {
+	String s =
+		"import java.util.Collection;\n" +
+		"public class E {\n" + 
+		"    void m(String[] names) {\n"
+			+ "/*[*/\n"
+			+ "for (String string : names) {\n"
+			+ "System.out.println(string.);\n"
+			+ "}\n"
+			+ "/*]*/\n"
+			+ "}\n"
+			+ "}\n" + 
+		"\n";
+
+	String expectedDietUnitToString =
+		"import java.util.Collection;\n" + 
+		"public class E {\n" + 
+		"  public E() {\n" + 
+		"  }\n" + 
+		"  void m(String[] names) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedDietPlusBodyUnitToString =
+		"import java.util.Collection;\n" + 
+		"public class E {\n" + 
+		"  public E() {\n" + 
+		"    super();\n" + 
+		"  }\n" + 
+		"  void m(String[] names) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedDietPlusBodyPlusStatementsRecoveryUnitToString =
+		"import java.util.Collection;\n" + 
+		"public class E {\n" + 
+		"  public E() {\n" + 
+		"    super();\n" + 
+		"  }\n" + 
+		"  void m(String[] names) {\n" +
+		"    for (String string : names) \n" + 
+		"      {\n" + 
+		"        System.out.println(string.class);\n" + 
+		"      }\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedFullUnitToString =
+		"import java.util.Collection;\n" + 
+		"public class E {\n" + 
+		"  public E() {\n" + 
+		"  }\n" + 
+		"  void m(String[] names) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedCompletionDietUnitToString =
+		"import java.util.Collection;\n" + 
+		"public class E {\n" + 
+		"  public E() {\n" + 
+		"  }\n" + 
+		"  void m(String[] names) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String testName = "test";
+	checkParse(
+		s.toCharArray(),
+		expectedDietUnitToString,
+		expectedDietPlusBodyUnitToString,
+		expectedDietPlusBodyPlusStatementsRecoveryUnitToString,
+		expectedFullUnitToString,
+		expectedCompletionDietUnitToString, testName);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=456861 - [recovery] NPE in RecoveryScanner since Mars M4
+public void test456861() {
+	String s =
+		"import java.awt.Point;\n" + 
+		"public class Test {\n" + 
+		"	public void foo(Point p, int[] a) {\n" + 
+		"		String s1 = \"\";\n" + 
+		"		s.;\n" + 
+		"	}\n" + 
+		" }";
+
+	String expectedDietUnitToString =
+		"import java.awt.Point;\n" + 
+		"public class Test {\n" + 
+		"  public Test() {\n" + 
+		"  }\n" + 
+		"  public void foo(Point p, int[] a) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedDietPlusBodyUnitToString =
+		"import java.awt.Point;\n" + 
+		"public class Test {\n" + 
+		"  public Test() {\n" + 
+		"    super();\n" +
+		"  }\n" + 
+		"  public void foo(Point p, int[] a) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedDietPlusBodyPlusStatementsRecoveryUnitToString =
+		"import java.awt.Point;\n" + 
+		"public class Test {\n" + 
+		"  public Test() {\n" + 
+		"    super();\n" +
+		"  }\n" + 
+		"  public void foo(Point p, int[] a) {\n" + 
+		"    String s1 = \"\";\n" + 
+		"    s = $missing$;\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedFullUnitToString =
+		"import java.awt.Point;\n" + 
+		"public class Test {\n" + 
+		"  public Test() {\n" + 
+		"  }\n" + 
+		"  public void foo(Point p, int[] a) {\n" + 
+		"  }\n" + 
+		"}\n";
+
+	String expectedCompletionDietUnitToString =
+		"import java.awt.Point;\n" + 
+		"public class Test {\n" + 
+		"  public Test() {\n" + 
+		"  }\n" + 
+		"  public void foo(Point p, int[] a) {\n" + 
 		"  }\n" + 
 		"}\n";
 

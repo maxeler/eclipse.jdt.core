@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013 Jesper Steen Moller and others.
+ * Copyright (c) 2013, 2015 Jesper Steen Moller, IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -28,6 +28,7 @@ import org.eclipse.jdt.internal.formatter.DefaultCodeFormatter;
 import org.eclipse.jdt.internal.formatter.DefaultCodeFormatterOptions;
 import org.eclipse.text.edits.TextEdit;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class FormatterJSR308Tests extends AbstractJavaModelTests {
 
 	protected static IJavaProject JAVA_PROJECT;
@@ -54,6 +55,13 @@ public class FormatterJSR308Tests extends AbstractJavaModelTests {
 
 	public FormatterJSR308Tests(String name) {
 		super(name);
+	}
+
+	/* 
+	 * helper function for tests that are compatible with earlier page width
+	 */
+	private void setPageWidth80() {
+		this.formatterPrefs.page_width = 80;
 	}
 
 	String runFormatter(CodeFormatter codeFormatter, String source, int kind, int indentationLevel, int offset, int length, String lineSeparator, boolean repeat) {
@@ -180,14 +188,17 @@ public class FormatterJSR308Tests extends AbstractJavaModelTests {
 	}
 	
 	public void testLambda() {
+		setPageWidth80();
 		runTest("testLambda", "A.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 	
 	public void testReferenceExpression() {
+		setPageWidth80();
 		runTest("testReferenceExpression", "A.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	public void test000() {
+		setPageWidth80();
 		runTest("test000", "I.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 
@@ -220,6 +231,7 @@ public class FormatterJSR308Tests extends AbstractJavaModelTests {
 	}
 
 	public void test008() {
+		setPageWidth80();
 		runTest("test008", "X.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 
@@ -280,6 +292,7 @@ public class FormatterJSR308Tests extends AbstractJavaModelTests {
 	}
 
 	public void test023() {
+		setPageWidth80();
 		runTest("test023", "X.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 
@@ -328,6 +341,7 @@ public class FormatterJSR308Tests extends AbstractJavaModelTests {
 	}
 
 	public void test035() {
+		setPageWidth80();
 		runTest("test035", "X.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 

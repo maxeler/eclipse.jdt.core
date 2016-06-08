@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,6 +26,15 @@
  *								Bug 392245 - [1.8][compiler][null] Define whether / how @NonNullByDefault applies to TYPE_USE locations
  *								Bug 429958 - [1.8][null] evaluate new DefaultLocation attribute of @NonNullByDefault
  *								Bug 390889 - [1.8][compiler] Evaluate options to support 1.7- projects against 1.8 JRE.
+ *								Bug 438458 - [1.8][null] clean up handling of null type annotations wrt type variables
+ *								Bug 439516 - [1.8][null] NonNullByDefault wrongly applied to implicit type bound of binary type
+ *								Bug 434602 - Possible error with inferred null annotations leading to contradictory null annotations
+ *								Bug 440477 - [null] Infrastructure for feeding external annotations into compilation
+ *								Bug 441693 - [1.8][null] Bogus warning for type argument annotated with @NonNull
+ *								Bug 435805 - [1.8][compiler][null] Java 8 compiler does not recognize declaration style null annotations
+ *								Bug 453475 - [1.8][null] Contradictory null annotations (4.5 M3 edition)
+ *								Bug 454182 - Internal compiler error when using 1.8 compliance for simple project
+ *								Bug 447661 - [1.8][null] Incorrect 'expression needs unchecked conversion' warning
  *    Jesper Steen Moller - Contributions for
  *								Bug 412150 [1.8] [compiler] Enable reflected parameter names during annotation processing
  *								Bug 412153 - [1.8][compiler] Check validity of annotations which may be repeatable
@@ -37,11 +46,11 @@ import java.util.ArrayList;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.ast.Annotation;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
+import org.eclipse.jdt.internal.compiler.classfmt.ExternalAnnotationProvider.IMethodAnnotationWalker;
 import org.eclipse.jdt.internal.compiler.classfmt.NonNullDefaultAwareTypeAnnotationWalker;
 import org.eclipse.jdt.internal.compiler.classfmt.TypeAnnotationWalker;
 import org.eclipse.jdt.internal.compiler.codegen.ConstantPool;
 import org.eclipse.jdt.internal.compiler.env.*;
-import org.eclipse.jdt.internal.compiler.impl.BooleanConstant;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.impl.Constant;
 import org.eclipse.jdt.internal.compiler.problem.AbortCompilation;
@@ -87,12 +96,12 @@ static Object convertMemberValue(Object binaryValue, LookupEnvironment env, char
 	if (binaryValue instanceof Constant)
 		return binaryValue;
 	if (binaryValue instanceof ClassSignature)
-		return env.getTypeFromSignature(((ClassSignature) binaryValue).getTypeName(), 0, -1, false, null, missingTypeNames, TypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
+		return env.getTypeFromSignature(((ClassSignature) binaryValue).getTypeName(), 0, -1, false, null, missingTypeNames, ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
 	if (binaryValue instanceof IBinaryAnnotation)
 		return createAnnotation((IBinaryAnnotation) binaryValue, env, missingTypeNames);
 	if (binaryValue instanceof EnumConstantSignature) {
 		EnumConstantSignature ref = (EnumConstantSignature) binaryValue;
-		ReferenceBinding enumType = (ReferenceBinding) env.getTypeFromSignature(ref.getTypeName(), 0, -1, false, null, missingTypeNames, TypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
+		ReferenceBinding enumType = (ReferenceBinding) env.getTypeFromSignature(ref.getTypeName(), 0, -1, false, null, missingTypeNames, ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
 		if (enumType.isUnresolvedType() && !resolveEnumConstants)
 			return new ElementValuePair.UnresolvedEnumConstant(enumType, env, ref.getEnumConstantName());
 		enumType = (ReferenceBinding) resolveType(enumType, env, false /* no raw conversion */);
@@ -401,9 +410,10 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 		 */
 		if (this.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled) {
 			// need annotations on the type before processing null annotations on members respecting any @NonNullByDefault:
-			scanTypeForNullDefaultAnnotation(binaryType, this.fPackage, this);
+			scanTypeForNullDefaultAnnotation(binaryType, this.fPackage);
 		}
-		TypeAnnotationWalker walker = getTypeAnnotationWalker(binaryType.getTypeAnnotations());
+		ITypeAnnotationWalker walker = getTypeAnnotationWalker(binaryType.getTypeAnnotations(), Binding.NO_NULL_DEFAULT);
+		ITypeAnnotationWalker toplevelWalker = binaryType.enrichWithExternalAnnotationsFor(walker, null, this.environment);
 		char[] typeSignature = binaryType.getGenericSignature(); // use generic signature even in 1.4
 		this.tagBits |= binaryType.getTagBits();
 		
@@ -415,7 +425,7 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 			if (wrapper.signature[wrapper.start] == Util.C_GENERIC_START) {
 				// ParameterPart = '<' ParameterSignature(s) '>'
 				wrapper.start++; // skip '<'
-				this.typeVariables = createTypeVariables(wrapper, true, missingTypeNames, walker, true/*class*/);
+				this.typeVariables = createTypeVariables(wrapper, true, missingTypeNames, toplevelWalker, true/*class*/);
 				wrapper.start++; // skip '>'
 				this.tagBits |=  TagBits.HasUnresolvedTypeVariables;
 				this.modifiers |= ExtraCompilerModifiers.AccGenericSignature;
@@ -434,7 +444,7 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 			char[] superclassName = binaryType.getSuperclassName();
 			if (superclassName != null) {
 				// attempt to find the superclass if it exists in the cache (otherwise - resolve it when requested)
-				this.superclass = this.environment.getTypeFromConstantPoolName(superclassName, 0, -1, false, missingTypeNames, walker.toSupertype((short) -1));
+				this.superclass = this.environment.getTypeFromConstantPoolName(superclassName, 0, -1, false, missingTypeNames, toplevelWalker.toSupertype((short) -1, superclassName));
 				this.tagBits |= TagBits.HasUnresolvedSuperclass;
 			}
 
@@ -446,14 +456,14 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 					this.superInterfaces = new ReferenceBinding[size];
 					for (short i = 0; i < size; i++)
 						// attempt to find each superinterface if it exists in the cache (otherwise - resolve it when requested)
-						this.superInterfaces[i] = this.environment.getTypeFromConstantPoolName(interfaceNames[i], 0, -1, false, missingTypeNames, walker.toSupertype(i));
+						this.superInterfaces[i] = this.environment.getTypeFromConstantPoolName(interfaceNames[i], 0, -1, false, missingTypeNames, toplevelWalker.toSupertype(i, superclassName));
 					this.tagBits |= TagBits.HasUnresolvedSuperinterfaces;
 				}
 			}
 		} else {
 			// attempt to find the superclass if it exists in the cache (otherwise - resolve it when requested)
 			this.superclass = (ReferenceBinding) this.environment.getTypeFromTypeSignature(wrapper, typeVars, this, missingTypeNames, 
-																		walker.toSupertype((short) -1));
+																		toplevelWalker.toSupertype((short) -1, wrapper.peekFullType()));
 			this.tagBits |= TagBits.HasUnresolvedSuperclass;
 
 			this.superInterfaces = Binding.NO_SUPERINTERFACES;
@@ -462,7 +472,7 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 				java.util.ArrayList types = new java.util.ArrayList(2);
 				short rank = 0;
 				do {
-					types.add(this.environment.getTypeFromTypeSignature(wrapper, typeVars, this, missingTypeNames, walker.toSupertype(rank++)));
+					types.add(this.environment.getTypeFromTypeSignature(wrapper, typeVars, this, missingTypeNames, toplevelWalker.toSupertype(rank++, wrapper.peekFullType())));
 				} while (!wrapper.atEnd());
 				this.superInterfaces = new ReferenceBinding[types.size()];
 				types.toArray(this.superInterfaces);
@@ -472,8 +482,8 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 
 		if (needFieldsAndMethods) {
 			IBinaryField[] iFields = binaryType.getFields();
-			createFields(iFields, sourceLevel, missingTypeNames);
-			IBinaryMethod[] iMethods = createMethods(binaryType.getMethods(), sourceLevel, missingTypeNames);
+			createFields(iFields, binaryType, sourceLevel, missingTypeNames);
+			IBinaryMethod[] iMethods = createMethods(binaryType.getMethods(), binaryType, sourceLevel, missingTypeNames);
 			boolean isViewedAsDeprecated = isViewedAsDeprecated();
 			if (isViewedAsDeprecated) {
 				for (int i = 0, max = this.fields.length; i < max; i++) {
@@ -491,12 +501,22 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 			}
 			if (this.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled) {
 				if (iFields != null) {
-					for (int i = 0; i < iFields.length; i++)
-						scanFieldForNullAnnotation(iFields[i], this.fields[i], this.isEnum());
+					for (int i = 0; i < iFields.length; i++) {
+						// below 1.8 we still might use an annotation walker to discover external annotations:
+						ITypeAnnotationWalker fieldWalker = ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER;
+						if (sourceLevel < ClassFileConstants.JDK1_8)
+							fieldWalker = binaryType.enrichWithExternalAnnotationsFor(walker, iFields[i], this.environment);
+						scanFieldForNullAnnotation(iFields[i], this.fields[i], this.isEnum(), fieldWalker);
+					}
 				}
 				if (iMethods != null) {
-					for (int i = 0; i < iMethods.length; i++)
-						scanMethodForNullAnnotation(iMethods[i], this.methods[i]);
+					for (int i = 0; i < iMethods.length; i++) {
+						// below 1.8 we still might use an annotation walker to discover external annotations:
+						ITypeAnnotationWalker methodWalker = ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER;
+						if (sourceLevel < ClassFileConstants.JDK1_8)
+							methodWalker = binaryType.enrichWithExternalAnnotationsFor(methodWalker, iMethods[i], this.environment);
+						scanMethodForNullAnnotation(iMethods[i], this.methods[i], methodWalker);
+					}
 				}
 			}
 		}
@@ -513,25 +533,40 @@ void cachePartsFrom(IBinaryType binaryType, boolean needFieldsAndMethods) {
 	}
 }
 
-private TypeAnnotationWalker getTypeAnnotationWalker(IBinaryTypeAnnotation[] annotations) {
+/* When creating a method we need to pass in any default 'nullness' from a @NNBD immediately on this method. */
+private ITypeAnnotationWalker getTypeAnnotationWalker(IBinaryTypeAnnotation[] annotations, int nullness) {
 	if (!isPrototype()) throw new IllegalStateException();
 	if (annotations == null || annotations.length == 0 || !this.environment.usesAnnotatedTypeSystem()) {
 		if (this.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled) {
-			int nullness = getNullDefault();
+			if (nullness == Binding.NO_NULL_DEFAULT)
+				nullness = getNullDefault();
 			if (nullness > Binding.NULL_UNSPECIFIED_BY_DEFAULT)
 				return new NonNullDefaultAwareTypeAnnotationWalker(nullness, this.environment);
 		}
-		return TypeAnnotationWalker.EMPTY_ANNOTATION_WALKER;
+		return ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER;
 	}
 	if (this.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled) {
-		int nullness = getNullDefault();
+		if (nullness == Binding.NO_NULL_DEFAULT)
+			nullness = getNullDefault();
 		if (nullness > Binding.NULL_UNSPECIFIED_BY_DEFAULT)
 			return new NonNullDefaultAwareTypeAnnotationWalker(annotations, nullness, this.environment);
 	}
 	return new TypeAnnotationWalker(annotations);
 }
 
-private void createFields(IBinaryField[] iFields, long sourceLevel, char[][][] missingTypeNames) {
+private int getNullDefaultFrom(IBinaryAnnotation[] declAnnotations) {
+	if (declAnnotations != null) {
+		char[][] nonNullByDefaultAnnotationName = this.environment.getNonNullByDefaultAnnotationName();
+		for (IBinaryAnnotation annotation : declAnnotations) {
+			char[][] typeName = signature2qualifiedTypeName(annotation.getTypeName());
+			if (CharOperation.equals(typeName, nonNullByDefaultAnnotationName))
+				return getNonNullByDefaultValue(annotation);
+		}
+	}
+	return Binding.NO_NULL_DEFAULT;
+}
+
+private void createFields(IBinaryField[] iFields, IBinaryType binaryType, long sourceLevel, char[][][] missingTypeNames) {
 	if (!isPrototype()) throw new IllegalStateException();
 	this.fields = Binding.NO_FIELDS;
 	if (iFields != null) {
@@ -544,7 +579,11 @@ private void createFields(IBinaryField[] iFields, long sourceLevel, char[][][] m
 			for (int i = 0; i < size; i++) {
 				IBinaryField binaryField = iFields[i];
 				char[] fieldSignature = use15specifics ? binaryField.getGenericSignature() : null;
-				TypeAnnotationWalker walker = getTypeAnnotationWalker(binaryField.getTypeAnnotations()).toField();
+				ITypeAnnotationWalker walker = getTypeAnnotationWalker(binaryField.getTypeAnnotations(), Binding.NO_NULL_DEFAULT);
+				if (sourceLevel >= ClassFileConstants.JDK1_8) { // below 1.8, external annotations will be attached later
+					walker = binaryType.enrichWithExternalAnnotationsFor(walker, iFields[i], this.environment);
+				}
+				walker = walker.toField();
 				TypeBinding type = fieldSignature == null
 					? this.environment.getTypeFromSignature(binaryField.getTypeName(), 0, -1, false, this, missingTypeNames, walker)
 					: this.environment.getTypeFromTypeSignature(new SignatureWrapper(fieldSignature), Binding.NO_TYPE_VARIABLES, this, missingTypeNames, walker);
@@ -579,7 +618,7 @@ private void createFields(IBinaryField[] iFields, long sourceLevel, char[][][] m
 	}
 }
 
-private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[][][] missingTypeNames) {
+private MethodBinding createMethod(IBinaryMethod method, IBinaryType binaryType, long sourceLevel, char[][][] missingTypeNames) {
 	if (!isPrototype()) throw new IllegalStateException();
 	int methodModifiers = method.getModifiers() | ExtraCompilerModifiers.AccUnresolved;
 	if (sourceLevel < ClassFileConstants.JDK1_5)
@@ -605,10 +644,13 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
 	   variables properly in order to be able to apply substitutions and thus be able to detect
 	   overriding in the presence of generics. Seeing the erased form is not good enough.
 	 */
-	TypeAnnotationWalker walker = getTypeAnnotationWalker(method.getTypeAnnotations());
+	ITypeAnnotationWalker walker = getTypeAnnotationWalker(method.getTypeAnnotations(), getNullDefaultFrom(method.getAnnotations()));
 	char[] methodSignature = method.getGenericSignature(); // always use generic signature, even in 1.4
 	if (methodSignature == null) { // no generics
 		char[] methodDescriptor = method.getMethodDescriptor();   // of the form (I[Ljava/jang/String;)V
+		if (sourceLevel >= ClassFileConstants.JDK1_8) { // below 1.8, external annotations will be attached later
+			walker = binaryType.enrichWithExternalAnnotationsFor(walker, method, this.environment);
+		}
 		int numOfParams = 0;
 		char nextChar;
 		int index = 0; // first character is always '(' so skip it
@@ -682,6 +724,9 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
 		}
 
 	} else {
+		if (sourceLevel >= ClassFileConstants.JDK1_8) { // below 1.8, external annotations will be attached later
+			walker = binaryType.enrichWithExternalAnnotationsFor(walker, method, this.environment);
+		}
 		methodModifiers |= ExtraCompilerModifiers.AccGenericSignature;
 		// MethodTypeSignature = ParameterPart(optional) '(' TypeSignatures ')' return_typeSignature ['^' TypeSignature (optional)]
 		SignatureWrapper wrapper = new SignatureWrapper(methodSignature, use15specifics);
@@ -745,7 +790,7 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
 		? new MethodBinding(methodModifiers, parameters, exceptions, this)
 		: new MethodBinding(methodModifiers, method.getSelector(), returnType, parameters, exceptions, this);
 	
-	IBinaryAnnotation[] receiverAnnotations = walker.toReceiver().getAnnotationsAtCursor();
+	IBinaryAnnotation[] receiverAnnotations = walker.toReceiver().getAnnotationsAtCursor(this.id);
 	if (receiverAnnotations != null && receiverAnnotations.length > 0) {
 		result.receiver = this.environment.createAnnotatedType(this, createAnnotations(receiverAnnotations, this.environment, missingTypeNames));
 	}
@@ -754,7 +799,7 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
 	if (this.environment.globalOptions.storeAnnotations) {
 	    if (annotations == null || annotations.length == 0)
 	    	if (method.isConstructor())
-	    		annotations = walker.toMethodReturn().getAnnotationsAtCursor(); // FIXME: When both exist, order could become an issue.
+	    		annotations = walker.toMethodReturn().getAnnotationsAtCursor(this.id); // FIXME: When both exist, order could become an issue.
 		
 	}
 
@@ -769,9 +814,9 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
 	if (use15specifics)
 		result.tagBits |= method.getTagBits();
 	result.typeVariables = typeVars;
-	// fixup the declaring element of the type variable
+	// fixup the declaring element of all type variables
 	for (int i = 0, length = typeVars.length; i < length; i++)
-		typeVars[i].declaringElement = result;
+		this.environment.typeSystem.fixTypeVariableDeclaringElement(typeVars[i], result);
 
 	return result;
 }
@@ -781,7 +826,7 @@ private MethodBinding createMethod(IBinaryMethod method, long sourceLevel, char[
  * As some iMethods may be ignored in this process we return the matching array of those
  * iMethods for which MethodBindings have been created; indices match those in this.methods.
  */
-private IBinaryMethod[] createMethods(IBinaryMethod[] iMethods, long sourceLevel, char[][][] missingTypeNames) {
+private IBinaryMethod[] createMethods(IBinaryMethod[] iMethods, IBinaryType binaryType, long sourceLevel, char[][][] missingTypeNames) {
 	if (!isPrototype()) throw new IllegalStateException();
 	int total = 0, initialTotal = 0, iClinit = -1;
 	int[] toSkip = null;
@@ -816,7 +861,7 @@ private IBinaryMethod[] createMethods(IBinaryMethod[] iMethods, long sourceLevel
 	this.methods = new MethodBinding[total];
 	if (total == initialTotal) {
 		for (int i = 0; i < initialTotal; i++) {
-			MethodBinding method = createMethod(iMethods[i], sourceLevel, missingTypeNames);
+			MethodBinding method = createMethod(iMethods[i], binaryType, sourceLevel, missingTypeNames);
 			if (hasRestrictedAccess)
 				method.modifiers |= ExtraCompilerModifiers.AccRestrictedAccess;
 			this.methods[i] = method;
@@ -826,7 +871,7 @@ private IBinaryMethod[] createMethods(IBinaryMethod[] iMethods, long sourceLevel
 		IBinaryMethod[] mappedBinaryMethods = new IBinaryMethod[total];
 		for (int i = 0, index = 0; i < initialTotal; i++) {
 			if (iClinit != i && (toSkip == null || toSkip[i] != -1)) {
-				MethodBinding method = createMethod(iMethods[i], sourceLevel, missingTypeNames);
+				MethodBinding method = createMethod(iMethods[i], binaryType, sourceLevel, missingTypeNames);
 				if (hasRestrictedAccess)
 					method.modifiers |= ExtraCompilerModifiers.AccRestrictedAccess;
 				mappedBinaryMethods[index] = iMethods[i];
@@ -838,7 +883,7 @@ private IBinaryMethod[] createMethods(IBinaryMethod[] iMethods, long sourceLevel
 }
 
 private TypeVariableBinding[] createTypeVariables(SignatureWrapper wrapper, boolean assignVariables, char[][][] missingTypeNames,
-													TypeAnnotationWalker walker, boolean isClassTypeParameter)
+													ITypeAnnotationWalker walker, boolean isClassTypeParameter)
 {
 	if (!isPrototype()) throw new IllegalStateException();
 	// detect all type variables first
@@ -868,7 +913,7 @@ private TypeVariableBinding[] createTypeVariables(SignatureWrapper wrapper, bool
 						int colon = CharOperation.indexOf(Util.C_COLON, typeSignature, i);
 						char[] variableName = CharOperation.subarray(typeSignature, i, colon);
 						TypeVariableBinding typeVariable = new TypeVariableBinding(variableName, this, rank, this.environment);
-						AnnotationBinding [] annotations = BinaryTypeBinding.createAnnotations(walker.toTypeParameter(isClassTypeParameter, rank++).getAnnotationsAtCursor(), 
+						AnnotationBinding [] annotations = BinaryTypeBinding.createAnnotations(walker.toTypeParameter(isClassTypeParameter, rank++).getAnnotationsAtCursor(0), 
 																										this.environment, missingTypeNames);
 						if (annotations != null && annotations != Binding.NO_ANNOTATIONS)
 							typeVariable.setTypeAnnotations(annotations, this.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled);
@@ -955,7 +1000,7 @@ private MethodBinding findMethod(char[] methodDescriptor, char[][][] missingType
 				while ((nextChar = methodDescriptor[++end]) != Util.C_NAME_END){/*empty*/}
 
 			// not interested in type annotations, type will be used for comparison only, and erasure() is used if needed
-			TypeBinding param = this.environment.getTypeFromSignature(methodDescriptor, index, end, false, this, missingTypeNames, TypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
+			TypeBinding param = this.environment.getTypeFromSignature(methodDescriptor, index, end, false, this, missingTypeNames, ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
 			if (param instanceof UnresolvedReferenceBinding) {
 				param = resolveType(param, this.environment, true /* raw conversion */);
 			}
@@ -1226,7 +1271,7 @@ public boolean hasTypeBit(int bit) {
 	}
 	return (this.typeBits & bit) != 0;
 }
-private void initializeTypeVariable(TypeVariableBinding variable, TypeVariableBinding[] existingVariables, SignatureWrapper wrapper, char[][][] missingTypeNames, TypeAnnotationWalker walker) {
+private void initializeTypeVariable(TypeVariableBinding variable, TypeVariableBinding[] existingVariables, SignatureWrapper wrapper, char[][][] missingTypeNames, ITypeAnnotationWalker walker) {
 	if (!isPrototype()) throw new IllegalStateException();
 	// ParameterSignature = Identifier ':' TypeSignature
 	//   or Identifier ':' TypeSignature(optional) InterfaceBound(s)
@@ -1237,6 +1282,7 @@ private void initializeTypeVariable(TypeVariableBinding variable, TypeVariableBi
 	short rank = 0;
 	if (wrapper.signature[wrapper.start] == Util.C_COLON) {
 		type = this.environment.getResolvedType(TypeConstants.JAVA_LANG_OBJECT, null);
+		rank++;
 	} else {
 		TypeBinding typeFromTypeSignature = this.environment.getTypeFromTypeSignature(wrapper, existingVariables, this, missingTypeNames, walker.toTypeBound(rank++));
 		if (typeFromTypeSignature instanceof ReferenceBinding) {
@@ -1468,8 +1514,14 @@ SimpleLookupTable storedAnnotations(boolean forceInitialize) {
 }
 
 //pre: null annotation analysis is enabled
-private void scanFieldForNullAnnotation(IBinaryField field, FieldBinding fieldBinding, boolean isEnum) {
+private void scanFieldForNullAnnotation(IBinaryField field, FieldBinding fieldBinding, boolean isEnum, ITypeAnnotationWalker externalAnnotationWalker) {
 	if (!isPrototype()) throw new IllegalStateException();
+
+	if (isEnum && (field.getModifiers() & ClassFileConstants.AccEnum) != 0) {
+		fieldBinding.tagBits |= TagBits.AnnotationNonNull;
+		return; // we know it's nonnull, no need to look for null *annotations* on enum constants.
+	}
+
 	if (this.environment.globalOptions.sourceLevel >= ClassFileConstants.JDK1_8) {
 		TypeBinding fieldType = fieldBinding.type;
 		if (fieldType != null
@@ -1491,13 +1543,15 @@ private void scanFieldForNullAnnotation(IBinaryField field, FieldBinding fieldBi
 		return; // null annotations are only applied to reference types
 
 	boolean explicitNullness = false;
-	IBinaryAnnotation[] annotations = field.getAnnotations();
+	IBinaryAnnotation[] annotations = externalAnnotationWalker != ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER
+											? externalAnnotationWalker.getAnnotationsAtCursor(fieldBinding.type.id) 
+											: field.getAnnotations();
 	if (annotations != null) {
 		for (int i = 0; i < annotations.length; i++) {
 			char[] annotationTypeName = annotations[i].getTypeName();
 			if (annotationTypeName[0] != Util.C_RESOLVED)
 				continue;
-			char[][] typeName = CharOperation.splitOn('/', annotationTypeName, 1, annotationTypeName.length-1); // cut of leading 'L' and trailing ';'
+			char[][] typeName = signature2qualifiedTypeName(annotationTypeName);
 			if (CharOperation.equals(typeName, nonNullAnnotationName)) {
 				fieldBinding.tagBits |= TagBits.AnnotationNonNull;
 				explicitNullness = true;
@@ -1513,19 +1567,10 @@ private void scanFieldForNullAnnotation(IBinaryField field, FieldBinding fieldBi
 	if (!explicitNullness && (this.tagBits & TagBits.AnnotationNonNullByDefault) != 0) {
 		fieldBinding.tagBits |= TagBits.AnnotationNonNull;
 	}
-	if (isEnum) {
-		if ((field.getModifiers() & ClassFileConstants.AccEnum) != 0) {
-			fieldBinding.tagBits |= TagBits.AnnotationNonNull;
-		}
-	}
 }
 
-private void scanMethodForNullAnnotation(IBinaryMethod method, MethodBinding methodBinding) {
+private void scanMethodForNullAnnotation(IBinaryMethod method, MethodBinding methodBinding, ITypeAnnotationWalker externalAnnotationWalker) {
 	if (!isPrototype()) throw new IllegalStateException();
-	if (!this.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled)
-		return;
-	boolean useTypeAnnotations = this.environment.globalOptions.sourceLevel >= ClassFileConstants.JDK1_8;
-	// in 1.8 we only need @NonNullByDefault, see below and exit further down.
 	char[][] nullableAnnotationName = this.environment.getNullableAnnotationName();
 	char[][] nonNullAnnotationName = this.environment.getNonNullAnnotationName();
 	char[][] nonNullByDefaultAnnotationName = this.environment.getNonNullByDefaultAnnotationName();
@@ -1533,49 +1578,50 @@ private void scanMethodForNullAnnotation(IBinaryMethod method, MethodBinding met
 		return; // not well-configured to use null annotations
 
 	// return:
-	IBinaryAnnotation[] annotations = method.getAnnotations();
-	boolean explicitNullness = false;
+	ITypeAnnotationWalker returnWalker = externalAnnotationWalker.toMethodReturn();
+	IBinaryAnnotation[] annotations = returnWalker != ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER
+								? returnWalker.getAnnotationsAtCursor(methodBinding.returnType.id)
+								: method.getAnnotations();
 	if (annotations != null) {
 		for (int i = 0; i < annotations.length; i++) {
 			char[] annotationTypeName = annotations[i].getTypeName();
 			if (annotationTypeName[0] != Util.C_RESOLVED)
 				continue;
-			char[][] typeName = CharOperation.splitOn('/', annotationTypeName, 1, annotationTypeName.length-1); // cut of leading 'L' and trailing ';'
+			char[][] typeName = signature2qualifiedTypeName(annotationTypeName);
 			if (CharOperation.equals(typeName, nonNullByDefaultAnnotationName)) {
-				methodBinding.tagBits |= TagBits.AnnotationNonNullByDefault;
-				if (useTypeAnnotations)
-					methodBinding.defaultNullness = getNonNullByDefaultValue(annotations[i]);
-			}
-			if (!useTypeAnnotations && !explicitNullness) {
-				if (CharOperation.equals(typeName, nonNullAnnotationName)) {
-					methodBinding.tagBits |= TagBits.AnnotationNonNull;
-					explicitNullness = true;
-				} else if (CharOperation.equals(typeName, nullableAnnotationName)) {
-					methodBinding.tagBits |= TagBits.AnnotationNullable;
-					explicitNullness = true;
-				}
+				methodBinding.defaultNullness = getNonNullByDefaultValue(annotations[i]);
+				if (methodBinding.defaultNullness == Binding.NULL_UNSPECIFIED_BY_DEFAULT)
+					methodBinding.tagBits |= TagBits.AnnotationNullUnspecifiedByDefault;
+				else if (methodBinding.defaultNullness != 0)
+					methodBinding.tagBits |= TagBits.AnnotationNonNullByDefault;
+			} else if (CharOperation.equals(typeName, nonNullAnnotationName)) {
+				methodBinding.tagBits |= TagBits.AnnotationNonNull;
+			} else if (CharOperation.equals(typeName, nullableAnnotationName)) {
+				methodBinding.tagBits |= TagBits.AnnotationNullable;
 			}
 		}
 	}
 
-	if (useTypeAnnotations)
-		return;
-
 	// parameters:
 	TypeBinding[] parameters = methodBinding.parameters;
 	int numVisibleParams = parameters.length;
-	int numParamAnnotations = method.getAnnotatedParametersCount();
+	int numParamAnnotations = externalAnnotationWalker instanceof IMethodAnnotationWalker
+							? ((IMethodAnnotationWalker) externalAnnotationWalker).getParameterCount()
+							: method.getAnnotatedParametersCount();
 	if (numParamAnnotations > 0) {
 		for (int j = 0; j < numVisibleParams; j++) {
 			if (numParamAnnotations > 0) {
 				int startIndex = numParamAnnotations - numVisibleParams;
-				IBinaryAnnotation[] paramAnnotations = method.getParameterAnnotations(j+startIndex);
+				ITypeAnnotationWalker parameterWalker = externalAnnotationWalker.toMethodParameter((short) (j+startIndex));
+				IBinaryAnnotation[] paramAnnotations = parameterWalker != ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER
+															? parameterWalker.getAnnotationsAtCursor(parameters[j].id)
+															: method.getParameterAnnotations(j+startIndex);
 				if (paramAnnotations != null) {
 					for (int i = 0; i < paramAnnotations.length; i++) {
 						char[] annotationTypeName = paramAnnotations[i].getTypeName();
 						if (annotationTypeName[0] != Util.C_RESOLVED)
 							continue;
-						char[][] typeName = CharOperation.splitOn('/', annotationTypeName, 1, annotationTypeName.length-1); // cut of leading 'L' and trailing ';'
+						char[][] typeName = signature2qualifiedTypeName(annotationTypeName);
 						if (CharOperation.equals(typeName, nonNullAnnotationName)) {
 							if (methodBinding.parameterNonNullness == null)
 								methodBinding.parameterNonNullness = new Boolean[numVisibleParams];
@@ -1594,15 +1640,17 @@ private void scanMethodForNullAnnotation(IBinaryMethod method, MethodBinding met
 	}
 }
 // pre: null annotation analysis is enabled
-private void scanTypeForNullDefaultAnnotation(IBinaryType binaryType, PackageBinding packageBinding, BinaryTypeBinding binaryBinding) {
+private void scanTypeForNullDefaultAnnotation(IBinaryType binaryType, PackageBinding packageBinding) {
 	if (!isPrototype()) throw new IllegalStateException();
 	char[][] nonNullByDefaultAnnotationName = this.environment.getNonNullByDefaultAnnotationName();
 	if (nonNullByDefaultAnnotationName == null)
 		return; // not well-configured to use null annotations
 
+	if (CharOperation.equals(CharOperation.splitOn('/', binaryType.getName()), nonNullByDefaultAnnotationName))
+		return; // don't recursively apply @NNBD on @NNBD, neither directly nor via the 'enclosing' package-info.java
+
 	IBinaryAnnotation[] annotations = binaryType.getAnnotations();
-	boolean isPackageInfo = CharOperation.equals(binaryBinding.sourceName(), TypeConstants.PACKAGE_INFO_NAME);
-	boolean useTypeAnnotations = this.environment.globalOptions.sourceLevel >= ClassFileConstants.JDK1_8;
+	boolean isPackageInfo = CharOperation.equals(sourceName(), TypeConstants.PACKAGE_INFO_NAME);
 	if (annotations != null) {
 		long annotationBit = 0L;
 		int nullness = NO_NULL_DEFAULT;
@@ -1611,39 +1659,21 @@ private void scanTypeForNullDefaultAnnotation(IBinaryType binaryType, PackageBin
 			char[] annotationTypeName = annotations[i].getTypeName();
 			if (annotationTypeName[0] != Util.C_RESOLVED)
 				continue;
-			char[][] typeName = CharOperation.splitOn('/', annotationTypeName, 1, annotationTypeName.length-1); // cut of leading 'L' and trailing ';'
+			char[][] typeName = signature2qualifiedTypeName(annotationTypeName);
 			if (CharOperation.equals(typeName, nonNullByDefaultAnnotationName)) {
-				IBinaryElementValuePair[] elementValuePairs = annotations[i].getElementValuePairs();
-				if (!useTypeAnnotations) {
-					if (elementValuePairs != null && elementValuePairs.length == 1) {
-						Object value = elementValuePairs[0].getValue();
-						if (value instanceof BooleanConstant
-							&& !((BooleanConstant)value).booleanValue())
-						{
-							// parameter is 'false': this means we cancel defaults from outer scopes:
-							annotationBit = TagBits.AnnotationNullUnspecifiedByDefault;
-							nullness = NULL_UNSPECIFIED_BY_DEFAULT;
-							break;
-						}
-					}
-				} else {
-					// using NonNullByDefault we need to inspect the details of the value() attribute:
-					nullness = getNonNullByDefaultValue(annotations[i]);
-					if (nullness == NULL_UNSPECIFIED_BY_DEFAULT) {
-						annotationBit = TagBits.AnnotationNullUnspecifiedByDefault;
-					} else if (nullness != 0) {
-						annotationBit = TagBits.AnnotationNonNullByDefault;
-					}	
-					this.defaultNullness = nullness;
-					break;
+				// using NonNullByDefault we need to inspect the details of the value() attribute:
+				nullness = getNonNullByDefaultValue(annotations[i]);
+				if (nullness == NULL_UNSPECIFIED_BY_DEFAULT) {
+					annotationBit = TagBits.AnnotationNullUnspecifiedByDefault;
+				} else if (nullness != 0) {
+					annotationBit = TagBits.AnnotationNonNullByDefault;
 				}
-				annotationBit = TagBits.AnnotationNonNullByDefault;
-				nullness = NONNULL_BY_DEFAULT;
+				this.defaultNullness = nullness;
 				break;
 			}
 		}
 		if (annotationBit != 0L) {
-			binaryBinding.tagBits |= annotationBit;
+			this.tagBits |= annotationBit;
 			if (isPackageInfo)
 				packageBinding.defaultNullness = nullness;
 			return;
@@ -1651,25 +1681,13 @@ private void scanTypeForNullDefaultAnnotation(IBinaryType binaryType, PackageBin
 	}
 	if (isPackageInfo) {
 		// no default annotations found in package-info
-		packageBinding.defaultNullness = Binding.NULL_UNSPECIFIED_BY_DEFAULT;
+		packageBinding.defaultNullness = Binding.NO_NULL_DEFAULT;
 		return;
 	}
-	ReferenceBinding enclosingTypeBinding = binaryBinding.enclosingType;
+	ReferenceBinding enclosingTypeBinding = this.enclosingType;
 	if (enclosingTypeBinding != null) {
-		if (useTypeAnnotations) {
-			binaryBinding.defaultNullness = enclosingTypeBinding.getNullDefault();
-			if (binaryBinding.defaultNullness != 0) {
-				return;
-			}
-		} else {
-			if ((enclosingTypeBinding.tagBits & TagBits.AnnotationNonNullByDefault) != 0) {
-				binaryBinding.tagBits |= TagBits.AnnotationNonNullByDefault;
-				return;
-			} else if ((enclosingTypeBinding.tagBits & TagBits.AnnotationNullUnspecifiedByDefault) != 0) {
-				binaryBinding.tagBits |= TagBits.AnnotationNullUnspecifiedByDefault;
-				return;
-			}
-		}
+		if (setNullDefault(enclosingTypeBinding.tagBits, enclosingTypeBinding.getNullDefault()))
+			return;
 	}
 	// no annotation found on the type or its enclosing types
 	// check the package-info for default annotation if not already done before
@@ -1677,29 +1695,37 @@ private void scanTypeForNullDefaultAnnotation(IBinaryType binaryType, PackageBin
 		// this will scan the annotations in package-info
 		ReferenceBinding packageInfo = packageBinding.getType(TypeConstants.PACKAGE_INFO_NAME);
 		if (packageInfo == null) {
-			packageBinding.defaultNullness = Binding.NULL_UNSPECIFIED_BY_DEFAULT;
+			packageBinding.defaultNullness = Binding.NO_NULL_DEFAULT;
 		}
 	}
 	// no @NonNullByDefault at type level, check containing package:
-	if (useTypeAnnotations) {
-		binaryBinding.defaultNullness = packageBinding.defaultNullness;
-	} else {
-		switch (packageBinding.defaultNullness) {
-			case Binding.NONNULL_BY_DEFAULT : 
-				binaryBinding.tagBits |= TagBits.AnnotationNonNullByDefault;
-				break;
-			case Binding.NULL_UNSPECIFIED_BY_DEFAULT :
-				binaryBinding.tagBits |= TagBits.AnnotationNullUnspecifiedByDefault;
-				break;
-		}
+	setNullDefault(0L, packageBinding.defaultNullness);
+}
+
+boolean setNullDefault(long oldNullTagBits, int newNullDefault) {
+	this.defaultNullness = newNullDefault;
+	if (newNullDefault != 0) {
+		if (newNullDefault == Binding.NULL_UNSPECIFIED_BY_DEFAULT)
+			this.tagBits |= TagBits.AnnotationNullUnspecifiedByDefault;
+		else
+			this.tagBits |= TagBits.AnnotationNonNullByDefault;
+		return true;
 	}
+	if ((oldNullTagBits & TagBits.AnnotationNonNullByDefault) != 0) {
+		this.tagBits |= TagBits.AnnotationNonNullByDefault;
+		return true;
+	} else if ((oldNullTagBits & TagBits.AnnotationNullUnspecifiedByDefault) != 0) {
+		this.tagBits |= TagBits.AnnotationNullUnspecifiedByDefault;
+		return true;
+	}
+	return false;
 }
 
 /** given an application of @NonNullByDefault convert the annotation argument (if any) into a bitvector a la {@link Binding#NullnessDefaultMASK} */
 // pre: null annotation analysis is enabled
 int getNonNullByDefaultValue(IBinaryAnnotation annotation) {
 	char[] annotationTypeName = annotation.getTypeName();
-	char[][] typeName = CharOperation.splitOn('/', annotationTypeName, 1, annotationTypeName.length-1); // cut of leading 'L' and trailing ';'
+	char[][] typeName = signature2qualifiedTypeName(annotationTypeName);
 	IBinaryElementValuePair[] elementValuePairs = annotation.getElementValuePairs();
 	if (elementValuePairs == null || elementValuePairs.length == 0 ) {
 		// no argument: apply default default
@@ -1710,19 +1736,23 @@ int getNonNullByDefaultValue(IBinaryAnnotation annotation) {
 		MethodBinding[] annotationMethods = annotationType.methods();
 		if (annotationMethods != null && annotationMethods.length == 1) {
 			Object value = annotationMethods[0].getDefaultValue();
-			return Annotation.nullTagBitsFromAnnotationValue(value);
+			return Annotation.nullLocationBitsFromAnnotationValue(value);
 		}
+		return NONNULL_BY_DEFAULT; // custom unconfigurable NNBD
 	} else if (elementValuePairs.length > 0) {
 		// evaluate the contained EnumConstantSignatures:
 		int nullness = 0;
 		for (int i = 0; i < elementValuePairs.length; i++)
-			nullness |= Annotation.nullTagBitsFromAnnotationValue(elementValuePairs[i].getValue());
+			nullness |= Annotation.nullLocationBitsFromAnnotationValue(elementValuePairs[i].getValue());
 		return nullness;
 	} else {
 		// empty argument: cancel all defaults from enclosing scopes
 		return NULL_UNSPECIFIED_BY_DEFAULT;
 	}
-	return 0;
+}
+
+private char[][] signature2qualifiedTypeName(char[] typeSignature) {
+	return CharOperation.splitOn('/', typeSignature, 1, typeSignature.length-1); // cut off leading 'L' and trailing ';'
 }
 
 @Override
@@ -1742,7 +1772,7 @@ private void scanTypeForContainerAnnotation(IBinaryType binaryType, char[][][] m
 				if (elementValuePairs != null && elementValuePairs.length == 1) {
 					Object value = elementValuePairs[0].getValue();
 					if (value instanceof ClassSignature) {
-						this.containerAnnotationType = (ReferenceBinding) this.environment.getTypeFromSignature(((ClassSignature)value).getTypeName(), 0, -1, false, null, missingTypeNames, TypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
+						this.containerAnnotationType = (ReferenceBinding) this.environment.getTypeFromSignature(((ClassSignature)value).getTypeName(), 0, -1, false, null, missingTypeNames, ITypeAnnotationWalker.EMPTY_ANNOTATION_WALKER);
 					}
 				}
 				break;
@@ -1804,6 +1834,13 @@ public ReferenceBinding[] superInterfaces() {
 			this.environment.mayTolerateMissingType = true; // https://bugs.eclipse.org/bugs/show_bug.cgi?id=360164
 			try {
 				this.superInterfaces[i].superclass();
+				if (this.superInterfaces[i].isParameterizedType()) {
+					ReferenceBinding superType = this.superInterfaces[i].actualType();
+					if (TypeBinding.equalsEquals(superType, this)) {
+						this.tagBits |= TagBits.HierarchyHasProblems;
+						continue;
+					}
+				}
 				this.superInterfaces[i].superInterfaces();
 			} finally {
 				this.environment.mayTolerateMissingType = wasToleratingMissingTypeProcessingAnnotations;
@@ -1923,7 +1960,14 @@ public String toString() {
 public TypeBinding unannotated() {
 	return this.prototype;
 }
-
+public TypeBinding withoutToplevelNullAnnotation() {
+	if (!hasNullTypeAnnotations())
+		return this;
+	AnnotationBinding[] newAnnotations = this.environment.filterNullTypeAnnotations(this.typeAnnotations);
+	if (newAnnotations.length > 0)
+		return this.environment.createAnnotatedType(this.prototype, newAnnotations);
+	return this.prototype;
+}
 MethodBinding[] unResolvedMethods() { // for the MethodVerifier so it doesn't resolve types
 	
 	if (!isPrototype())

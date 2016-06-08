@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -37,6 +37,7 @@ import org.eclipse.jdt.internal.codeassist.CompletionEngine;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.core.eval.EvaluationContextWrapper;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class CompletionTests extends AbstractJavaModelCompletionTests {
 
 static {
@@ -24373,8 +24374,8 @@ public void testBug346454f() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-			"T2[METHOD_REF<CONSTRUCTOR>]{, Lpack.Test<Ljava.lang.Object;>.T2;, (TZ;)V, T2, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}\n" +
-			"Test<java.lang.Object>.T2[ANONYMOUS_CLASS_DECLARATION]{, Lpack.Test<Ljava.lang.Object;>.T2;, (TZ;)V, null, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}",
+			"T2[METHOD_REF<CONSTRUCTOR>]{, Lpack.Test<Ljava.lang.Object;>.T2<>;, (TZ;)V, T2, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}\n" +
+			"Test<java.lang.Object>.T2<>[ANONYMOUS_CLASS_DECLARATION]{, Lpack.Test<Ljava.lang.Object;>.T2<>;, (TZ;)V, null, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}",
 			requestor.getResults());
 	} finally {
 		// Restore compliance settings.
@@ -24420,8 +24421,8 @@ public void testBug346454g() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-				"T2[METHOD_REF<CONSTRUCTOR>]{, Lpack.Test<>.T2;, (TZ;)V, T2, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}\n" +
-				"Test<>.T2[ANONYMOUS_CLASS_DECLARATION]{, Lpack.Test<>.T2;, (TZ;)V, null, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}",
+				"T2[METHOD_REF<CONSTRUCTOR>]{, Lpack.Test<>.T2<>;, (TZ;)V, T2, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}\n" +
+				"Test<>.T2<>[ANONYMOUS_CLASS_DECLARATION]{, Lpack.Test<>.T2<>;, (TZ;)V, null, (z), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}",
 				requestor.getResults());
 	} finally {
 		// Restore compliance settings.
@@ -24516,8 +24517,8 @@ public void testBug346454i() throws JavaModelException {
 		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
 		this.workingCopies[0].codeComplete(cursorLocation, requestor, this.wcOwner);
 		assertResults(
-				"T2[METHOD_REF<CONSTRUCTOR>]{, Lpack.Test<>.T2;, (TU;)V, T2, (u), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}\n" +
-				"Test<>.T2[ANONYMOUS_CLASS_DECLARATION]{, Lpack.Test<>.T2;, (TU;)V, null, (u), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}",	
+				"T2[METHOD_REF<CONSTRUCTOR>]{, Lpack.Test<>.T2<>;, (TU;)V, T2, (u), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}\n" +
+				"Test<>.T2<>[ANONYMOUS_CLASS_DECLARATION]{, Lpack.Test<>.T2<>;, (TU;)V, null, (u), " + (R_DEFAULT + R_RESOLVED + R_INTERESTING + R_NON_RESTRICTED) + "}",	
 				requestor.getResults());
 	} finally {
 		// Restore compliance settings.

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -22,6 +22,7 @@ import org.eclipse.jdt.internal.compiler.parser.Scanner;
 import org.eclipse.jdt.internal.compiler.parser.TerminalTokens;
 import org.eclipse.jdt.internal.core.util.PublicScanner;
 
+@SuppressWarnings({ "rawtypes" })
 public class ScannerTest extends AbstractRegressionTest {
 
 	public ScannerTest(String name) {
@@ -1367,5 +1368,106 @@ public class ScannerTest extends AbstractRegressionTest {
 			// ignore.
 		}
 		assertEquals("Expecting ::", ITerminalSymbols.TokenNameCOLON_COLON, token);
+	}
+
+	//https://bugs.eclipse.org/bugs/show_bug.cgi?id=443854
+	public void test064() {
+		String source =
+				"public enum X {\n" + 
+				"	Hello\\u205fworld;\n" + 
+				"	public static void main(String[] args) {\n" + 
+				"		System.out.println(Hello\\u205fworld);\n" + 
+				"		System.out.println(Character.isJavaIdentifierPart('\\u205f')); // false\n" + 
+				"	}\n" + 
+				"}";
+		if (this.complianceLevel > ClassFileConstants.JDK1_5) {
+			this.runNegativeTest(
+				new String[] {
+					"X.java",
+					source
+				},
+				"----------\n" + 
+				"1. ERROR in X.java (at line 2)\n" + 
+				"	Hello\\u205fworld;\n" + 
+				"	     ^^^^^^\n" + 
+				"Syntax error on token \"Invalid Character\", , expected\n" + 
+				"----------\n" + 
+				"2. ERROR in X.java (at line 4)\n" + 
+				"	System.out.println(Hello\\u205fworld);\n" + 
+				"	                        ^^^^^^\n" + 
+				"Syntax error on token \"Invalid Character\", invalid AssignmentOperator\n" + 
+				"----------\n");
+		}
+	}
+	//https://bugs.eclipse.org/bugs/show_bug.cgi?id=458795
+	public void test065() {
+		String source =
+				"public class X {\n" + 
+				"	double d = 0XP00;\n" + 
+				"}";
+		if (this.complianceLevel > ClassFileConstants.JDK1_4) {
+			this.runNegativeTest(
+					new String[] {
+							"X.java",
+							source
+					},
+					"----------\n" + 
+							"1. ERROR in X.java (at line 2)\n" + 
+							"	double d = 0XP00;\n" + 
+							"	           ^^^\n" + 
+							"Invalid hex literal number\n" + 
+					"----------\n");
+		}
+	}
+	public void test066() {
+		String source =
+				"public class X {\n" + 
+				"	double d = 0X.p02d;\n" + 
+				"}";
+		if (this.complianceLevel > ClassFileConstants.JDK1_4) {
+			this.runNegativeTest(
+					new String[] {
+							"X.java",
+							source
+					},
+					"----------\n" + 
+							"1. ERROR in X.java (at line 2)\n" + 
+							"	double d = 0X.p02d;\n" + 
+							"	           ^^^\n" + 
+							"Invalid hex literal number\n" + 
+					"----------\n");
+		}
+	}
+	public void test067() {
+		String source =
+				"public class X {\n" + 
+				"	float f = 0Xp02f;\n" + 
+				"}";
+		if (this.complianceLevel > ClassFileConstants.JDK1_4) {
+			this.runNegativeTest(
+					new String[] {
+							"X.java",
+							source
+					},
+					"----------\n" + 
+					"1. ERROR in X.java (at line 2)\n" + 
+					"	float f = 0Xp02f;\n" + 
+					"	          ^^^\n" + 
+					"Invalid hex literal number\n" + 
+					"----------\n");
+		}
+	}
+	public void test068() {
+		String source =
+				"public class X {\n" + 
+				"	float f = 0X0p02f;\n" + 
+				"}";
+		if (this.complianceLevel > ClassFileConstants.JDK1_4) {
+			this.runConformTest(
+					new String[] {
+							"X.java",
+							source
+					});
+		}
 	}
 }

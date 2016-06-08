@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -36,10 +36,11 @@ import org.eclipse.jdt.core.util.IMethodInfo;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class MethodVerifyTest extends AbstractComparableTest {
 	static {
-//		TESTS_NAMES = new String[] { "testBug406928" };
-//		TESTS_NUMBERS = new int[] { 213 };
+//		TESTS_NAMES = new String[] { "test124", "test124b" };
+//		TESTS_NUMBERS = new int[] { 124 };
 //		TESTS_RANGE = new int[] { 190, -1};
 	}
 
@@ -1825,7 +1826,6 @@ public class MethodVerifyTest extends AbstractComparableTest {
 				"import java.util.*;\n" + 
 				"public class X extends java.util.AbstractMap {\n" +
 				"	public java.util.Set entrySet() { return null; }\n" +
-				MAP_RAW_IMPL_JRE8 +
 				"}\n"
 			},
 			""
@@ -6900,8 +6900,6 @@ X.java:7: name clash: <T#1>foo2(T#1) in X and <T#2>foo2(A) in Y have the same er
 				"	public boolean hasNext() {	return false; }\n" +
 				"	public Object next() {	return null; }\n" +
 				"	public void remove() {}\n" +
-				ITERABLE_RAW_IMPL_JRE8 +
-				COLLECTION_AND_LIST_RAW_IMPL_JRE8 +
 				"}\n", // =================
 			},
 			"----------\n" +
@@ -7022,8 +7020,6 @@ X.java:7: name clash: <T#1>foo2(T#1) in X and <T#2>foo2(A) in Y have the same er
 				"	public boolean hasNext() {	return false; }\n" +
 				"	public Object next() {	return null; }\n" +
 				"	public void remove() {}\n" +
-				ITERABLE_RAW_IMPL_JRE8 +
-				COLLECTION_AND_LIST_RAW_IMPL_JRE8 +
 				"}\n", // =================
 			},
 			"----------\n" +
@@ -7134,8 +7130,6 @@ X.java:7: name clash: <T#1>foo2(T#1) in X and <T#2>foo2(A) in Y have the same er
 				"	public boolean hasNext() {	return false; }\n" +
 				"	public Object next() {	return null; }\n" +
 				"	public void remove() {}\n" +
-				ITERABLE_RAW_IMPL_JRE8 +
-				COLLECTION_AND_LIST_RAW_IMPL_JRE8 + 
 				"}\n", // =================
 			},
 			"----------\n" +
@@ -8647,6 +8641,35 @@ public void test124() {
 			"  }\n" +
 			"}"},
 			this.complianceLevel <= ClassFileConstants.JDK1_6 ? "ab" : "Stack Overflow");
+}
+// Bug 460993: [compiler] Incremental build not always reports the same errors (type cannot be resolved - indirectly referenced)
+public void test124b() {
+	this.runConformTest(
+		new String[] {
+			"A.java",
+			"public class A {\n" +
+			"  public Object o = \"\";\n" +
+			"  public static void main(String args[]) {\n" +
+			"    X.main(args);\n" +
+			"  }\n" +
+			"}\n",
+			"X.java",
+			"public class X {\n" +
+			"  public static String choose(String one, String two) {\n" +
+			"    return one + X.<String>choose(one, two);\n" +
+			"  }\n" +
+			"  public static <T> T choose(T one, T two) {\n" +
+			"    return two;\n" +
+			"  }\n" +
+			"  public static void main(String args[]) {\n" +
+			"    try {\n" +
+			"        System.out.println(choose(\"a\", \"b\"));\n" +
+			"    } catch (StackOverflowError e) {\n" +
+			"        System.out.println(\"Stack Overflow\");\n" +
+			"    }\n" +
+			"  }\n" +
+			"}"},
+		this.complianceLevel <= ClassFileConstants.JDK1_6 ? "ab" : "Stack Overflow");
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=150655
 // variant
@@ -11442,7 +11465,6 @@ public void test203() {
 			"		return compare((I) o1, (I) o2);\n" +
 			"	}\n" +
 			"	public int compare(I o1, I o2) { return 0; }\n" +
-			COMPARATOR_RAW_IMPL_JRE8 +
 			"}"
 		},
 		""
@@ -12355,7 +12377,6 @@ public void test331446() {
 			"			public int compare(Object o1, Object o2) {\n" + 
 			"				return 0;\n" + 
 			"			}\n" + 
-			COMPARATOR_RAW_IMPL_JRE8 +
 			"		};\n" + 
 			"		Test.assertEquals(\"Test\", comparator, new ArrayList(), new ArrayList());\n" + 
 			"	}\n" + 
@@ -12426,7 +12447,6 @@ public void test331446a() {
 			"			public int compare(Object o1, Object o2) {\n" + 
 			"				return 0;\n" + 
 			"			}\n" + 
-			COMPARATOR_RAW_IMPL_JRE8 +
 			"		};\n" + 
 			"		Test.assertEquals(\"Test\", comparator, new ArrayList(), new ArrayList());\n" + 
 			"	}\n" + 
@@ -14078,5 +14098,40 @@ public void testBug426546() {
 			"}\n"
 		},
 		"CCC");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=438812, Missing bridge methods in indirect child classes with ECJ 3.10.0
+public void testBug438812() throws Exception {
+	this.runConformTest(
+		new String[] {
+			"A.java",
+			"import java.util.Collection;\n" + 
+			"import java.util.List;\n" + 
+			"\n" + 
+			"public interface A {\n" + 
+			"    Iterable getIterable();\n" + 
+			"}\n" + 
+			"\n" + 
+			"class B implements A {\n" + 
+			"    public Collection getIterable() { return null; }\n" + 
+			"}\n" + 
+			"\n" + 
+			"class C extends B {\n" + 
+			"    public List getIterable() { return null; }\n" + 
+			"}",
+		},
+		"");
+	String expectedOutput = "  public bridge synthetic java.lang.Iterable getIterable();";
+
+	File f = new File(OUTPUT_DIR + File.separator + "C.class");
+	byte[] classFileBytes = org.eclipse.jdt.internal.compiler.util.Util.getFileByteContent(f);
+	ClassFileBytesDisassembler disassembler = ToolFactory.createDefaultClassFileBytesDisassembler();
+	String result = disassembler.disassemble(classFileBytes, "\n", ClassFileBytesDisassembler.DETAILED);
+	int index = result.indexOf(expectedOutput);
+	if (index == -1 || expectedOutput.length() == 0) {
+		System.out.println(Util.displayString(result, 3));
+	}
+	if (index == -1) {
+		assertEquals("Wrong contents", expectedOutput, result);
+	}
 }
 }

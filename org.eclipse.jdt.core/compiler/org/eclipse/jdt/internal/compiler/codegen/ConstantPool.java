@@ -14,6 +14,7 @@
  *							Bug 412153 - [1.8][compiler] Check validity of annotations which may be repeatable
  *     Andy Clement (GoPivotal, Inc) aclement@gopivotal.com - Contributions for
  *                          Bug 405104 - [1.8][compiler][codegen] Implement support for serializeable lambdas
+ *                          Bug 439889 - [1.8][compiler] [lambda] Deserializing lambda fails with IllegalArgumentException: "Invalid lambda deserialization"
  *******************************************************************************/
 package org.eclipse.jdt.internal.compiler.codegen;
 
@@ -259,7 +260,7 @@ public class ConstantPool implements ClassFileConstants, TypeIds {
 	public static final char[] JAVA_LANG_ANNOTATION_INHERITED = "Ljava/lang/annotation/Inherited;".toCharArray(); //$NON-NLS-1$
 	// java 7  java.lang.SafeVarargs
 	public static final char[] JAVA_LANG_SAFEVARARGS = "Ljava/lang/SafeVarargs;".toCharArray(); //$NON-NLS-1$
-	// java 7 java.lang.invoke.MethodHandle.invokeExact(..)/invokeGeneric(..)
+	// java 7 java.lang.invoke.MethodHandle.invokeExact(..)/invoke(..)
 	public static final char[] JAVA_LANG_INVOKE_METHODHANDLE_POLYMORPHICSIGNATURE = "Ljava/lang/invoke/MethodHandle$PolymorphicSignature;".toCharArray(); //$NON-NLS-1$
 	// Java 8 lambda support
 	public static final char[] METAFACTORY = "metafactory".toCharArray(); //$NON-NLS-1$
@@ -786,6 +787,7 @@ public class ConstantPool implements ClassFileConstants, TypeIds {
 			isInterface ? binding.isStatic() ? MethodHandleRefKindInvokeStatic : binding.isPrivate() ? MethodHandleRefKindInvokeSpecial : MethodHandleRefKindInvokeInterface
 			: binding.isConstructor() ? MethodHandleRefKindNewInvokeSpecial
 			: binding.isStatic() ? MethodHandleRefKindInvokeStatic
+			: binding.isPrivate() ? MethodHandleRefKindInvokeSpecial
 			: MethodHandleRefKindInvokeVirtual;
 		
 		return literalIndexForMethodHandle(referenceKind, binding.declaringClass, binding.selector, binding.signature(), isInterface);

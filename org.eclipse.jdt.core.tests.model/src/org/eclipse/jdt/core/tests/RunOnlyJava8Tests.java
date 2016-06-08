@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2014 IBM Corporation and others.
+ * Copyright (c) 2013, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -40,6 +40,8 @@ import org.eclipse.jdt.core.tests.compiler.regression.InterfaceMethodsTest;
 import org.eclipse.jdt.core.tests.compiler.regression.JSR308SpecSnippetTests;
 import org.eclipse.jdt.core.tests.compiler.regression.JSR335ClassFileTest;
 import org.eclipse.jdt.core.tests.compiler.regression.LambdaExpressionsTest;
+import org.eclipse.jdt.core.tests.compiler.regression.LambdaRegressionTest;
+import org.eclipse.jdt.core.tests.compiler.regression.LambdaShapeTests;
 import org.eclipse.jdt.core.tests.compiler.regression.MethodParametersAttributeTest;
 import org.eclipse.jdt.core.tests.compiler.regression.NegativeLambdaExpressionsTest;
 import org.eclipse.jdt.core.tests.compiler.regression.NegativeTypeAnnotationTest;
@@ -66,6 +68,7 @@ import org.eclipse.jdt.core.tests.model.JavaSearchBugs8Tests;
 import org.eclipse.jdt.core.tests.model.ResolveTests18;
 import org.eclipse.jdt.core.tests.rewrite.describing.ASTRewritingTest;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class RunOnlyJava8Tests extends TestCase {
 	
 	public RunOnlyJava8Tests(String name) {
@@ -76,6 +79,8 @@ public class RunOnlyJava8Tests extends TestCase {
 			LambdaExpressionSyntaxTest.class,
 			NegativeLambdaExpressionsTest.class,
 			LambdaExpressionsTest.class,
+			LambdaRegressionTest.class,
+			LambdaShapeTests.class,
 			SerializableLambdaTest.class,
 			OverloadResolutionTest8.class,
 			JSR335ClassFileTest.class,

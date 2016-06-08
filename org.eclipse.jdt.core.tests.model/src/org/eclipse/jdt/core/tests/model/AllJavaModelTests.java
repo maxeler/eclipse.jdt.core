@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,8 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Stephan Herrmann - Contribution for
+ *								Bug 440477 - [null] Infrastructure for feeding external annotations into compilation
  *******************************************************************************/
 package org.eclipse.jdt.core.tests.model;
 
@@ -21,6 +23,7 @@ import junit.framework.TestSuite;
 /**
  * Run all java model tests.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class AllJavaModelTests extends junit.framework.TestCase {
 public AllJavaModelTests(String name) {
 	super(name);
@@ -193,6 +196,9 @@ private static Class[] getAllTestClasses() {
 		
 		// Tests regarding null-annotations:
 		NullAnnotationModelTests.class,
+		ExternalAnnotations17Test.class,
+		ExternalAnnotations18Test.class,
+
 		// Java model changes related to Java 8
 		JavaElement8Tests.class,
 	};

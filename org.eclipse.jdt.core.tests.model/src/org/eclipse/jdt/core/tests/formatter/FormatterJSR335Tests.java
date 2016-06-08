@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013 Jesper Steen Moller and others.
+ * Copyright (c) 2013, 2015 Jesper Steen Moller, IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -29,6 +29,7 @@ import org.eclipse.jdt.internal.formatter.DefaultCodeFormatter;
 import org.eclipse.jdt.internal.formatter.DefaultCodeFormatterOptions;
 import org.eclipse.text.edits.TextEdit;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class FormatterJSR335Tests extends AbstractJavaModelTests {
 
 	protected static IJavaProject JAVA_PROJECT;
@@ -92,6 +93,20 @@ public class FormatterJSR335Tests extends AbstractJavaModelTests {
 		deleteProject(JAVA_PROJECT); //$NON-NLS-1$
 		JAVA_PROJECT = null;
 		super.tearDownSuite();
+	}
+
+	/* 
+	 * helper function for tests that are compatible with earlier page width
+	 */
+	private void setPageWidth80() {
+		this.formatterPrefs.page_width = 80;
+	}
+
+	/* 
+	 * helper function for tests that are compatible with earlier page width
+	 */
+	private void setPageWidth80(DefaultCodeFormatterOptions preferences) {
+		preferences.page_width = 80;
 	}
 
 	String runFormatter(CodeFormatter codeFormatter, String source, int kind, int indentationLevel, int offset, int length, String lineSeparator, boolean repeat) {
@@ -165,6 +180,7 @@ public class FormatterJSR335Tests extends AbstractJavaModelTests {
 	}
 
 	public void testLambda() {
+		setPageWidth80();
 		runTest("testLambda", "A.java");//$NON-NLS-1$ //$NON-NLS-2$
 	}
 
@@ -173,6 +189,7 @@ public class FormatterJSR335Tests extends AbstractJavaModelTests {
 		options.brace_position_for_lambda_body = DefaultCodeFormatterConstants.NEXT_LINE;
 		options.insert_space_after_lambda_arrow = false;
 		options.insert_space_before_lambda_arrow = false;
+		setPageWidth80(options);
 		runTest("testLambdaOptions", "A.java", options);//$NON-NLS-1$ //$NON-NLS-2$
 	}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -40,6 +40,8 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 	//public CompilationUnitResult currentCompilationUnitResult;
 	public CompilationUnitDeclaration[] unitsToProcess;
 	public int totalUnits; // (totalUnits-1) gives the last unit in unitToProcess
+	
+	private Map<String, APTProblem[]> aptProblems;
 
 	// name lookup
 	public LookupEnvironment lookupEnvironment;
@@ -418,8 +420,6 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 	 */
 	public void compile(ICompilationUnit[] sourceUnits) {
 		this.stats.startTime = System.currentTimeMillis();
-		CompilationUnitDeclaration unit = null;
-		ProcessTaskManager processingTask = null;
 		try {
 			// build and record parsed units
 			reportProgress(Messages.compilation_beginningToCompile);
@@ -437,6 +437,7 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 						return;
 					}
 				} catch (SourceTypeCollisionException e) {
+					backupAptProblems();
 					reset();
 					// a generated type was referenced before it was created
 					// the compiler either created a MissingType or found a BinaryType for it
@@ -452,11 +453,86 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 					return;
 				}
 			}
+			// Restore the problems before the results are processed and cleaned up.
+			restoreAptProblems();
+			processCompiledUnits(0);
+		} catch (AbortCompilation e) {
+			this.handleInternalException(e, null);
+		}
+		if (this.options.verbose) {
+			if (this.totalUnits > 1) {
+				this.out.println(
+					Messages.bind(Messages.compilation_units, String.valueOf(this.totalUnits)));
+			} else {
+				this.out.println(
+					Messages.bind(Messages.compilation_unit, String.valueOf(this.totalUnits)));
+			}
+		}
+	}
 
+	class APTProblem {
+		CategorizedProblem problem;
+		ReferenceContext context;
+		APTProblem(CategorizedProblem problem, ReferenceContext context) {
+			this.problem = problem;
+			this.context = context;
+		}
+	}
+	
+	protected void backupAptProblems() {
+		if (this.unitsToProcess == null) return;
+		for (int i = 0; i < this.totalUnits; i++) {
+			CompilationUnitDeclaration unitDecl = this.unitsToProcess[i];
+			CompilationResult result = unitDecl.compilationResult;
+			if (result != null && result.hasErrors()) {
+				CategorizedProblem[] errors = result.getErrors();
+				for (CategorizedProblem problem : errors) {
+					if (problem.getCategoryID() == CategorizedProblem.CAT_UNSPECIFIED) {
+						if (this.aptProblems == null) {
+							this.aptProblems = new HashMap<>();
+						}
+						APTProblem[] problems = this.aptProblems.get(new String(unitDecl.getFileName()));
+						if (problems == null) {
+							this.aptProblems.put(
+									new String(unitDecl.getFileName()),
+									new APTProblem[] { new APTProblem(problem, result.getContext(problem)) });
+						} else {
+							APTProblem[] temp = new APTProblem[problems.length + 1];
+							System.arraycopy(problems, 0, temp, 0, problems.length);
+							temp[problems.length] = new APTProblem(problem, result.getContext(problem));
+							this.aptProblems.put(new String(unitDecl.getFileName()), temp);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	protected void restoreAptProblems() {
+		if (this.unitsToProcess != null && this.aptProblems!= null) {
+			for (int i = 0; i < this.totalUnits; i++) {
+				CompilationUnitDeclaration unitDecl = this.unitsToProcess[i];
+				APTProblem[] problems = this.aptProblems.get(new String(unitDecl.getFileName()));
+				if (problems != null) {
+					for (APTProblem problem : problems) {
+						unitDecl.compilationResult.record(problem.problem, problem.context);
+					}
+				}
+			}
+		}
+		this.aptProblems = null; // No need for this.
+	}
+
+	protected void processCompiledUnits(int startingIndex) throws java.lang.Error {
+		CompilationUnitDeclaration unit = null;
+		ProcessTaskManager processingTask = null;
+		try {
 			if (this.useSingleThread) {
 				// process all units (some more could be injected in the loop by the lookup environment)
-				for (int i = 0; i < this.totalUnits; i++) {
+				for (int i = startingIndex; i < this.totalUnits; i++) {
 					unit = this.unitsToProcess[i];
+					if (unit.compilationResult != null && unit.compilationResult.hasBeenAccepted)
+						continue;
 					reportProgress(Messages.bind(Messages.compilation_processing, new String(unit.getFileName())));
 					try {
 						if (this.options.verbose)
@@ -469,10 +545,13 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 								}));
 						process(unit, i);
 					} finally {
-						// cleanup compilation unit result
-						unit.cleanUp();
+						// cleanup compilation unit result, but only if not annotation processed.
+						if (this.annotationProcessorManager == null || shouldCleanup(i))
+							unit.cleanUp();
 					}
-					this.unitsToProcess[i] = null; // release reference to processed unit declaration
+					if (this.annotationProcessorManager == null) {
+						this.unitsToProcess[i] = null; // release reference to processed unit declaration
+					}
 
 					reportWorked(1, i);
 					this.stats.lineCount += unit.compilationResult.lineSeparatorPositions.length;
@@ -489,7 +568,7 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 							}));
 				}
 			} else {
-				processingTask = new ProcessTaskManager(this);
+				processingTask = new ProcessTaskManager(this, startingIndex);
 				int acceptedCount = 0;
 				// process all units (some more could be injected in the loop by the lookup environment)
 				// the processTask can continue to process units until its fixed sized cache is full then it must wait
@@ -518,6 +597,16 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 							}));
 				}
 			}
+			if (this.annotationProcessorManager != null && this.totalUnits > this.annotationProcessorStartIndex) {
+				int backup = this.annotationProcessorStartIndex;
+				int prevUnits = this.totalUnits;
+				processAnnotations();
+				// Clean up the units that were left out previously for annotation processing.
+				for (int i = backup; i < prevUnits; i++) {
+					this.unitsToProcess[i].cleanUp();
+				}
+				processCompiledUnits(backup);
+			}
 		} catch (AbortCompilation e) {
 			this.handleInternalException(e, unit);
 		} catch (Error e) {
@@ -535,24 +624,26 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 			this.annotationProcessorStartIndex  = 0;
 			this.stats.endTime = System.currentTimeMillis();
 		}
-		if (this.options.verbose) {
-			if (this.totalUnits > 1) {
-				this.out.println(
-					Messages.bind(Messages.compilation_units, String.valueOf(this.totalUnits)));
-			} else {
-				this.out.println(
-					Messages.bind(Messages.compilation_unit, String.valueOf(this.totalUnits)));
-			}
-		}
 	}
 
 	public synchronized CompilationUnitDeclaration getUnitToProcess(int next) {
 		if (next < this.totalUnits) {
 			CompilationUnitDeclaration unit = this.unitsToProcess[next];
-			this.unitsToProcess[next] = null; // release reference to processed unit declaration
+			if (this.annotationProcessorManager == null || next < this.annotationProcessorStartIndex) {
+				this.unitsToProcess[next] = null; // release reference to processed unit declaration
+			}
 			return unit;
 		}
 		return null;
+	}
+
+	/*
+	 * Returns whether the compilation unit at the given index should be
+	 * cleaned up after processing. This basically means whether or not
+	 * the unit is still required for annotation processing.
+	 */
+	public boolean shouldCleanup(int index) {
+		return index < this.annotationProcessorStartIndex;
 	}
 
 	public void setBinaryTypes(ReferenceBinding[] binaryTypes) {
@@ -825,8 +916,8 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 				CompilationUnitDeclaration[] addedUnits = new CompilationUnitDeclaration[length];
 				System.arraycopy(this.unitsToProcess, top, addedUnits, 0, length);
 				this.annotationProcessorManager.processAnnotations(addedUnits, binaryTypeBindingsTemp, false);
-				this.annotationProcessorStartIndex = top;
 			}
+			this.annotationProcessorStartIndex = top;
 			ICompilationUnit[] newUnits = this.annotationProcessorManager.getNewUnits();
 			newUnitSize = newUnits.length;
 			ReferenceBinding[] newClassFiles = this.annotationProcessorManager.getNewClassFiles();
@@ -846,6 +937,7 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 				}
 				bottom = top;
 				top = this.totalUnits; // last unit added
+				this.annotationProcessorStartIndex = top;
 			} else {
 				bottom = top;
 				this.annotationProcessorManager.reset();
@@ -871,6 +963,8 @@ public class Compiler implements ITypeRequestor, ProblemSeverities {
 		} else {
 			this.annotationProcessorManager.reset();
 		}
+		// Units added in final round don't get annotation processed
+		this.annotationProcessorStartIndex = this.totalUnits;
 	}
 
 	public void reset() {

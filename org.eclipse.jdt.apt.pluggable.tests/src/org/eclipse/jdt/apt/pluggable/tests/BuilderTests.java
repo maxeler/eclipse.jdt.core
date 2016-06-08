@@ -1,20 +1,19 @@
 /*******************************************************************************
- * Copyright (c) 2008 - 2014 Walter Harley and others
+ * Copyright (c) 2008 - 2015 Walter Harley and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    eclipse@cafewalter.com - initial API and implementation
+ *    eclipse@cafewalter.com 			- initial API and implementation
+ *    Harry Terkelsen <het@google.com> 	- Contribution for
+ *     											Bug 437414 - Annotation processing is broken when build is batched
  *******************************************************************************/
 
 package org.eclipse.jdt.apt.pluggable.tests;
 
 import java.util.List;
-
-import junit.framework.Test;
-import junit.framework.TestSuite;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IPath;
@@ -23,6 +22,11 @@ import org.eclipse.jdt.apt.pluggable.tests.processors.buildertester.BugsProc;
 import org.eclipse.jdt.apt.pluggable.tests.processors.buildertester.InheritedAnnoProc;
 import org.eclipse.jdt.apt.pluggable.tests.processors.buildertester.TestFinalRoundProc;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.tests.builder.Problem;
+import org.eclipse.jdt.internal.core.builder.AbstractImageBuilder;
+
+import junit.framework.Test;
+import junit.framework.TestSuite;
 
 /**
  * Tests covering the IDE's ability to process the correct set of files.
@@ -211,6 +215,31 @@ public class BuilderTests extends TestBase
 		}
 	}
 	
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=419769
+	public void testBug419769() throws Throwable {
+		try {
+			ProcessorTestStatus.reset();
+			IJavaProject jproj = createJavaProject(_projectName);
+			disableJava5Factories(jproj);
+			IProject proj = jproj.getProject();
+			IdeTestUtils.copyResources(proj, "targets/bug419769", "src/targets/bug419769");
+			AptConfig.setEnabled(jproj, true);
+			fullBuild();
+			expectingNoProblems(); // There should be no compiler errors, i.e. except the APT injected ones.
+			Problem[] problems = env.getProblemsFor(jproj.getProject().getFullPath(), "org.eclipse.jdt.apt.pluggable.core.compileProblem");
+			StringBuffer buf = new StringBuffer();
+			for (int i = 0, length = problems.length; i < length; i++) {
+				Problem problem = problems[i];
+				buf.append(problem.getMessage());
+				if (i < length - 1) buf.append('\n');
+			}
+			assertEquals("There should be two reported problems",
+						"Some Error Message.\nYet another Error Message.",
+						buf.toString());
+		} finally {
+		}
+	}
+	
 	public void testBug387956() throws Exception {
 		ProcessorTestStatus.reset();
 		IJavaProject jproj = createJavaProject(_projectName);
@@ -222,5 +251,91 @@ public class BuilderTests extends TestBase
 		fullBuild();
 		expectingNoProblems();
 	}
+	public void testBatchedBuild() throws Throwable {
+		int old = AbstractImageBuilder.MAX_AT_ONCE;
+		IJavaProject jproj = createJavaProject(_projectName);
+		disableJava5Factories(jproj);
+		IProject proj = jproj.getProject();
+		IPath projPath = proj.getFullPath();
+		IPath root = projPath.append("src");
+		IPath packagePath = root.append("test");
+		try {
+			// Force the build to be batched
+			AbstractImageBuilder.MAX_AT_ONCE = 1;
+			ProcessorTestStatus.reset();
+			
+			env.addClass(root, "test", "Foo",
+					"package test;\n" +
+					"import org.eclipse.jdt.apt.pluggable.tests.annotations.GenClass6;\n" +
+			        "@GenClass6(name = \"FooGen\", pkg = \"test\")\n" +
+				    "public class Foo {\n" +
+			        "    public Bar bar;\n" +
+				    "}");
+			env.addClass(root, "test", "Bar",
+					"package test;\n" +
+					"import org.eclipse.jdt.apt.pluggable.tests.annotations.GenClass6;\n" +
+			        "@GenClass6(name = \"BarGen\", pkg = \"test\")\n" +
+				    "public class Bar {\n" +
+			        "    public Foo foo;\n" +
+				    "}");
+			AptConfig.setEnabled(jproj, true);
+			
+			fullBuild();
+			expectingNoProblems();
+			expectingUniqueCompiledClasses(
+					new String[] {"test.Foo", "test.Bar", "test.FooGen", "test.BarGen"});
+			
+		} finally {
+			AbstractImageBuilder.MAX_AT_ONCE = old;
+			env.removeClass(packagePath, "Foo");
+			env.removeClass(packagePath, "Bar");
+			env.removeClass(packagePath, "FooGen");
+			env.removeClass(packagePath, "BarGen");
+
+		}
+	}
 	
+	public void testBug468853() throws Throwable {
+		int old = AbstractImageBuilder.MAX_AT_ONCE;
+		IJavaProject jproj = createJavaProject(_projectName);
+		disableJava5Factories(jproj);
+		IProject proj = jproj.getProject();
+		IPath projPath = proj.getFullPath();
+		IPath root = projPath.append("src");
+		IPath packagePath = root.append("test");
+		try {
+			// Force the build to be batched
+			AbstractImageBuilder.MAX_AT_ONCE = 2;
+			ProcessorTestStatus.reset();
+			
+			env.addClass(root, "test", "Foo",
+					"package test;\n" +
+							"import org.eclipse.jdt.apt.pluggable.tests.annotations.GenClass6;\n" +
+							"import org.eclipse.jdt.apt.pluggable.tests.annotations.Message6;\n" +
+							"import javax.tools.Diagnostic.Kind;\n" +
+							"@GenClass6(name = \"FooGen\", pkg = \"test\", rounds = 2)\n" +
+							"@Message6(text = \"APT message\", value = Kind.ERROR)\n" +
+							"public class Foo extends FooGen {\n" +
+							"    public Bar bar;\n" +
+					"}");
+			env.addClass(root, "test", "Bar",
+					"package test;\n" +
+							"public class Bar {\n" +
+							"    public Foo foo;\n" +
+					"}");
+			AptConfig.setEnabled(jproj, true);
+			
+			fullBuild();
+			expectingNoProblems();
+			expectingUniqueCompiledClasses(
+					new String[] {"test.Foo", "test.Bar", "test.FooGen", "test.FooGenGen"});
+			
+		} finally {
+			AbstractImageBuilder.MAX_AT_ONCE = old;
+			env.removeClass(packagePath, "Foo");
+			env.removeClass(packagePath, "Bar");
+			env.removeClass(packagePath, "FooGen");
+			
+		}
+	}
 }

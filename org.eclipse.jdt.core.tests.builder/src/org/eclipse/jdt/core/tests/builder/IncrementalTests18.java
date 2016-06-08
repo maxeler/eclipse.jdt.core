@@ -11,14 +11,21 @@
 package org.eclipse.jdt.core.tests.builder;
 
 import java.io.File;
+import java.io.IOException;
 
 import junit.framework.Test;
 
+import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.tests.util.AbstractCompilerTest;
 import org.eclipse.jdt.core.tests.util.Util;
+import org.osgi.framework.Bundle;
 
 public class IncrementalTests18 extends BuilderTests {
 	
@@ -28,6 +35,21 @@ public class IncrementalTests18 extends BuilderTests {
 
 	public static Test suite() {
 		return AbstractCompilerTest.buildMinimalComplianceTestSuite(IncrementalTests18.class, AbstractCompilerTest.F_1_8);
+	}
+	
+	private void setupProjectForNullAnnotations() throws IOException, JavaModelException {
+		// add the org.eclipse.jdt.annotation library (bin/ folder or jar) to the project:
+		Bundle[] bundles = Platform.getBundles("org.eclipse.jdt.annotation","[2.0.0,3.0.0)");
+		File bundleFile = FileLocator.getBundleFile(bundles[0]);
+		String annotationsLib = bundleFile.isDirectory() ? bundleFile.getPath()+"/bin" : bundleFile.getPath();
+		IJavaProject javaProject = env.getJavaProject("Project");
+		IClasspathEntry[] rawClasspath = javaProject.getRawClasspath();
+		int len = rawClasspath.length;
+		System.arraycopy(rawClasspath, 0, rawClasspath = new IClasspathEntry[len+1], 0, len);
+		rawClasspath[len] = JavaCore.newLibraryEntry(new Path(annotationsLib), null, null);
+		javaProject.setRawClasspath(rawClasspath, null);
+
+		javaProject.setOption(JavaCore.COMPILER_ANNOTATION_NULL_ANALYSIS, JavaCore.ENABLED);
 	}
 	
 	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=423122, [1.8] Missing incremental build dependency from lambda expression to functional interface.
@@ -337,4 +359,170 @@ public class IncrementalTests18 extends BuilderTests {
 		incrementalBuild(projectPath);
 		expectingNoProblems();
 	}	
+
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435544, [compiler][null] Enum constants not recognised as being NonNull (take2)
+	public void test435544() throws JavaModelException, IOException {
+		IPath projectPath = env.addProject("Project", "1.8");
+		env.addExternalJars(projectPath, Util.getJavaClassLibs());
+
+		// remove old package fragment root so that names don't collide
+		env.removePackageFragmentRoot(projectPath, "");
+
+		IPath root = env.addPackageFragmentRoot(projectPath, "src");
+		env.setOutputFolder(projectPath, "bin");
+
+		setupProjectForNullAnnotations();
+		env.addClass(root, "p", "Y",
+				"package p;	\n" +
+				 "public enum Y {\n" +
+				 "	A,\n" +
+				 "	B\n" +
+				 "}\n" +
+				 "\n"
+		);
+
+		fullBuild(projectPath);
+		expectingNoProblems();
+
+		env.addClass(root, "p", "X",
+				"package p;	\n" +
+				"import org.eclipse.jdt.annotation.NonNull;\n" +
+				"public class X {\n" +
+				"	@NonNull\n" +
+				"	public Y y = Y.A; // warning without fix\n" +
+				"	void foo(@NonNull Y y) {}\n" +
+				"   void bar() {\n" +
+				"		foo(Y.A); // warning without fix\n" +
+				"   }\n" +
+				"}\n"
+		);
+
+		incrementalBuild(projectPath);
+		expectingNoProblems();
+	}
+	
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=442452,  [compiler][regression] Bogus error: The interface Comparable cannot be implemented more than once with different arguments
+	public void testBug442452() throws JavaModelException {
+		IPath projectPath = env.addProject("Project", "1.8");
+		env.addExternalJars(projectPath, Util.getJavaClassLibs());
+		env.setOutputFolder(projectPath, "bin"); //$NON-NLS-1$
+
+		env.addClass(projectPath, "", "Entity", //$NON-NLS-1$ //$NON-NLS-2$
+				"public class Entity implements IEntity<Entity> {\n" +
+				"	public int compareTo(IBasicItem o) {\n" +
+				"		return 0;\n" +
+				"	}\n" +
+				"}\n"); //$NON-NLS-1$
+
+		env.addClass(projectPath, "", "IEntity", //$NON-NLS-1$ //$NON-NLS-2$
+				"public interface IEntity<T extends IEntity<T>> extends IBasicItem {\n" +
+				"}\n"); //$NON-NLS-1$
+		
+		env.addClass(projectPath, "", "IBasicItem", //$NON-NLS-1$ //$NON-NLS-2$
+				"public interface IBasicItem extends Comparable<IBasicItem> {\n" +
+				"}\n"); //$NON-NLS-1$
+		
+		env.addClass(projectPath, "", "IAdvancedItem", //$NON-NLS-1$ //$NON-NLS-2$
+				"public interface IAdvancedItem extends Comparable<IBasicItem> {\n" +
+				"}\n"); //$NON-NLS-1$
+
+		fullBuild(projectPath);
+		expectingNoProblems();
+
+		env.addClass(projectPath, "", "Entity", //$NON-NLS-1$ //$NON-NLS-2$
+				"public class Entity implements IEntity<Entity>, IAdvancedItem {\n" +
+				"	public int compareTo(IBasicItem o) {\n" +
+				"		return 0;\n" +
+				"	}\n" +
+				"}\n"); //$NON-NLS-1$
+
+		incrementalBuild(projectPath);
+		expectingNoProblems();
+	}
+
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=442755,
+	// [compiler] NPE at ProblemHandler.handle
+	public void testBug442755() throws JavaModelException {
+		IPath projectPath = env.addProject("Project", "1.8");
+		env.addExternalJars(projectPath, Util.getJavaClassLibs());
+		env.setOutputFolder(projectPath, "bin");
+		env.addClass(projectPath, "", "Z",
+			"public interface Z <X1 extends X, Y1 extends Y> {}\n");
+		fullBuild(projectPath);
+		expectingProblemsFor(
+			projectPath,
+			"Problem : X cannot be resolved to a type [ resource : </Project/Z.java>" +
+			" range : <31,32> category : <40> severity : <2>]\n" +
+			"Problem : Y cannot be resolved to a type [ resource : </Project/Z.java>" +
+			" range : <45,46> category : <40> severity : <2>]");
+		env.addClass(projectPath, "", "Unmarshaller", //$NON-NLS-1$ //$NON-NLS-2$
+			"public abstract class Unmarshaller<CONTEXT extends Context, DESCRIPTOR extends Z> {\n" +
+			"	public CONTEXT getContext() {\n" +
+			"		return null;\n" +
+			"	}\n" +
+			"}\n");
+		incrementalBuild(projectPath);
+		expectingProblemsFor(
+			projectPath,
+			"Problem : The project was not built since its build path is incomplete." +
+			" Cannot find the class file for Y. Fix the build path then try building" +
+			" this project [ resource : </Project> range : <-1,-1> category : <10> severity : <2>]\n" +
+			"Problem : The type Y cannot be resolved. It is indirectly referenced from" +
+			" required .class files [ resource : </Project/Unmarshaller.java> range : <0,1> category : <10> severity : <2>]");
+	}
+
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=442755,
+	// [compiler] NPE at ProblemHandler.handle
+	// Simplified test case.
+	public void testBug442755a() throws JavaModelException {
+		IPath projectPath = env.addProject("Project", "1.8");
+		env.addExternalJars(projectPath, Util.getJavaClassLibs());
+		env.setOutputFolder(projectPath, "bin");
+		env.addClass(projectPath, "", "Z",
+			"public class Z <Y2 extends Y> {}\n");
+		fullBuild(projectPath);
+		expectingProblemsFor(
+				projectPath,
+				"Problem : Y cannot be resolved to a type [ resource : " +
+				"</Project/Z.java> range : <27,28> category : <40> severity : <2>]");
+		env.addClass(projectPath, "", "X", //$NON-NLS-1$ //$NON-NLS-2$
+				"public class X <Z> {}\n");
+		incrementalBuild(projectPath);
+		expectingProblemsFor(
+			projectPath,
+			"Problem : The project was not built since its build path is incomplete." +
+			" Cannot find the class file for Y. Fix the build path then try building" +
+			" this project [ resource : </Project> range : <-1,-1> category : <10> severity : <2>]\n" +
+			"Problem : The type Y cannot be resolved. It is indirectly referenced from" +
+			" required .class files [ resource : </Project/X.java> range : <0,1> category : <10> severity : <2>]");
+	}
+
+	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=445049,
+	// [compiler] java.lang.ClassCastException: org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding
+	// cannot be cast to org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding
+	public void test445049() throws JavaModelException, IOException {
+		IPath projectPath = env.addProject("Project", "1.8");
+		env.addExternalJars(projectPath, Util.getJavaClassLibs());
+
+		// remove old package fragment root so that names don't collide
+		env.removePackageFragmentRoot(projectPath, "");
+
+		IPath root = env.addPackageFragmentRoot(projectPath, "src");
+		env.setOutputFolder(projectPath, "bin");
+
+		setupProjectForNullAnnotations();
+		env.addClass(root, "", "I",
+				"public interface I { int f = 0;}");
+
+		fullBuild(projectPath);
+		expectingNoProblems();
+
+		env.addClass(root, "", "X", "class X implements I { int i = I.super.f;}");
+
+		incrementalBuild(projectPath);
+		expectingProblemsFor(
+			projectPath,
+			"Problem : No enclosing instance of the type I is accessible in scope [" +
+			" resource : </Project/src/X.java> range : <31,38> category : <40> severity : <2>]");
+	}
 }

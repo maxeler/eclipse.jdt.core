@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,6 +24,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.dom.*;
 
+@SuppressWarnings("rawtypes")
 public class ASTConverterBugsTest extends ConverterTestSetup {
 
 public void setUpSuite() throws Exception {
@@ -708,7 +709,7 @@ public void testBug215759a() throws CoreException {
 			"}\n" +
 			"\n" +
 			"===== Details =====\n" +
-			"1:SIMPLE_NAME,[66,6],,,[VARIABLE,Lp/X;.foo(Ljava/lang/String;)Ljava/lang/String;#string,]\n" +
+			"1:SIMPLE_NAME,[66,6],,,[VARIABLE,Lp/X;.foo(Ljava/lang/String;)Ljava/lang/String;#string#0#0,]\n" +
 			"2:SIMPLE_TYPE,[97,6],,,[TYPE,Ljava/lang/String;,]\n" +
 			"2:SIMPLE_NAME,[97,6],,,[TYPE,Ljava/lang/String;,]\n" +
 			"3:PARENTHESIZED_EXPRESSION,[134,18],,,[N/A]\n" +
@@ -767,7 +768,7 @@ public void testBug215759b() throws CoreException {
 			"}\n" +
 			"\n" +
 			"===== Details =====\n" +
-			"1:SIMPLE_NAME,[66,6],,,[VARIABLE,Lp/X;.foo(Ljava/lang/String;)Ljava/lang/String;#string,]\n" +
+			"1:SIMPLE_NAME,[66,6],,,[VARIABLE,Lp/X;.foo(Ljava/lang/String;)Ljava/lang/String;#string#0#0,]\n" +
 			"2:SIMPLE_TYPE,[97,6],,,[TYPE,Ljava/lang/String;,]\n" +
 			"2:SIMPLE_NAME,[97,6],,,[TYPE,Ljava/lang/String;,]\n" +
 			"3:PARENTHESIZED_EXPRESSION,[134,18],,,[N/A]\n" +

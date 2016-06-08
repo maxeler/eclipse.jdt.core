@@ -1853,7 +1853,7 @@ public void test424198a() throws JavaModelException {
 	IJavaElement[] elements = this.wc.codeSelect(start, length);
 	assertElementsEqual(
 		"Unexpected elements",
-		"v2 [in apply(? extends java.lang.String) [in <lambda #1> [in processJar(Path) [in InsistentCapture [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]]]]",
+		"v2 [in apply(capture-of ? extends java.lang.String) [in <lambda #1> [in processJar(Path) [in InsistentCapture [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]]]]",
 		elements,
 		true
 	);
@@ -1918,7 +1918,7 @@ public void test424198b() throws JavaModelException {
 	IJavaElement[] elements = this.wc.codeSelect(start, length);
 	assertElementsEqual(
 		"Unexpected elements",
-		"s1 [in accept(? extends java.lang.String) [in <lambda #1> [in withWildcard(Stream<? extends String>) [in InsistentCapture [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]]]]",
+		"s1 [in accept(capture-of ? extends java.lang.String) [in <lambda #1> [in withWildcard(Stream<? extends String>) [in InsistentCapture [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]]]]",
 		elements,
 		true
 	);
@@ -2187,7 +2187,7 @@ public void test428968() throws JavaModelException {
 	IJavaElement[] elements = this.wc.codeSelect(start, length);
 	assertElementsEqual(
 		"Unexpected elements",
-		"comparing(java.util.function.Function<? super T,? extends U>) {key=Ljava/util/Comparator<>;.comparing<T:Ljava/lang/Object;U::Ljava/lang/Comparable<-TU;>;>(Ljava/util/function/Function<-TT;+TU;>;)Ljava/util/Comparator<TT;>;%<Ljava/lang/Object;^{218#0};>} [in Comparator [in Comparator.class [in java.util [in "+ getExternalPath() + "jclFull1.8.jar]]]]",
+		"comparing(java.util.function.Function<? super T,? extends U>) {key=Ljava/util/Comparator<>;.comparing<T:Ljava/lang/Object;U::Ljava/lang/Comparable<-TU;>;>(Ljava/util/function/Function<-TT;+TU;>;)Ljava/util/Comparator<TT;>;%<Ljava/lang/Object;^{259#0};>} [in Comparator [in Comparator.class [in java.util [in "+ getExternalPath() + "jclFull1.8.jar]]]]",
 		elements, true
 	);
 }
@@ -2571,5 +2571,246 @@ public void test430307a() throws JavaModelException {
 	parentExpr = parentMethod.getParent();
 	assertEquals("Java elements should be equal", parentMethod, local.getParent());
 	assertEquals("Java elements should be equal", parentExpr, local.getParent().getParent());
+}
+
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=439234, [1.8][navigation] Clicking F3 on a lambda arrow doesn't work
+public void test439234() throws JavaModelException {
+	this.wc = getWorkingCopy(
+			"/Resolve/src/X.java",
+			"interface I {" +
+			"  int foo(int x);" +
+			"}" +
+			"public class X {" +
+			"  int bar(int x) {\n" +
+			"      return i;\n" +
+			"  }\n" +
+			"  public static void main(String[] args) {" +
+			"    I i = (x) -> {" +
+			"      return x;" +
+			"    };" +
+			"   i.foo(10);" +
+			"   X x = new X();\n" +
+			"   I i2 = x::bar;\n" +
+			"   i2.foo(10);\n" +
+			"  }" +
+			"}");
+
+
+	// check if selection of -> works
+	// ----------------------------------
+	String str = this.wc.getSource();
+	String selection = "->";
+	int start = str.indexOf(selection);
+	int length = selection.length();
+	IJavaElement[] elements;
+
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"foo(int) [in I [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements
+	);
+
+	// Length of the selection is added to the offset.
+	// The target function is not identified without the fix.
+	elements = this.wc.codeSelect(start + length, 0);
+	assertElementsEqual(
+		"Unexpected elements",
+		"foo(int) [in I [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements
+	);
+
+	selection = "-> "; // Extra space
+	start = str.indexOf(selection);
+	length = selection.length();
+	elements = this.wc.codeSelect(start, length);
+	// Can't figure out the target
+	assertElementsEqual("Expected no message",	"",	elements);
+	elements = this.wc.codeSelect(start + length, 0);
+	// Can't figure out the target
+	assertElementsEqual("Expected no message",	"",	elements);
+
+	selection = "-> {"; //illegal selection -> {
+	start = str.indexOf(selection);
+	length = selection.length();
+	elements = this.wc.codeSelect(start, length);
+	// Can't figure out the target
+	assertElementsEqual("Expected no message",	"",	elements);
+	elements = this.wc.codeSelect(start + length, 0);
+	// Can't figure out the target
+	assertElementsEqual("Expected no message",	"",	elements);
+
+	// ----------------------------------
+	// Check if selection of :: works
+	selection = "::";
+	start = str.indexOf(selection);
+	length = selection.length();
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"foo(int) [in I [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements
+	);
+	elements = this.wc.codeSelect(start + length, 0);
+	assertElementsEqual(
+		"Unexpected elements",
+		"foo(int) [in I [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements
+	);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=440731, [1.8] Hover, F3 doesn't work for method reference in method invocation
+public void test440731() throws JavaModelException {
+	this.wc = getWorkingCopy(
+			"/Resolve/src/X.java",
+			"class Y {\n" +
+			"	public void fooY() {return;}\n" +
+			"	public void bar(I2 i) {return;}\n" +
+			"	public void bar(I i) {return;}   \n" +
+			"}\n" +
+			"class fooY() {}\n" +
+			"interface I { void fooI(Y y); }\n" +
+			"interface I2 { void fooI2(int n);}\n" +
+			"public class X {\n" +
+			"	void foo() {\n" +
+			"		I i = Y::fooY; // works\n" +
+			"	}\n" +
+			"}");
+
+	String str = this.wc.getSource();
+	String selection = "fooY";
+	int start = str.lastIndexOf(selection);
+	int length = selection.length();
+	IJavaElement[] elements;
+
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"fooY() [in Y [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements
+	);
+
+	this.wc = getWorkingCopy(
+			"/Resolve/src/X.java",
+			"class Y {\n" +
+			"	public void fooY() {return;}\n" +
+			"	public void bar(I2 i) {return;}\n" +
+			"	public void bar(I i) {return;}   \n" +
+			"}\n" +
+			// [1]: Why class fooY {} ?
+			"class fooY{}\n" +
+			"interface I { void fooI(Y y); }\n" +
+			"interface I2 { void fooI2(int n);}\n" +
+			"public class X {\n" +
+			"	void foo() {\n" +
+			"		Y y = new Y();\n" +
+			"		y.bar(Y::fooY);\n" +
+			"	}\n" +
+			"}");
+	str = this.wc.getSource();
+	selection = "::";
+	//y.bar(Y::fooY)
+	//       ^^
+	start = str.lastIndexOf(selection);
+	length = selection.length();
+
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"fooI(Y) [in I [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements);
+
+	// [1] The reason for having the class fooY {} as part of the test case:
+	// Without the fix we resolve to the type fooY (class) and not the method fooY()
+	// declared in class Y. Please see Comment 4.
+
+	selection = "fooY";
+	//y.bar(Y::fooY)
+	//         ^^^^
+
+	start = str.lastIndexOf(selection);
+	length = selection.length();
+
+	// Unable to find element without fix.
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"fooY() [in Y [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430572,  [1.8] CCE on hovering over 'super' in lambda expression
+public void test430572() throws JavaModelException {
+	this.wc = getWorkingCopy(
+			"/Resolve/src/X.java",
+			"@FunctionalInterface\n" +
+			"interface FI {\n" +
+			"	default int getID() {\n" +
+			"		return 11;\n" +
+			"	}\n" +
+			"	void print();\n" +
+			"}\n" +
+			"class T {\n" +
+			"	FI f2 = () -> System.out.println(super.toString());\n" +
+			"}\n");
+
+	String str = this.wc.getSource();
+	String selection = "super";
+	int start = str.lastIndexOf(selection);
+	int length = selection.length();
+	IJavaElement[] elements;
+
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"Object [in Object.class [in java.lang [in "+ getExternalPath() + "jclFull1.8.jar]]]",
+		elements
+	);
+
+	this.wc = getWorkingCopy(
+			"/Resolve/src/X.java",
+			"class Y {\n" +
+			"	public void fooY() {return;}\n" +
+			"	public void bar(I2 i) {return;}\n" +
+			"	public void bar(I i) {return;}   \n" +
+			"}\n" +
+			// [1]: Why class fooY {} ?
+			"class fooY{}\n" +
+			"interface I { void fooI(Y y); }\n" +
+			"interface I2 { void fooI2(int n);}\n" +
+			"public class X {\n" +
+			"	void foo() {\n" +
+			"		Y y = new Y();\n" +
+			"		y.bar(Y::fooY);\n" +
+			"	}\n" +
+			"}");
+	str = this.wc.getSource();
+	selection = "::";
+	//y.bar(Y::fooY)
+	//       ^^
+	start = str.lastIndexOf(selection);
+	length = selection.length();
+
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"fooI(Y) [in I [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements);
+
+	// [1] The reason for having the class fooY {} as part of the test case:
+	// Without the fix we resolve to the type fooY (class) and not the method fooY()
+	// declared in class Y. Please see Comment 4.
+
+	selection = "fooY";
+	//y.bar(Y::fooY)
+	//         ^^^^
+
+	start = str.lastIndexOf(selection);
+	length = selection.length();
+
+	// Unable to find element without fix.
+	elements = this.wc.codeSelect(start, length);
+	assertElementsEqual(
+		"Unexpected elements",
+		"fooY() [in Y [in [Working copy] X.java [in <default> [in src [in Resolve]]]]]",
+		elements);
 }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -30,6 +30,7 @@ import org.eclipse.jdt.internal.core.JavaModelManager;
 /**
  * Basic tests of the image builder.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class BasicBuildTests extends BuilderTests {
 	public BasicBuildTests(String name) {
 		super(name);
@@ -573,36 +574,40 @@ public class BasicBuildTests extends BuilderTests {
 	}
 	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=386901
 	public void testbBug386901() throws JavaModelException {
-		IPath projectPath = env.addProject("Project"); //$NON-NLS-1$
-		env.addExternalJars(projectPath, Util.getJavaClassLibs());
-
-		// remove old package fragment root so that names don't collide
-		env.removePackageFragmentRoot(projectPath, ""); //$NON-NLS-1$
-
-		IPath root = env.addPackageFragmentRoot(projectPath, "src"); //$NON-NLS-1$
-		env.setOutputFolder(projectPath, "bin"); //$NON-NLS-1$
-
-		env.addClass(root, "p", "AA", //$NON-NLS-1$ //$NON-NLS-2$
-			"package p;	\n"+ //$NON-NLS-1$
-			"public class AA {}	\n"+ //$NON-NLS-1$
-			"class AZ {}"); //$NON-NLS-1$
-
-		IPath pathToAB = env.addClass(root, "p", "AB", //$NON-NLS-1$ //$NON-NLS-2$
-			"package p;	\n"+ //$NON-NLS-1$
-			"public class AB extends AZ {}"); //$NON-NLS-1$
-
+		
 		int previous = org.eclipse.jdt.internal.core.builder.AbstractImageBuilder.MAX_AT_ONCE;
-		org.eclipse.jdt.internal.core.builder.AbstractImageBuilder.MAX_AT_ONCE = 1; // units compiled in batches of '1' unit
-		fullBuild(projectPath);
-		expectingProblemsFor(
-				pathToAB,
-				"Problem : AZ cannot be resolved to a type [ resource : </Project/src/p/AB.java> range : <36,38> category : <40> severity : <2>]"
-			);
+		try {
+			IPath projectPath = env.addProject("Project"); //$NON-NLS-1$
+			env.addExternalJars(projectPath, Util.getJavaClassLibs());
 
-		org.eclipse.jdt.internal.core.builder.AbstractImageBuilder.MAX_AT_ONCE = 0; // All units compiled at once
-		fullBuild(projectPath);
-		expectingNoProblems();
-		assertEquals("Incorrect value", 0, previous);
+			// remove old package fragment root so that names don't collide
+			env.removePackageFragmentRoot(projectPath, ""); //$NON-NLS-1$
+
+			IPath root = env.addPackageFragmentRoot(projectPath, "src"); //$NON-NLS-1$
+			env.setOutputFolder(projectPath, "bin"); //$NON-NLS-1$
+
+			env.addClass(root, "p", "AB", //$NON-NLS-1$ //$NON-NLS-2$
+				"package p;	\n"+ //$NON-NLS-1$
+				"public class AB {}	\n"+ //$NON-NLS-1$
+				"class AZ {}"); //$NON-NLS-1$
+
+			IPath pathToAA = env.addClass(root, "p", "AA", //$NON-NLS-1$ //$NON-NLS-2$
+				"package p;	\n"+ //$NON-NLS-1$
+				"public class AA extends AZ {}"); //$NON-NLS-1$
+
+			org.eclipse.jdt.internal.core.builder.AbstractImageBuilder.MAX_AT_ONCE = 1; // units compiled in batches of '1' unit
+			fullBuild(projectPath);
+			expectingProblemsFor(
+					pathToAA,
+					"Problem : AZ cannot be resolved to a type [ resource : </Project/src/p/AA.java> range : <36,38> category : <40> severity : <2>]"
+				);
+
+			org.eclipse.jdt.internal.core.builder.AbstractImageBuilder.MAX_AT_ONCE = 0; // All units compiled at once
+			fullBuild(projectPath);
+			expectingNoProblems();
+		} finally {
+			org.eclipse.jdt.internal.core.builder.AbstractImageBuilder.MAX_AT_ONCE = previous;
+		}
 	}
 	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=425420
 	public void testBug425420() throws JavaModelException {

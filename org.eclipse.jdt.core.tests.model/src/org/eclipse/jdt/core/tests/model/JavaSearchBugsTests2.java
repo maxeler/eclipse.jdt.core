@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 IBM Corporation and others.
+ * Copyright (c) 2014, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -27,6 +27,8 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -35,6 +37,7 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.core.search.matching.MethodPattern;
 
 // The size of JavaSearchBugsTests.java is very big, Hence continuing here.
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class JavaSearchBugsTests2 extends AbstractJavaSearchTests {
 
 	public JavaSearchBugsTests2(String name) {
@@ -1686,6 +1689,110 @@ public class JavaSearchBugsTests2 extends AbstractJavaSearchTests {
 			assertSearchResults("libStuff.jar int p2.B.test(T) [No source] EXACT_MATCH"); // an NPE was thrown without the fix
 		} finally {
 			deleteProject("P");
+		}
+	}
+	/**
+	 * @bug 423409: [search] Search shows references to fields as potential matches
+	 * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=423409"
+	 */
+	public void testBug423409() throws CoreException, JavaModelException {
+		try {
+			createJavaProject("P", new String[] { "src" },
+					new String[] {"JCL_LIB"}, "bin");
+			createFolder("/P/src/com/test");
+			createFile("/P/src/com/test/Test2.java",
+					"package com.test;\n" +
+							"\n" +
+							"class Test2 {\n" +
+							"	public static final FI fi/*here*/ = null; // find references of 'fi' via Ctrl+Shift+G\n" +
+							"	\n" +
+							"	{\n" +
+							"		fun1(fi);\n" +
+							"	}\n" +
+							"	\n" +
+							"	private FI fun1(FI x) {\n" +
+							"		System.out.println(fi);\n" +
+							"		return fi;\n" +
+							"	}\n" +
+							"}\n" );
+			createFile("/P/src/com/test/Test1.java",
+					"package com.test;\n" +
+							"\n" +
+							"class Test1 {\n" +
+							"	public static final FI fi = null;\n" +
+							"}\n" );
+			createFile("/P/src/com/test/T.java",
+					"package com.test;\n" +
+							"\n" +
+							"interface FI {\n" +
+							"	int foo(int x);\n" +
+							"}\n");
+			waitUntilIndexesReady();
+			IType type = getCompilationUnit("/P/src/com/test/Test2.java").getType("Test2");
+			IJavaElement field = type.getField("fi");
+			search(field, REFERENCES, EXACT_RULE, SearchEngine.createWorkspaceScope(), this.resultCollector);
+
+			assertSearchResults(
+					"src/com/test/Test2.java com.test.Test2.{} [fi] EXACT_MATCH\n" + 
+					"src/com/test/Test2.java FI com.test.Test2.fun1(FI) [fi] EXACT_MATCH\n" + 
+					"src/com/test/Test2.java FI com.test.Test2.fun1(FI) [fi] EXACT_MATCH");
+		} finally {
+			deleteProject("P");
+		}
+	}
+	public void testBug381392() throws CoreException {
+		IJavaProject egit = null;
+		IJavaProject jgit = null;
+		try	{
+			jgit = createJavaProject("jgit", new String[] {""}, new String[] {"JCL15_LIB"}, "","1.5");
+			createFolder("/jgit/base");
+			createFile("/jgit/base/AbstractPlotRenderer.java", 
+					"package base;\n" +
+					"public abstract class AbstractPlotRenderer<TLane extends PlotLane, TColor> {\n"+
+					"	protected abstract TColor laneColor(TLane myLane);\n"+
+					"\n"+
+					"	@SuppressWarnings(\"unused\")\n"+
+					"	protected void paintCommit(final PlotCommit<TLane> commit) {\n"+
+					"		final TLane myLane = commit.getLane();\n"+
+					"		final TColor myColor = laneColor(myLane);\n"+
+					"	}\n"+
+					"}\n");
+			createFile("/jgit/base/PlotCommit.java", 
+					"package base;\n"+
+					"public class PlotCommit<L extends PlotLane> {\n"+
+					"	public L getLane() {\n"+
+					"		return null;\n"+
+					"	}\n"+
+					"}");
+			createFile("/jgit/base/PlotLane.java", 
+					"package base;\n"+
+					"public class PlotLane {\n"+
+					"}");
+			egit = createJavaProject("egit", new String[] {""}, new String[] {"JCL15_LIB"}, "","1.5");
+			createFolder("/egit/bug");
+			createFile("/egit/bug/SWTPlotLane.java", 
+					"package bug;\n" +
+					"import base.PlotLane;\n" +
+					"public class SWTPlotLane extends PlotLane {}");
+			createFile("/egit/bug/SWTPlotRenderer.java", 
+					"package bug;\n" +
+					"import base.AbstractPlotRenderer;\n" +
+					"class SWTPlotRenderer extends AbstractPlotRenderer<SWTPlotLane, Integer> {\n" +
+					"    @Override\n" +
+					"    protected Integer laneColor(SWTPlotLane myLane) {\n" +
+					"        return 1;\n" +
+					"    }\n" +
+					"}");
+			addClasspathEntry(egit, JavaCore.newProjectEntry(jgit.getPath()));
+			
+			// search
+			IType type  = getCompilationUnit("/egit/bug/SWTPlotRenderer.java").getType("SWTPlotRenderer");
+			IMethod method = type.getMethods()[0];
+			search(method, REFERENCES, EXACT_RULE, SearchEngine.createWorkspaceScope(), this.resultCollector);
+			assertSearchResults("base/AbstractPlotRenderer.java void base.AbstractPlotRenderer.paintCommit(PlotCommit<TLane>) [laneColor(myLane)] EXACT_MATCH");
+		} finally {
+			if (jgit != null) deleteProject(jgit);
+			if (egit != null) deleteProject(egit);
 		}
 	}
 }

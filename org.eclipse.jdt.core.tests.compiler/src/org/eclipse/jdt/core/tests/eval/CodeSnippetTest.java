@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,6 +26,7 @@ import org.eclipse.jdt.internal.eval.IRequestor;
  * This assumes that the EvaluationContext class and that the EvaluationResult class
  * are working correctly.
  */
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class CodeSnippetTest extends EvaluationTest {
 /**
  * Creates a new CodeSnippetTest.
@@ -56,7 +57,6 @@ public Map getCompilerOptions() {
 	defaultOptions.put(CompilerOptions.OPTION_SourceFileAttribute, CompilerOptions.DO_NOT_GENERATE);
 	defaultOptions.put(CompilerOptions.OPTION_ReportUnusedLocal, CompilerOptions.WARNING);
 	defaultOptions.put(CompilerOptions.OPTION_ReportUnusedImport, CompilerOptions.IGNORE);
-	defaultOptions.put(CompilerOptions.OPTION_ReportUnusedParameter, CompilerOptions.WARNING);
 	defaultOptions.put(CompilerOptions.OPTION_ReportLocalVariableHiding, CompilerOptions.WARNING);
 	defaultOptions.put(CompilerOptions.OPTION_ReportUnusedPrivateMember, CompilerOptions.IGNORE);
 	defaultOptions.put(CompilerOptions.OPTION_ReportPossibleAccidentalBooleanAssignment, CompilerOptions.WARNING);

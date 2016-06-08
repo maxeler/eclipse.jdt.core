@@ -33,16 +33,15 @@ import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaCompiler;
+import javax.tools.JavaCompiler.CompilationTask;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
+import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
-import javax.tools.JavaCompiler.CompilationTask;
-import javax.tools.JavaFileObject.Kind;
 
 import junit.framework.TestCase;
-import junit.framework.TestSuite;
 
 import org.eclipse.jdt.compiler.tool.tests.AbstractCompilerToolTest.CompilerInvocationDiagnosticListener;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
@@ -56,27 +55,8 @@ public class CompilerToolTests extends TestCase {
 	public CompilerToolTests(String name) {
 		super(name);
 	}
-	public static TestSuite suite() {
-		TestSuite suite = new TestSuite();
-		suite.addTest(new CompilerToolTests("testInitializeJavaCompiler"));
-		suite.addTest(new CompilerToolTests("testFileManager"));
-		suite.addTest(new CompilerToolTests("testFileManager2"));
-		suite.addTest(new CompilerToolTests("testInferBinaryName"));
-		suite.addTest(new CompilerToolTests("testCheckOptions"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithSystemCompiler"));
-//		suite.addTest(new CompilerToolTests("testCompilerOneClassWithSystemCompiler2"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler2"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler3"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler4"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler5"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler6"));
-		suite.addTest(new CompilerToolTests("testCompilerOneClassWithEclipseCompiler7"));
-		suite.addTest(new CompilerToolTests("testCleanUp"));
-		return suite;
-	}
 
-	private static JavaCompiler Compiler;
+	private JavaCompiler compiler;
 	static final String[] ONE_ARG_OPTIONS = {
 		"-cp",
 		"-classpath",
@@ -102,6 +82,9 @@ public class CompilerToolTests extends TestCase {
 		"-1.5",
 		"-1.6",
 		"-1.7",
+		"-1.8",
+		"-8",
+		"-8.0",
 		"-7",
 		"-7.0",
 		"-6",
@@ -141,6 +124,7 @@ public class CompilerToolTests extends TestCase {
 		"-proc:none",
 		"-proc:only",
 		"-parameters",
+		"-genericsignature"
 	};
 static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] { 
 	// a series of fake options to test the behavior upon ignored and 
@@ -159,31 +143,34 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		}
 	}
 
-	/*
-	 * Initialize the compiler for all the tests
-	 */
-	public void testInitializeJavaCompiler() {
+	@Override
+	protected void setUp() throws Exception {
 		ServiceLoader<JavaCompiler> javaCompilerLoader = ServiceLoader.load(JavaCompiler.class);//, EclipseCompiler.class.getClassLoader());
 		int compilerCounter = 0;
 		for (JavaCompiler javaCompiler : javaCompilerLoader) {
 			compilerCounter++;
 			if (javaCompiler instanceof EclipseCompiler) {
-				Compiler = javaCompiler;
+				compiler = javaCompiler;
 			}
 		}
 		assertEquals("Only one compiler available", 1, compilerCounter);
 	}
 
+	@Override
+	protected void tearDown() throws Exception {
+		compiler = null;
+	}
+
 	public void testCheckOptions() {
-		assertNotNull("No compiler found", Compiler);
+		assertNotNull("No compiler found", compiler);
 		for (String option : ONE_ARG_OPTIONS) {
-			assertEquals(option + " requires 1 argument", 1, Compiler.isSupportedOption(option));
+			assertEquals(option + " requires 1 argument", 1, compiler.isSupportedOption(option));
 		}
 		for (String option : ZERO_ARG_OPTIONS) {
-			assertEquals(option + " requires no argument", 0, Compiler.isSupportedOption(option));
+			assertEquals(option + " requires no argument", 0, compiler.isSupportedOption(option));
 		}
 		for (String option : FAKE_ZERO_ARG_OPTIONS) {
-			assertEquals(option + " requires no argument", 0, Compiler.isSupportedOption(option));
+			assertEquals(option + " requires no argument", 0, compiler.isSupportedOption(option));
 		}
 	}
 
@@ -217,7 +204,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		// System compiler
 		StandardJavaFileManager manager = systemCompiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 
-		ForwardingJavaFileManager<StandardJavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<StandardJavaFileManager>(manager) {
+		ForwardingJavaFileManager<JavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<JavaFileManager>(manager) {
 			@Override
 			public FileObject getFileForInput(Location location, String packageName, String relativeName)
 					throws IOException {
@@ -276,7 +263,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 	 * Run the system compiler using the Eclipse java file manager
 	 * TODO need to investigate why rt.jar gets removed from the PLATFORM_CLASSPATH location
 	 */
-	public void _testCompilerOneClassWithSystemCompiler2() {
+	public void testCompilerOneClassWithSystemCompiler2() {
 		// System compiler
 		JavaCompiler systemCompiler = ToolProvider.getSystemJavaCompiler();
 		if (systemCompiler == null) {
@@ -304,10 +291,9 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 				}
 			}
 		}
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 
-		@SuppressWarnings("resource")
-		ForwardingJavaFileManager<StandardJavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<StandardJavaFileManager>(manager) {
+		ForwardingJavaFileManager<JavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<JavaFileManager>(manager) {
 			@Override
 			public FileObject getFileForInput(Location location, String packageName, String relativeName)
 					throws IOException {
@@ -339,8 +325,29 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 				}
 				return javaFileForOutput;
 			}
+			@Override
+			public String inferBinaryName(Location location, JavaFileObject file) {
+				String binaryName = super.inferBinaryName(location, file);
+				if (DEBUG) {
+					System.out.println("binary name: " + binaryName);
+				}
+				return binaryName;
+			}
+			@Override
+			public Iterable<JavaFileObject> list(Location location, String packageName, Set<Kind> kinds, boolean recurse)
+					throws IOException {
+				Iterable<JavaFileObject> list = super.list(location, packageName, kinds, recurse);
+				if (DEBUG) {
+					System.out.println("start list: ");
+					for (JavaFileObject fileObject : list) {
+						System.out.println(fileObject.getName());
+					}
+					System.out.println("end   list: ");
+				}
+				return list;
+			}
 		};
-		// create new list containing inputfile
+		// create new list containing input file
 		List<File> files = new ArrayList<File>();
 		files.add(inputFile);
 		Iterable<? extends JavaFileObject> units = manager.getJavaFileObjectsFromFiles(files);
@@ -350,7 +357,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		List<String> options = new ArrayList<String>();
 		options.add("-d");
 		options.add(tmpFolder);
-		CompilationTask task = systemCompiler.getTask(printWriter, manager, null, options, null, units);
+		CompilationTask task = systemCompiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
 
 		if (DEBUG) {
 			System.out.println("Has location CLASS_OUPUT : " + forwardingJavaFileManager.hasLocation(StandardLocation.CLASS_OUTPUT));
@@ -391,9 +398,25 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		// System compiler
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 
 		ForwardingJavaFileManager<StandardJavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<StandardJavaFileManager>(manager) {
+			@Override
+			public FileObject getFileForInput(Location location, String packageName, String relativeName)
+					throws IOException {
+				if (DEBUG) {
+					System.out.println("Create file for input : " + packageName + " " + relativeName + " in location " + location);
+				}
+				return super.getFileForInput(location, packageName, relativeName);
+			}
+			@Override
+			public JavaFileObject getJavaFileForInput(Location location, String className, Kind kind)
+					throws IOException {
+				if (DEBUG) {
+					System.out.println("Create java file for input : " + className + " in location " + location);
+				}
+				return super.getJavaFileForInput(location, className, kind);
+			}
 			@Override
 			public JavaFileObject getJavaFileForOutput(Location location,
 					String className,
@@ -401,7 +424,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 					FileObject sibling) throws IOException {
 
 				if (DEBUG) {
-					System.out.println("EC: Create .class file for " + className + " in location " + location + " with sibling " + sibling.toUri());
+					System.out.println("Create .class file for " + className + " in location " + location + " with sibling " + sibling.toUri());
 				}
 				JavaFileObject javaFileForOutput = super.getJavaFileForOutput(location, className, kind, sibling);
 				if (DEBUG) {
@@ -410,7 +433,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 				return javaFileForOutput;
 			}
 		};
-		// create new list containing inputfile
+		// create new list containing input file
 		List<File> files = new ArrayList<File>();
 		files.add(inputFile);
 		Iterable<? extends JavaFileObject> units = manager.getJavaFileObjectsFromFiles(files);
@@ -420,7 +443,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		List<String> options = new ArrayList<String>();
 		options.add("-d");
 		options.add(tmpFolder);
- 		CompilationTask task = Compiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
+ 		CompilationTask task = compiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
  		// check the classpath location
  		assertTrue("Has no location CLASS_OUPUT", forwardingJavaFileManager.hasLocation(StandardLocation.CLASS_OUTPUT));
 		Boolean result = task.call();
@@ -467,7 +490,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		// System compiler
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 
 		ForwardingJavaFileManager<StandardJavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<StandardJavaFileManager>(manager) {
 			@Override
@@ -497,7 +520,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		options.add("-d");
 		options.add(tmpFolder);
 		options.add("-1.5");
- 		CompilationTask task = Compiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
+ 		CompilationTask task = compiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
  		// check the classpath location
  		assertTrue("Has no location CLASS_OUPUT", forwardingJavaFileManager.hasLocation(StandardLocation.CLASS_OUTPUT));
 		Boolean result = task.call();
@@ -522,7 +545,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 
 		stringWriter = new StringWriter();
 		printWriter = new PrintWriter(stringWriter);
-		task = Compiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
+		task = compiler.getTask(printWriter, forwardingJavaFileManager, null, options, null, units);
 		// check the classpath location
 		assertTrue("Has no location CLASS_OUPUT", forwardingJavaFileManager.hasLocation(StandardLocation.CLASS_OUTPUT));
 		result = task.call();
@@ -559,7 +582,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		// System compiler
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 
 		@SuppressWarnings("resource")
 		ForwardingJavaFileManager<StandardJavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<StandardJavaFileManager>(manager) {
@@ -589,7 +612,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		List<String> options = new ArrayList<String>();
 		options.add("-d");
 		options.add(tmpFolder);
- 		CompilationTask task = Compiler.getTask(printWriter, manager, null, options, null, units);
+ 		CompilationTask task = compiler.getTask(printWriter, manager, null, options, null, units);
  		// check the classpath location
  		assertTrue("Has no location CLASS_OUPUT", forwardingJavaFileManager.hasLocation(StandardLocation.CLASS_OUTPUT));
 		Boolean result = task.call();
@@ -649,7 +672,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		List<String> options = new ArrayList<String>();
 		options.add("-d");
 		options.add(tmpFolder);
-		CompilationTask task = Compiler.getTask(null, null, null, options, null, units);
+		CompilationTask task = compiler.getTask(null, null, null, options, null, units);
 		// check the classpath location
 		Boolean result = task.call();
 		printWriter.flush();
@@ -686,7 +709,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		// System compiler
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 		List<File> files = new ArrayList<File>();
 		files.add(inputFile);
 		Iterable<? extends JavaFileObject> units = manager.getJavaFileObjectsFromFiles(files);
@@ -697,7 +720,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		ByteArrayOutputStream errBuffer = new ByteArrayOutputStream();
 		PrintWriter err = new PrintWriter(errBuffer);
 		CompilerInvocationDiagnosticListener compilerInvocationDiagnosticListener = new CompilerInvocationDiagnosticListener(err);
-		CompilationTask task = Compiler.getTask(null, manager, compilerInvocationDiagnosticListener, options, null, units);
+		CompilationTask task = compiler.getTask(null, manager, compilerInvocationDiagnosticListener, options, null, units);
 		// check the classpath location
 		Boolean result = task.call();
 		err.flush();
@@ -738,7 +761,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		// System compiler
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 		List<File> files = new ArrayList<File>();
 		files.add(inputFile);
 		Iterable<? extends JavaFileObject> units = manager.getJavaFileObjectsFromFiles(files);
@@ -758,7 +781,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 				super.report(diagnostic);
 			}
 		};
-		CompilationTask task = Compiler.getTask(null, manager, compilerInvocationDiagnosticListener, options, null, units);
+		CompilationTask task = compiler.getTask(null, manager, compilerInvocationDiagnosticListener, options, null, units);
 		// check the classpath location
 		Boolean result = task.call();
 		err.flush();
@@ -796,7 +819,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		// System compiler
-		StandardJavaFileManager manager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+		StandardJavaFileManager manager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 		List<File> files = new ArrayList<File>();
 		files.add(inputFile);
 		Iterable<? extends JavaFileObject> units = manager.getJavaFileObjectsFromFiles(files);
@@ -816,7 +839,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 				super.report(diagnostic);
 			}
 		};
-		CompilationTask task = Compiler.getTask(null, manager, compilerInvocationDiagnosticListener, options, null, units);
+		CompilationTask task = compiler.getTask(null, manager, compilerInvocationDiagnosticListener, options, null, units);
 		// check the classpath location
 		Boolean result = task.call();
 		err.flush();
@@ -852,7 +875,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 			}
 		}
 		try {
-			StandardJavaFileManager fileManager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 	
 			List<File> fins = new ArrayList<File>();
 			fins.add(dir);
@@ -901,7 +924,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		}
 		try {
 			//JavaCompiler systemCompiler = ToolProvider.getSystemJavaCompiler();
-			StandardJavaFileManager fileManager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 	
 			List<File> fins = new ArrayList<File>();
 			fins.add(dir);
@@ -986,7 +1009,7 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 		}
 		try {
 			//JavaCompiler systemCompiler = ToolProvider.getSystemJavaCompiler();
-			StandardJavaFileManager fileManager = Compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
+			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, Locale.getDefault(), Charset.defaultCharset());
 	
 			List<File> fins = new ArrayList<File>();
 			fins.add(dir);
@@ -1024,6 +1047,6 @@ static final String[] FAKE_ZERO_ARG_OPTIONS = new String[] {
 	 * Clean up the compiler
 	 */
 	public void testCleanUp() {
-		Compiler = null;
+		compiler = null;
 	}
 }

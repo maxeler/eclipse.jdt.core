@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import junit.framework.Test;
-import junit.framework.TestSuite;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
@@ -27,6 +26,7 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
+import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.ReferenceMatch;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -42,6 +42,7 @@ import org.eclipse.jdt.internal.core.search.matching.MethodPattern;
 /**
  * Non-regression tests for bugs fixed in Java Search engine.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class JavaSearchBugs8Tests extends AbstractJavaSearchTests {
 
 	static {
@@ -54,133 +55,7 @@ public JavaSearchBugs8Tests(String name) {
 	this.endChar = "";
 }
 public static Test suite() {
-	if (TESTS_PREFIX != null || TESTS_NAMES != null || TESTS_NUMBERS!=null || TESTS_RANGE !=null) {
-		return buildModelTestSuite(JavaSearchBugs8Tests.class);
-	}
-	// hack to guarantee the test order
-	TestSuite suite = new Suite(JavaSearchBugs8Tests.class.getName());
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g1"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g2"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g3"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g4"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g5"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g6"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g7"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g8"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g9"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g10"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g12"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g13"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g14"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g15"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g16"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g17"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g18"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g20"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g22"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g23"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g24"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g25"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g26"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g27"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g28"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g29"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g30"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g31"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g32"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g33"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g34"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g35"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g36"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g37"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400899g38"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400902"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug424119_001"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug424119_002"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug424119_003"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug427537a"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug427677"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0001"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0001a"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0002"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0003"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0004"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0005"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0006"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0007"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0008"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0009"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0010"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0011"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0012"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0013"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0014"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400904_0015"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0001"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0002"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0003"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0004"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0005"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0006"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0007"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0007a"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0008"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0009"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0010"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0011"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0012"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013a"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013b"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013c"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013d"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013e"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0013f"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0014"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0015"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0016"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0017"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0018"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0019"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0020"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0021"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0022"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0023"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0024"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0025"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0026"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0027"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0028"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0029"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug400905_0030"));
-	suite.addTest(new JavaSearchBugs8Tests("test429738"));
-	suite.addTest(new JavaSearchBugs8Tests("test429738a"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429836"));
-	suite.addTest(new JavaSearchBugs8Tests("test429934"));
-	suite.addTest(new JavaSearchBugs8Tests("test430159a"));
-	suite.addTest(new JavaSearchBugs8Tests("test430159b"));
-	suite.addTest(new JavaSearchBugs8Tests("test430159c"));
-	suite.addTest(new JavaSearchBugs8Tests("test430159d"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0001"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0002"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0003"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0004"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0005"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0006"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0007"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0008"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0009"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0010"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0011"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0012"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0013"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0014"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0015"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0016"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0017"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug429012_0018"));
-	suite.addTest(new JavaSearchBugs8Tests("testBug431716"));
-	return suite;
+	return buildModelTestSuite(JavaSearchBugs8Tests.class, BYTECODE_DECLARATION_ORDER);
 }
 class TestCollector extends JavaSearchResultCollector {
 	public List matches = new ArrayList();
@@ -881,6 +756,7 @@ this.workingCopies = new ICompilationUnit[1];
 this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400899/X.java",
 		"import java.lang.annotation.ElementType;\n" +
 		"import java.lang.annotation.Target;\n" +
+		"import java.util.Map;\n" +
 		"public class X {\n" +
 		"	void foo(Map<@Marker ? super @Marker Object, @Marker ? extends @Marker String> m){}\n" +
 		"   void goo(Map<@Marker ? extends @Marker Object, @Marker ? super @Marker String> m){}\n" +
@@ -1541,8 +1417,8 @@ this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400899/X.java",
 		"public class X {\n" +
 		"    Object o = (@Marker X) null;\n" +
 		"    Object p = (@Marker X @Marker []) null;\n" +
-		"    Object q = (@Marker java. @Marker util. @Marker List<@Marker String> []) null;\n" +
-		"    Object r = (@Marker java. @Marker util.@Marker Map<@Marker String, @Marker String>.@Marker Entry @Marker []) null;\n" +
+		"    Object q = (java.util. @Marker List<@Marker String> []) null;\n" +
+		"    Object r = (java.util.Map.@Marker Entry @Marker []) null;\n" +
 		"}\n" +
  		"@Target(ElementType.TYPE_USE)\n" +	
 		"@interface Marker {}\n"
@@ -1563,13 +1439,6 @@ assertSearchResults(
 		"src/b400899/X.java b400899.X.p [Marker] EXACT_MATCH\n" + 
 		"src/b400899/X.java b400899.X.q [Marker] EXACT_MATCH\n" + 
 		"src/b400899/X.java b400899.X.q [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.q [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.q [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH\n" + 
-		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH\n" + 
 		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH\n" + 
 		"src/b400899/X.java b400899.X.r [Marker] EXACT_MATCH"
 );	
@@ -2521,8 +2390,8 @@ public void testBug400905_0004() throws CoreException {
 	assertSearchResults(
 					"src/b400905/I.java T b400905.I.foo() [foo] EXACT_MATCH\n" + 
 					"src/b400905/X.java b400905.Y void b400905.X.main(String[]):<lambda #1>.foo() [() /* foo */ ->] EXACT_MATCH\n" + 
-					"src/b400905/X.java b400905.Y void b400905.X.main(String[]):<lambda #1>.foo() [() /* true */->] EXACT_MATCH\n" + 
-					"src/b400905/X.java b400905.Y void b400905.X.main(String[]):<lambda #1>.foo() [() /* false */ ->] EXACT_MATCH\n" + 
+					"src/b400905/X.java b400905.Y void b400905.X.main(String[]):<lambda #1>.foo() [(() /* true */->] EXACT_MATCH\n" + 
+					"src/b400905/X.java b400905.Y void b400905.X.main(String[]):<lambda #1>.foo() [(() /* false */ ->] EXACT_MATCH\n" + 
 					"src/b400905/X.java java.lang.Object void b400905.X.main(String[]):<lambda #1>.foo() [() /* cast */ ->] EXACT_MATCH"
 	);	
 }
@@ -4469,6 +4338,347 @@ public void testBug431716() throws CoreException {
 			this.resultCollector,
 			null);
 }
+/**
+ * @bug 432541:  Stack Overflow in Java Search - type inference issue?
+ * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=432541"
+ */
+public void testBug432541() throws CoreException {
+this.workingCopies = new ICompilationUnit[8];
+this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/Constants.java",
+		"final class Constants {\n" +
+		"    static final String BUG_NAME =  \"BUG 432541\";\n" +
+		"}\n"	
+	);
+this.workingCopies[1] = getWorkingCopy("/JavaSearchBugs/src/Constants.java",
+		"package test;\n" +
+		"public class Constants { public static final String ANY_NAMESPACE_ANY = \"UNRELATED\";}"
+		);
+this.workingCopies[2] = getWorkingCopy("/JavaSearchBugs/src/Context.java",
+		"package test;\n" +
+		"public abstract class Context <  DESCRIPTOR extends Descriptor<?, ?>> {}"
+		);
+this.workingCopies[3] = getWorkingCopy("/JavaSearchBugs/src/CoreObjectBuilder.java",
+		"package test;\n" +
+		"public abstract class CoreObjectBuilder {}\n"
+		);
+this.workingCopies[4] = getWorkingCopy("/JavaSearchBugs/src/Descriptor.java",
+		"package test;\n" +
+		"\n" +
+		"public interface Descriptor <UNMARSHAL_RECORD extends UnmarshalRecord, OBJECT_BUILDER extends CoreObjectBuilder> {\n" +
+		"	public default OBJECT_BUILDER getObjectBuilder() { return null; }\n" +
+		"}\n"
+		);
+this.workingCopies[5] = getWorkingCopy("/JavaSearchBugs/src/Unmarshaller.java",
+		"package test;\n" +
+		"\n" +
+		"public abstract class Unmarshaller<CONTEXT extends Context, DESCRIPTOR extends Descriptor> {\n" +
+		"   public CONTEXT getContext() {\n" +
+		"	   return null;\n" +
+		"   }\n" +
+		"}\n"
+		);
+this.workingCopies[6] = getWorkingCopy("/JavaSearchBugs/src/UnmarshalRecord.java",
+		"package test;\n" +
+		"\n" +
+		"public interface UnmarshalRecord<UNMARSHALLER extends Unmarshaller> {\n" +
+		"    public UNMARSHALLER getUnmarshaller();\n" +
+		"    public default void setAttrs() {}\n" +
+		"}\n"
+		);
+this.workingCopies[7] = getWorkingCopy("/JavaSearchBugs/src/XMLRelationshipMappingNodeValue.java",
+		"package test;\n" +
+		"interface CMap<UNMARSHALLER extends Unmarshaller> {\n" +
+		"    Object convertToValue( UNMARSHALLER unmarshaller);\n" +
+		"}\n" +
+		"public abstract class XMLRelationshipMappingNodeValue {\n" +
+		"	public void processChild(Descriptor xmlDescriptor, UnmarshalRecord unmarshalRecord) {\n" +
+		"		if (Constants.ANY_NAMESPACE_ANY.toCharArray().length > 0) {\n" +
+		"			Descriptor d1 = (Descriptor) xmlDescriptor.getObjectBuilder();\n" +
+		"		}\n" +
+		"	}\n" +
+		"	protected Descriptor findReferenceDescriptor(UnmarshalRecord unmarshalRecord, Descriptor descriptor) {\n" +
+		"		if (Constants.ANY_NAMESPACE_ANY.toCharArray().length > 0) {\n" +
+		"			Context xmlContext = unmarshalRecord.getUnmarshaller().getContext();			\n" +
+		"		}\n" +
+		"		return null;\n" +
+		"	}\n" +
+		"	\n" +
+		"	protected void endElementProcessText(UnmarshalRecord unmarshalRecord, CMap converter) {\n" +
+		"		if (Constants.ANY_NAMESPACE_ANY.toCharArray().length > 0) {\n" +
+		"			converter.convertToValue(unmarshalRecord.getUnmarshaller());\n" +
+		"		}\n" +
+		"	}\n" +
+		"}\n"
+		);
+SearchPattern pattern = SearchPattern.createPattern(
+		"Constants",
+		TYPE,
+		REFERENCES,
+		EXACT_RULE);
+new SearchEngine(this.workingCopies).search(pattern,
+new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+getJavaSearchWorkingCopiesScope(),
+this.resultCollector,
+null);
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=435480
+//[1.8][search] search in method reference expressions finds annotation element name
+public void testBug435480_0001() throws CoreException {
+	this.workingCopies = new ICompilationUnit[1];
+	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/X.java",
+			"import java.lang.annotation.*;\n" +
+					"@Documented\n" +
+					"@Retention(RetentionPolicy.RUNTIME)\n" +
+					"@Target(value={})\n" +
+					"public @interface Ann1 {\n" +
+					"}"
+	);
+
+	MethodPattern pattern = (MethodPattern) SearchPattern.createPattern("*", IMPLEMENTORS, IJavaSearchConstants.METHOD_REFERENCE_EXPRESSION, EXACT_RULE );
+
+	new SearchEngine(this.workingCopies).search(pattern,
+			new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+			getJavaSearchWorkingCopiesScope(),
+			this.resultCollector,
+			null);
+	assertSearchResults("");
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=435480
+//[1.8][search] search in method reference expressions finds annotation element name
+public void testBug435480_0002() throws CoreException {
+	try
+	{
+		IJavaProject project = createJavaProject("P", new String[] { "", "src"}, new String[] {"JCL18_LIB"}, null, null, "bin", null, null, new String[][] {new String[] {"src/"}, new String[0]}, "1.8");
+		createFile("/P/src/X.java", 
+				"import java.lang.annotation.*;\n" +
+				"@Documented\n" +
+				"@Retention(RetentionPolicy.RUNTIME)\n" +
+				"@Target(value={})\n" +
+				"public @interface Ann1 {\n" +
+				"}\n");
+		MethodPattern pattern = (MethodPattern) SearchPattern.createPattern("*", IMPLEMENTORS, IJavaSearchConstants.METHOD_REFERENCE_EXPRESSION, EXACT_RULE );
+
+		int mask = IJavaSearchScope.SOURCES ;
+		IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] { project }, mask);
+		new SearchEngine(this.workingCopies).search(pattern,
+				new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+				scope,
+				this.resultCollector,
+				null);
+		assertSearchResults("");
+	} finally {
+		deleteProject("P");
+	}
+}
+/**
+ * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=454401"
+ */
+public void testBug454401() throws CoreException, JavaModelException {
+	try {
+		createJavaProject("P", new String[] { "src" },
+				new String[] {"JCL_LIB"}, "bin");
+		createFolder("/P/src/com/test");
+		createFile("/P/src/com/test/X.java",
+				"package com.test;\n" +
+						"public class X { \n"+
+						" \n"+
+						"	private class Y { \n"+
+						"		private class P { \n"+
+						"			 \n"+
+						"		} \n"+
+						"		@SuppressWarnings(\"unused\") \n"+
+						"		public void t1(P p) { \n"+
+						"			t2(p); \n"+
+						"		} \n"+
+						"		protected void t2(P p) { \n"+
+						"			 \n"+
+						"		} \n"+
+						"	} \n"+
+						"	public void foo() { \n"+
+						"		Y y = new X().new Y(); \n"+
+						"		y.t2(y.new P()); \n"+
+						"	} \n"+
+						"	public static void main(String[] args) { \n"+
+						"		 \n"+
+						"	} \n"+
+						"}\n" );
+		waitUntilIndexesReady();
+		IType type = getCompilationUnit("/P/src/com/test/X.java").getType("X").getType("Y");
+		IMethod[] methods = type.getMethods();
+		
+		search(methods[1], REFERENCES, EXACT_RULE, SearchEngine.createWorkspaceScope(), this.resultCollector);
+
+		assertSearchResults("src/com/test/X.java void com.test.X.foo() [t2(y.new P())] EXACT_MATCH\n" + 
+			"src/com/test/X.java void com.test.X$Y.t1(P) [t2(p)] EXACT_MATCH");
+	} finally {
+		deleteProject("P");
+	}
+}
+public void testBug454411_001() throws CoreException {
+	this.workingCopies = new ICompilationUnit[1];
+	String content = 					
+			"package com.test;\n" +
+			"interface Function<T, R> { \n"+
+			"    R apply(T t); \n"+
+			"} \n"+
+			"interface I<T> extends Function<T, T> { \n"+
+			"    static <T> I<T> identity() { \n"+
+			"        return t -> t; \n"+
+			"    } \n"+
+			"} \n"+
+			" \n"+
+			"public class X { \n"+
+			"	private static class Multiplier { \n"+
+			"		private final long mMul; \n"+
+			" \n"+
+			"		public Multiplier(long iMul) { \n"+
+			"			this.mMul = iMul; \n"+
+			"		} \n"+
+			"		public <T, V> Long mul(Long iItem) { \n"+
+			"			return iItem * mMul; \n"+
+			"		} \n"+
+			"	} \n"+
+			" \n"+
+			"	private static void test(I<Long> iFn) { \n"+
+			"	} \n"+
+			" \n"+
+			"	public static <T, V> void main(String[] args) { \n"+
+			"		I<Long> mul/* here */ = (new Multiplier(3))::<T, V> mul; \n"+
+			"		X.test((new Multiplier(3))::<T, V> mul); \n"+
+			"	} \n"+
+			"}\n";
+	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b454411/X.java", content);
+	int start = content.indexOf("mul/* here */");
+	IJavaElement[] elements = this.workingCopies[0].codeSelect(start, "mul".length());
+	SearchPattern pattern = SearchPattern.createPattern(elements[0], DECLARATIONS);
+	try {
+		new SearchEngine(this.workingCopies).search(pattern,
+				new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+				getJavaSearchWorkingCopiesScope(),
+				this.resultCollector,
+				null);
+		assertSearchResults("src/b454411/X.java void b454411.X.main(String[]).mul [mul] EXACT_MATCH");
+	} catch (NullPointerException e) {
+		e.printStackTrace();
+		assertFalse("Test Failed", true);
+	}
+}
+
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=458614
+//[1.8][search] Constructor reference not found in search
+public void testBug458614_001() throws CoreException {
+	try {
+		// Create project and files
+		IJavaProject project = createJavaProject("P1", new String[] {"src"}, new String[] {"bin"}, "bin");
+		createFile(
+			"/P1/src/X.java",
+			"interface Function<T, R> {\n" +
+			"	R apply(T); \n" +
+			"};\n" +
+			"@SuppressWarnings(\"unused\")\n" +
+			"public class X<T> {\n" +
+			"	private void foo() {\n" +
+			"		Function<Integer, int[]> a1 = int[]::new;\n" +
+			"	}\n" +
+			"}\n");
+		waitUntilIndexesReady();
+
+		IndexManager indexManager = JavaModelManager.getIndexManager();
+		indexManager.indexAll(project.getProject());
+		waitUntilIndexesReady();
+
+		MethodPattern pattern = (MethodPattern) SearchPattern.createPattern("*", METHOD, IJavaSearchConstants.METHOD_REFERENCE_EXPRESSION, EXACT_RULE );
+
+		new SearchEngine(this.workingCopies).search(pattern,
+				new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+				SearchEngine.createWorkspaceScope(),
+				this.resultCollector,
+				null);
+		assertSearchResults("");
+	}
+	finally {
+		deleteProject("P1");
+	}
+}
+
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=458614
+//[1.8][search] Constructor reference not found in search
+public void testBug458614_002() throws CoreException {
+	try {
+		// Create project and files
+		IJavaProject project = createJavaProject("P1", new String[] {"src"}, new String[] {"bin"}, "bin");
+		createFile(
+			"/P1/src/X.java",
+			"interface Function<T, R> {\n" +
+			"	R apply(T); \n" +
+			"};\n" +
+			"//@SuppressWarnings(\"unused\")\n" +
+			"public class X<T> {\n" +
+			"	private void foo() {\n" +
+			"		Function<Integer, int[]> a1 = int[]::new;\n" +
+			"	}\n" +
+			"}\n");
+		waitUntilIndexesReady();
+
+		IndexManager indexManager = JavaModelManager.getIndexManager();
+		indexManager.indexAll(project.getProject());
+		waitUntilIndexesReady();
+
+		MethodPattern pattern = (MethodPattern) SearchPattern.createPattern("*new", METHOD, IJavaSearchConstants.METHOD_REFERENCE_EXPRESSION, EXACT_RULE );
+
+		new SearchEngine(this.workingCopies).search(pattern,
+				new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+				SearchEngine.createWorkspaceScope(),
+				this.resultCollector,
+				null);
+		assertSearchResults("");
+	}
+	finally {
+		deleteProject("P1");
+	}
+}
+
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=461025
+//[1.8][search] Constructor reference not found in search
+public void testBug461025_001() throws CoreException {
+this.workingCopies = new ICompilationUnit[1];
+this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/X.java",
+		"@FunctionalInterface\n" +
+		"interface Y<T> {\n" +
+		"    T get();\n" +
+		"}\n" +
+		"\n" +
+		"public class X {\n" +
+		"	public X() {}\n" +
+		"	public X(int i) {}\n" +
+		"\n" +
+		"	private void m1() {\n" +
+		"		Y<X> s1 = X::new;\n" +
+		"\n" +
+		"		Y<X> s2 = new Y<X>() {\n" +
+		"\n" +
+		"			@Override\n" +
+		"			public X get() {\n" +
+		"				return null;\n" +
+		"			}\n" +
+		"		};\n" +
+		"	}\n" +
+		"}\n");
+SearchPattern pattern = SearchPattern.createPattern(
+		"*",
+		CONSTRUCTOR,
+		METHOD_REFERENCE_EXPRESSION,
+		EXACT_RULE);
+new SearchEngine(this.workingCopies).search(pattern,
+new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+getJavaSearchWorkingCopiesScope(),
+this.resultCollector,
+null);
+assertSearchResults(
+		"src/X.java void X.m1() [X::new] EXACT_MATCH"  
+);	
+}
+
 // Add new tests in JavaSearchBugs8Tests
 }
 

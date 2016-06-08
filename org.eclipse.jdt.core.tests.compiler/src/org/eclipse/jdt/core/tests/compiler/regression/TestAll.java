@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -34,6 +34,7 @@ import org.eclipse.jdt.internal.compiler.flow.UnconditionalFlowInfo;
 /**
  * Run all compiler regression tests
  */
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class TestAll extends junit.framework.TestCase {
 
 public TestAll(String testName) {
@@ -125,12 +126,14 @@ public static Test suite() {
 	since_1_7.add(GenericsRegressionTest_1_7.class);
 	since_1_7.add(PolymorphicSignatureTest.class);
 	since_1_7.add(Compliance_1_7.class);
+	since_1_7.add(MethodHandleTest.class);
 	
 	ArrayList since_1_8 = new ArrayList();
 	since_1_8.add(NegativeTypeAnnotationTest.class);
 	since_1_8.add(NullTypeAnnotationTest.class);
 	since_1_8.add(NegativeLambdaExpressionsTest.class);
 	since_1_8.add(LambdaExpressionsTest.class);
+	since_1_8.add(LambdaRegressionTest.class);
 	since_1_8.add(SerializableLambdaTest.class);
 	since_1_8.add(OverloadResolutionTest8.class);
 	since_1_8.add(JSR335ClassFileTest.class);
@@ -146,6 +149,7 @@ public static Test suite() {
 	since_1_8.add(RepeatableAnnotationTest.class);
 	since_1_8.add(GenericsRegressionTest_1_8.class);
 	since_1_8.add(Unicode18Test.class);
+	since_1_8.add(LambdaShapeTests.class);
 
 	// Build final test suite
 	TestSuite all = new TestSuite(TestAll.class.getName());

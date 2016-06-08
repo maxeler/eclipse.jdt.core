@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,6 +19,9 @@
  *								bug 401092 - [compiler][null] Wrong warning "Redundant null check" in outer catch of nested try
  *								bug 402993 - [null] Follow up of bug 401088: Missing warning about redundant null check
  *								bug 384380 - False positive on a ?? Potential null pointer access ?? after a continue
+ *								Bug 415790 - [compiler][resource]Incorrect potential resource leak warning in for loop with close in try/catch
+ *								Bug 371614 - [compiler][resource] Wrong "resource leak" problem on return/throw inside while loop
+ *								Bug 444964 - [1.7+][resource] False resource leak warning (try-with-resources for ByteArrayOutputStream - return inside for loop)
  *     Jesper Steen Moller - Contributions for
  *								bug 404146 - [1.7][compiler] nested try-catch-finally-blocks leads to unrunnable Java byte code
  *     Andy Clement (GoPivotal, Inc) aclement@gopivotal.com - Contributions for
@@ -150,8 +153,8 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, Fl
 			resourceBinding.useFlag = LocalVariableBinding.USED; // Is implicitly used anyways.
 			if (resourceBinding.closeTracker != null) {
 				// this was false alarm, we don't need to track the resource
-				this.tryBlock.scope.removeTrackingVar(resourceBinding.closeTracker);
-				// keep the tracking variable in the resourceBinding in order to prevent creating a new one while analyzing the try block
+				resourceBinding.closeTracker.withdraw();
+				resourceBinding.closeTracker = null;
 			}
 			MethodBinding closeMethod = findCloseMethod(resource, resourceBinding);
 			if (closeMethod != null && closeMethod.isValidBinding() && closeMethod.returnType.id == TypeIds.T_void) {
@@ -264,7 +267,7 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, Fl
 			resourceBinding.useFlag = LocalVariableBinding.USED; // Is implicitly used anyways.
 			if (resourceBinding.closeTracker != null) {
 				// this was false alarm, we don't need to track the resource
-				this.tryBlock.scope.removeTrackingVar(resourceBinding.closeTracker);
+				resourceBinding.closeTracker.withdraw();
 				// keep the tracking variable in the resourceBinding in order to prevent creating a new one while analyzing the try block
 			}
 			MethodBinding closeMethod = findCloseMethod(resource, resourceBinding);
@@ -372,29 +375,14 @@ private FlowInfo prepareCatchInfo(FlowInfo flowInfo, ExceptionHandlingFlowContex
 			addNullInfoFrom(handlingContext.initsOnFinally);
 	} else {
 		FlowInfo initsOnException = handlingContext.initsOnException(i);
-		if ((handlingContext.tagBits & (FlowContext.DEFER_NULL_DIAGNOSTIC | FlowContext.PREEMPT_NULL_DIAGNOSTIC))
-				== FlowContext.DEFER_NULL_DIAGNOSTIC)
-		{
-			// if null diagnostics are being deferred, initsOnException are incomplete,
-			// need to start with the more accurate upstream flowInfo
-			catchInfo =
-				flowInfo.unconditionalCopy()
-					.addPotentialInitializationsFrom(initsOnException)
-					.addPotentialInitializationsFrom(
-							tryInfo.unconditionalCopy())
-					.addPotentialInitializationsFrom(
-							handlingContext.initsOnReturn.nullInfoLessUnconditionalCopy());						
-		} else {
-			// here initsOnException are precise, so use them as the only source for null information into the catch block:
-			catchInfo =
-				flowInfo.nullInfoLessUnconditionalCopy()
-					.addPotentialInitializationsFrom(initsOnException)
-					.addNullInfoFrom(initsOnException)
-					.addPotentialInitializationsFrom(
-							tryInfo.nullInfoLessUnconditionalCopy())
-					.addPotentialInitializationsFrom(
-							handlingContext.initsOnReturn.nullInfoLessUnconditionalCopy());
-		}
+		catchInfo =
+			flowInfo.nullInfoLessUnconditionalCopy()
+				.addPotentialInitializationsFrom(initsOnException)
+				.addNullInfoFrom(initsOnException) // <<== Null info only from here!
+				.addPotentialInitializationsFrom(
+						tryInfo.nullInfoLessUnconditionalCopy())
+				.addPotentialInitializationsFrom(
+						handlingContext.initsOnReturn.nullInfoLessUnconditionalCopy());
 	}
 
 	// catch var is always set
@@ -1145,6 +1133,8 @@ protected void verifyDuplicationAndOrder(int length, TypeBinding[] argumentTypes
 		int totalCount = 0;
 		ReferenceBinding[][] allExceptionTypes = new ReferenceBinding[length][];
 		for (int i = 0; i < length; i++) {
+			if (argumentTypes[i] instanceof ArrayBinding)
+				continue;
 			ReferenceBinding currentExceptionType = (ReferenceBinding) argumentTypes[i];
 			TypeReference catchArgumentType = this.catchArguments[i].type;
 			if ((catchArgumentType.bits & ASTNode.IsUnionType) != 0) {
@@ -1165,6 +1155,7 @@ protected void verifyDuplicationAndOrder(int length, TypeBinding[] argumentTypes
 		this.caughtExceptionsCatchBlocks  = new int[totalCount];
 		for (int i = 0, l = 0; i < length; i++) {
 			ReferenceBinding[] currentExceptions = allExceptionTypes[i];
+			if (currentExceptions == null) continue;
 			loop: for (int j = 0, max = currentExceptions.length; j < max; j++) {
 				ReferenceBinding exception = currentExceptions[j];
 				this.caughtExceptionTypes[l] = exception;
@@ -1172,6 +1163,7 @@ protected void verifyDuplicationAndOrder(int length, TypeBinding[] argumentTypes
 				// now iterate over all previous exceptions
 				for (int k = 0; k < i; k++) {
 					ReferenceBinding[] exceptions = allExceptionTypes[k];
+					if (exceptions == null) continue;
 					for (int n = 0, max2 = exceptions.length; n < max2; n++) {
 						ReferenceBinding currentException = exceptions[n];
 						if (exception.isCompatibleWith(currentException)) {
@@ -1192,6 +1184,8 @@ protected void verifyDuplicationAndOrder(int length, TypeBinding[] argumentTypes
 	} else {
 		this.caughtExceptionTypes = new ReferenceBinding[length];
 		for (int i = 0; i < length; i++) {
+			if (argumentTypes[i] instanceof ArrayBinding)
+				continue;
 			this.caughtExceptionTypes[i] = (ReferenceBinding) argumentTypes[i];
 			for (int j = 0; j < i; j++) {
 				if (this.caughtExceptionTypes[i].isCompatibleWith(argumentTypes[j])) {
@@ -1203,5 +1197,35 @@ protected void verifyDuplicationAndOrder(int length, TypeBinding[] argumentTypes
 			}
 		}
 	}
+}
+@Override
+public boolean doesNotCompleteNormally() {
+	if (!this.tryBlock.doesNotCompleteNormally()) {
+		return (this.finallyBlock != null) ? this.finallyBlock.doesNotCompleteNormally() : false;
+	}
+	if (this.catchBlocks != null) {
+		for (int i = 0; i < this.catchBlocks.length; i++) {
+			if (!this.catchBlocks[i].doesNotCompleteNormally()) {
+				return (this.finallyBlock != null) ? this.finallyBlock.doesNotCompleteNormally() : false;
+			}
+		}
+	}
+	return true;
+}
+@Override
+public boolean completesByContinue() {
+	if (this.tryBlock.completesByContinue()) {
+		return (this.finallyBlock == null) ? true :
+			!this.finallyBlock.doesNotCompleteNormally() || this.finallyBlock.completesByContinue(); 
+	}
+	if (this.catchBlocks != null) {
+		for (int i = 0; i < this.catchBlocks.length; i++) {
+			if (this.catchBlocks[i].completesByContinue()) {
+				return (this.finallyBlock == null) ? true :
+					!this.finallyBlock.doesNotCompleteNormally() || this.finallyBlock.completesByContinue();
+			}
+		}
+	}
+	return this.finallyBlock != null && this.finallyBlock.completesByContinue();
 }
 }

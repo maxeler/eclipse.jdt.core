@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,10 +15,13 @@
  *								bug 386356 - Type mismatch error with annotations and generics
  *								bug 331649 - [compiler][null] consider null annotations for fields
  *								bug 376590 - Private fields with @Inject are ignored by unused field validation
- *								Bug 392099 - [1.8][compiler][null] Apply null annotation on types for null analysis 
+ *								Bug 392099 - [1.8][compiler][null] Apply null annotation on types for null analysis
+ *								Bug 469584 - ClassCastException in Annotation.detectStandardAnnotation (320)
  *     Jesper S Moller  - Contributions for
  *								bug 384567 - [1.5][compiler] Compiler accepts illegal modifiers on package declaration
  *								bug 412153 - [1.8][compiler] Check validity of annotations which may be repeatable
+ *     Ulrich Grave <ulrich.grave@gmx.de> - Contributions for
+ *                              bug 386692 - Missing "unused" warning on "autowired" fields
  *******************************************************************************/
 package org.eclipse.jdt.core.tests.compiler.regression;
 
@@ -50,6 +53,7 @@ import org.eclipse.jdt.internal.compiler.lookup.AnnotationBinding;
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class AnnotationTest extends AbstractComparableTest {
 
 	// Static initializer to specify tests subset using TESTS_* static variables
@@ -322,7 +326,7 @@ public class AnnotationTest extends AbstractComparableTest {
 			"1. ERROR in X.java (at line 1)\n" +
 			"	@Object\n" +
 			"	 ^^^^^^\n" +
-			"Type mismatch: cannot convert from Object to Annotation\n" +
+			"Object is not an annotation type\n" +
 			"----------\n");
 	}
 
@@ -11105,5 +11109,375 @@ public void test376977() throws Exception {
 		false,
 		false,
 		false);
+}
+
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=438437 - [1.8][compiler] Annotations
+// on enum constants interpreted only as type annotations if the annotation type
+// specifies ElementType.TYPE_USE in @Target along with others.
+public void test438437() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_8)
+		return;
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"import java.lang.annotation.ElementType;\n" +
+			"import java.lang.annotation.Target;\n" +
+			"@Target({ElementType.TYPE_USE, ElementType.FIELD})\n" +
+			"@interface TUF {} \n" +
+			"@Target({ElementType.FIELD})\n" +
+			"@interface F {} \n" +
+			"@Target({ElementType.TYPE_USE})\n" +
+			"@interface TU1 {} \n" +
+			"@Target({ElementType.LOCAL_VARIABLE})\n" +
+			"@interface LV {} \n" +
+			"@Target({ElementType.TYPE_USE})\n" +
+			"@interface TU2 {} \n" +
+			"class Y {}\n" +
+			"public enum X {\n" +
+			"	@TUF E1,\n" + // Error without the fix.
+			"	@F E2,\n" +
+			"	@TU1 E3,\n" + // Error is reported as no type exists for the Enum.
+			"	@LV E4,\n" +
+			"	@TUF @TU1 @F E5,\n" +
+			"	@TUF @TU1 @F @TU2 E6;\n" +
+			"	@TUF Y y11;\n" +
+			"	@F Y y12;\n" +
+			"	@TU1 Y y13;\n" + // No error reported as type exists.
+			"	@LV Y y14;\n" +
+			"}\n" ,
+		},
+		"----------\n" +
+		"1. ERROR in X.java (at line 17)\n" +
+		"	@TU1 E3,\n" +
+		"	^^^^\n" +
+		"Syntax error, type annotations are illegal here\n" +
+		"----------\n" +
+		"2. ERROR in X.java (at line 18)\n" +
+		"	@LV E4,\n" +
+		"	^^^\n" +
+		"The annotation @LV is disallowed for this location\n" +
+		"----------\n" +
+		"3. ERROR in X.java (at line 19)\n" +
+		"	@TUF @TU1 @F E5,\n" +
+		"	     ^^^^\n" +
+		"Syntax error, type annotations are illegal here\n" +
+		"----------\n" +
+		"4. ERROR in X.java (at line 20)\n" +
+		"	@TUF @TU1 @F @TU2 E6;\n" +
+		"	     ^^^^\n" +
+		"Syntax error, type annotations are illegal here\n" +
+		"----------\n" +
+		"5. ERROR in X.java (at line 20)\n" +
+		"	@TUF @TU1 @F @TU2 E6;\n" +
+		"	             ^^^^\n" +
+		"Syntax error, type annotations are illegal here\n" +
+		"----------\n" +
+		"6. ERROR in X.java (at line 24)\n" +
+		"	@LV Y y14;\n" +
+		"	^^^\n" +
+		"The annotation @LV is disallowed for this location\n" +
+		"----------\n");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=434556,  Broken class file generated for incorrect annotation usage
+public void test434556() throws Exception {
+	if (this.complianceLevel < ClassFileConstants.JDK1_5) {
+		return;
+	}
+	this.runNegativeTest(
+		new String[] {
+			"A.java",
+			"import java.lang.annotation.Retention;\n" + 
+			"import java.lang.annotation.RetentionPolicy;\n" + 
+			"@Retention(RetentionPolicy.RUNTIME)\n" + 
+			"@interface C {\n" + 
+			"	int i();\n" + 
+			"}\n" + 
+			"public class A {\n" + 
+			"  @C(b={},i=42)\n" + 
+			"  public void xxx() {}\n" + 
+			"  public static void main(String []argv) throws Exception {\n" + 
+			"	System.out.println(A.class.getDeclaredMethod(\"xxx\").getAnnotations()[0]);  \n" + 
+			"  }\n" + 
+			"}"
+		},
+		"----------\n" + 
+		"1. ERROR in A.java (at line 8)\n" + 
+		"	@C(b={},i=42)\n" + 
+		"	   ^\n" + 
+		"The attribute b is undefined for the annotation type C\n" + 
+		"----------\n",
+		null,
+		true,
+		null,
+		true, // generate output
+		false,
+		false);
+
+	String expectedOutput = "@C(i=(int) 42)\n" + 
+			"  public void xxx();\n" + 
+			"     0  new java.lang.Error [20]\n" + 
+			"     3  dup\n" + 
+			"     4  ldc <String \"Unresolved compilation problem: \\n\\tThe attribute b is undefined for the annotation type C\\n\"> [22]\n" + 
+			"     6  invokespecial java.lang.Error(java.lang.String) [24]\n" + 
+			"     9  athrow\n" + 
+			"      Line numbers:\n" + 
+			"        [pc: 0, line: 8]\n" + 
+			"      Local variable table:\n" + 
+			"        [pc: 0, pc: 10] local: this index: 0 type: A\n" + 
+			"  \n";
+	try {
+		checkDisassembledClassFile(OUTPUT_DIR + File.separator  +"A.class", "A", expectedOutput, ClassFileBytesDisassembler.DETAILED);
+	} catch(org.eclipse.jdt.core.util.ClassFormatException cfe) {
+		fail("Error reading classfile");
+	}
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=433747, [compiler] TYPE Annotation allowed in package-info instead of only PACKAGE
+public void test433747() throws Exception {
+	if (this.complianceLevel < ClassFileConstants.JDK1_5) {
+		return;
+	}
+	String[] src = new String[] {
+			"p/package-info.java",
+			"@PackageAnnot(\"p123456\")\n" +
+			"package p;\n" +
+			"import java.lang.annotation.ElementType;\n" +
+			"import java.lang.annotation.Target;\n" +
+			"@Target(ElementType.TYPE)\n" +
+			"@interface PackageAnnot {\n" +
+			"	String value();\n" +
+			"}\n"
+	};
+	if (this.complianceLevel <= ClassFileConstants.JDK1_6) {
+		this.runConformTest(src, "");
+		checkDisassembledClassFile(OUTPUT_DIR + File.separator + "p/package-info.class", "", "p123456");
+	} else {
+	this.runNegativeTest(
+			src,
+			"----------\n" +
+			"1. ERROR in p\\package-info.java (at line 1)\n" +
+			"	@PackageAnnot(\"p123456\")\n" +
+			"	^^^^^^^^^^^^^\n" +
+			"The annotation @PackageAnnot is disallowed for this location\n" +
+			"----------\n",
+			null,
+			true,
+			null,
+			true, // generate output
+			false,
+			false);
+	}
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=456960 - Broken classfile generated for incorrect annotation usage - case 2
+public void test456960() throws Exception {
+	if (this.complianceLevel < ClassFileConstants.JDK1_5) {
+		return;
+	}
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_Source, CompilerOptions.VERSION_1_5);
+	options.put(CompilerOptions.OPTION_TargetPlatform, CompilerOptions.VERSION_1_5);
+	options.put(CompilerOptions.OPTION_Compliance, CompilerOptions.VERSION_1_5);
+	this.runNegativeTest(
+		new String[] {
+			"X.java",
+			"@Bar(String)\n" + 
+			"public class X {\n" +
+			"}",
+			"Bar.java",
+			"import java.lang.annotation.Retention;\n" + 
+			"import java.lang.annotation.RetentionPolicy;\n" + 
+			"@Retention(RetentionPolicy.RUNTIME)\n" + 
+			"@interface Bar {\n" + 
+			"	Class<?>[] value();\n" + 
+			"}"
+		},
+		"----------\n" + 
+		"1. ERROR in X.java (at line 1)\n" + 
+		"	@Bar(String)\n" + 
+		"	     ^^^^^^\n" + 
+		"String cannot be resolved to a variable\n" + 
+		"----------\n",
+		null,
+		true,
+		null,
+		true, // generate output
+		false,
+		false);
+
+	String expectedOutput =
+			"public class X {\n" + 
+			"  \n" + 
+			"  // Method descriptor #6 ()V\n" + 
+			"  // Stack: 3, Locals: 1\n" + 
+			"  public X();\n" + 
+			"     0  new java.lang.Error [8]\n" + 
+			"     3  dup\n" + 
+			"     4  ldc <String \"Unresolved compilation problem: \\n\\tString cannot be resolved to a variable\\n\"> [10]\n" + 
+			"     6  invokespecial java.lang.Error(java.lang.String) [12]\n" + 
+			"     9  athrow\n" + 
+			"      Line numbers:\n" + 
+			"        [pc: 0, line: 1]\n" + 
+			"      Local variable table:\n" + 
+			"        [pc: 0, pc: 10] local: this index: 0 type: X\n" + 
+			"}";
+	try {
+		checkDisassembledClassFile(OUTPUT_DIR + File.separator  +"X.class", "X", expectedOutput, ClassFileBytesDisassembler.DETAILED);
+	} catch(org.eclipse.jdt.core.util.ClassFormatException cfe) {
+		fail("Error reading classfile");
+	}
+
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=449330 - [1.6]Eclipse compiler doesn't compile annotations in class files
+public void test449330() throws Exception {
+	String[] testFiles = new String[] {
+		"p/X.java",
+		"package p;\n" +
+		"@java.lang.annotation.Target(value={java.lang.annotation.ElementType.TYPE})\n" +
+		"@interface X { public java.lang.String name(); }\n",
+		"p/package-info.java",
+		"@X(name=\"HELLO\")\n" +
+		"package p;\n"
+	};
+	if (this.complianceLevel <= ClassFileConstants.JDK1_6) {
+		this.runConformTest(testFiles);
+		checkDisassembledClassFile(OUTPUT_DIR + File.separator + "p/package-info.class", "", "HELLO");
+	} else {
+		this.runNegativeTest(testFiles,
+			"----------\n" +
+			"1. ERROR in p\\package-info.java (at line 1)\n" +
+			"	@X(name=\"HELLO\")\n" +
+			"	^^\n" +
+			"The annotation @X is disallowed for this location\n" +
+			"----------\n");
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=449330 - [1.6]Eclipse compiler doesn't compile annotations in class files
+//Retention Policy set to RUNTIME
+public void test449330a() throws Exception {
+	String[] testFiles = new String[] {
+		"p/X.java",
+		"package p;\n" +
+		"@java.lang.annotation.Target(value={java.lang.annotation.ElementType.TYPE})\n" +
+		"@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)\n" +
+		"@interface X { public java.lang.String name(); }\n",
+		"p/package-info.java",
+		"@X(name=\"HELLO\")\n" +
+		"package p;\n"
+	};
+	if (this.complianceLevel <= ClassFileConstants.JDK1_6) {
+		this.runConformTest(testFiles, "");
+		checkDisassembledClassFile(OUTPUT_DIR + File.separator + "p/package-info.class", "", "HELLO");
+	} else {
+		this.runNegativeTest(testFiles,
+			"----------\n" +
+			"1. ERROR in p\\package-info.java (at line 1)\n" +
+			"	@X(name=\"HELLO\")\n" +
+			"	^^\n" +
+			"The annotation @X is disallowed for this location\n" +
+			"----------\n");
+	}
+}
+//https://bugs.eclipse.org/bugs/show_bug.cgi?id=449330 - [1.6]Eclipse compiler doesn't compile annotations in class files
+//Annotation target not set
+public void test449330b() throws Exception {
+	String[] testFiles = new String[] {
+		"p/X.java",
+		"package p;\n" +
+		"@interface X { public java.lang.String name(); }\n",
+		"p/package-info.java",
+		"@X(name=\"HELLO\")\n" +
+		"package p;\n"
+	};
+	this.runConformTest(testFiles, "");
+	checkDisassembledClassFile(OUTPUT_DIR + File.separator + "p/package-info.class", "", "HELLO");
+}
+//https://bugs.eclipse.org/386692
+public void testBug386692() {
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_ReportUnusedPrivateMember, CompilerOptions.ERROR);
+	customOptions.put(CompilerOptions.OPTION_ReportUnusedPrivateMember, CompilerOptions.ERROR);
+	this.runNegativeTest(
+		true,
+		new String[] {
+			SPRINGFRAMEWORK_AUTOWIRED_NAME,
+			SPRINGFRAMEWORK_AUTOWIRED_CONTENT,
+			"Example.java",
+			"class Example {\n" +
+			"  private @org.springframework.beans.factory.annotation.Autowired Object o;\n" +
+			"  private Example() {}\n" +
+			"  public Example(Object o) { this.o = o; }\n" +
+			"  private @org.springframework.beans.factory.annotation.Autowired void setO(Object o) { this.o = o;}\n" +
+			"}\n"
+		},
+		null, customOptions,
+		"----------\n" + 
+		"1. ERROR in Example.java (at line 2)\n" + 
+		"	private @org.springframework.beans.factory.annotation.Autowired Object o;\n" + 
+		"	                                                                       ^\n" + 
+		"The value of the field Example.o is not used\n" + 
+		"----------\n" + 
+		"2. ERROR in Example.java (at line 3)\n" + 
+		"	private Example() {}\n" + 
+		"	        ^^^^^^^^^\n" + 
+		"The constructor Example() is never used locally\n" + 
+		"----------\n",
+		JavacTestOptions.Excuse.EclipseWarningConfiguredAsError);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=464977
+public void testBug464977() throws Exception {
+	if (this.complianceLevel < ClassFileConstants.JDK1_6 || this.complianceLevel > ClassFileConstants.JDK1_8) {
+		return; // Enough to run in 3 levels rather!
+	}
+	boolean apt = this.enableAPT;
+	String source = "@Deprecated\n" +
+			"public class DeprecatedClass {\n" +
+			"}";
+	String version = "";
+	if  (this.complianceLevel == ClassFileConstants.JDK1_8) {
+		version = "1.8 : 52.0";
+	} else if  (this.complianceLevel == ClassFileConstants.JDK1_7) {
+		version = "1.7 : 51.0";
+	} else if  (this.complianceLevel == ClassFileConstants.JDK1_6) {
+		version = "1.6 : 50.0";
+	}
+	String expectedOutput = "// Compiled from DeprecatedClass.java (version " + version + ", super bit, deprecated)\n" + 
+							"@Deprecated\n" + 
+							"public class DeprecatedClass {\n" + 
+							"  \n" + 
+							"  // Method descriptor #6 ()V\n" + 
+							"  // Stack: 1, Locals: 1\n" + 
+							"  public DeprecatedClass();\n" + 
+							"    0  aload_0 [this]\n" + 
+							"    1  invokespecial Object() [8]\n" + 
+							"    4  return\n" + 
+							"      Line numbers:\n" + 
+							"        [pc: 0, line: 2]\n" + 
+							"      Local variable table:\n" + 
+							"        [pc: 0, pc: 5] local: this index: 0 type: DeprecatedClass\n" + 
+							"\n" + 
+							"}";
+	try {
+		this.enableAPT = true;
+		checkClassFile("DeprecatedClass", source, expectedOutput, ClassFileBytesDisassembler.DETAILED | ClassFileBytesDisassembler.COMPACT);
+	} finally {
+		this.enableAPT = apt;
+	}
+}
+public void testBug469584() {
+	runNegativeTest(
+		new String[] {
+			"CCETest.java",
+			"import java.lang.annotation.*;\n" + 
+			"\n" + 
+			"@Retention({RetentionPolicy.CLASS, RetentionPolicy.RUNTIME})\n" + 
+			"public @interface CCETest {\n" + 
+			"\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in CCETest.java (at line 3)\n" + 
+		"	@Retention({RetentionPolicy.CLASS, RetentionPolicy.RUNTIME})\n" + 
+		"	           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Type mismatch: cannot convert from RetentionPolicy[] to RetentionPolicy\n" + 
+		"----------\n");
 }
 }

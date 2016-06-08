@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -92,6 +92,7 @@ import org.eclipse.jdt.internal.compiler.parser.ScannerHelper;
  * and the string get from the built DOM/AST nodes in the comment (see {@link ASTConverterJavadocFlattener})
  * but this may be not enough to see precisely the origin of the problem.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class ASTConverterJavadocTest extends ConverterTestSetup {
 
 	// Flag to know whether Converter directory should be copied from org.eclipse.jdt.core.tests.model project
@@ -3368,5 +3369,49 @@ public class ASTConverterJavadocTest extends ConverterTestSetup {
 			assertEquals(TagElement.TAG_LINK, link3.getTagName());
 			link3.subtreeMatch(new ASTMatcher(true), tags.get(3));
 		}
+	}
+	/**
+	 * https://bugs.eclipse.org/481143 - [parser] Parser missing some line comments
+	 */
+	public void testBug481143a() throws JavaModelException {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("/Converter15/src/javadoc/a/X.java",
+			"package a;\n" + 
+			"public class X {\n" + 
+			"	public X subtest = new X(\"Test1\", // comment\n" + 
+			"			\"Test2\") { };\n" + 
+			"	public X(String foo, String bar) { }\n" + 
+			"}"
+		);
+		CompilationUnit unit = (CompilationUnit) runConversion(getJLS3(), this.workingCopies[0], true);
+		assumeEquals(this.prefix+"Wrong number of comments", 1, unit.getCommentList().size());
+	}
+	/**
+	 * https://bugs.eclipse.org/481143 - [parser] Parser missing some line comments
+	 */
+	public void testBug481143b() throws JavaModelException {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("/Converter15/src/javadoc/a/X.java",
+				"package a;\n" + 
+				"public enum X implements // comment\n" + 
+				"	Serializable {\n" + 
+				"}"
+		);
+		CompilationUnit unit = (CompilationUnit) runConversion(getJLS3(), this.workingCopies[0], true);
+		assumeEquals(this.prefix+"Wrong number of comments", 1, unit.getCommentList().size());
+	}
+	/**
+	 * https://bugs.eclipse.org/481143 - [parser] Parser missing some line comments
+	 */
+	public void testBug481143c() throws JavaModelException {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("/Converter15/src/javadoc/a/X.java",
+				"package a;\n" + 
+				"public @interface X // comment\n" + 
+				"	{\n" + 
+				"}"
+		);
+		CompilationUnit unit = (CompilationUnit) runConversion(getJLS3(), this.workingCopies[0], true);
+		assumeEquals(this.prefix+"Wrong number of comments", 1, unit.getCommentList().size());
 	}
 }

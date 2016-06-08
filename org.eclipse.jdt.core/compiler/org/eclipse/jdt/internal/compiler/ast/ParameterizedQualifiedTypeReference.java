@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,9 +11,12 @@
  *								bug 342671 - ClassCastException: org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding cannot be cast to org.eclipse.jdt.internal.compiler.lookup.ArrayBinding
  *								bug 392099 - [1.8][compiler][null] Apply null annotation on types for null analysis
  *								Bug 415043 - [1.8][null] Follow-up re null type annotations after bug 392099
- *								Bug 416181 – [1.8][compiler][null] Invalid assignment is not rejected by the compiler
+ *								Bug 416181 - [1.8][compiler][null] Invalid assignment is not rejected by the compiler
  *								Bug 429958 - [1.8][null] evaluate new DefaultLocation attribute of @NonNullByDefault
  *								Bug 434600 - Incorrect null analysis error reporting on type parameters
+ *								Bug 435570 - [1.8][null] @NonNullByDefault illegally tries to affect "throws E"
+ *								Bug 456508 - Unexpected RHS PolyTypeBinding for: <code-snippet>
+ *								Bug 466713 - Null Annotations: NullPointerException using <int @Nullable []> as Type Param
  *        Andy Clement - Contributions for
  *                          Bug 383624 - [1.8][compiler] Revive code generation support for type annotations (from Olivier's work)
  *******************************************************************************/
@@ -97,6 +100,28 @@ public class ParameterizedQualifiedTypeReference extends ArrayQualifiedTypeRefer
 	public boolean isParameterizedTypeReference() {
 		return true;
 	}
+
+	@Override
+    public boolean hasNullTypeAnnotation(AnnotationPosition position) {
+		if (super.hasNullTypeAnnotation(position))
+			return true;
+		if (position == AnnotationPosition.ANY) {
+	    	if (this.resolvedType != null && !this.resolvedType.hasNullTypeAnnotations())
+	    		return false; // shortcut
+	    	if (this.typeArguments != null) {
+	    		for (int i = 0; i < this.typeArguments.length; i++) {
+	    			TypeReference[] arguments = this.typeArguments[i];
+	    			if (arguments != null) {
+		    			for (int j = 0; j < arguments.length; j++) {
+		    				if (arguments[j].hasNullTypeAnnotation(position))
+		    					return true;
+		    			}
+					}
+				}
+	    	}
+		}
+    	return false;
+    }
 
 	/**
 	 * @return char[][]
@@ -315,6 +340,8 @@ public class ParameterizedQualifiedTypeReference extends ArrayQualifiedTypeRefer
 						parameterizedType.boundCheck(scope, args);
 					else
 						scope.deferBoundCheck(this);
+				} else {
+		    		parameterizedType.arguments = ParameterizedSingleTypeReference.DIAMOND_TYPE_ARGUMENTS;
 				}
 				qualifyingType = parameterizedType;
 		    } else {
@@ -323,7 +350,7 @@ public class ParameterizedQualifiedTypeReference extends ArrayQualifiedTypeRefer
 					if (((ClassScope) scope).detectHierarchyCycle(currentOriginal, this))
 						return null;
 				if (currentOriginal.isGenericType()) {
-	   			    if (typeIsConsistent && qualifyingType != null && qualifyingType.isParameterizedType()) {
+	   			    if (typeIsConsistent && qualifyingType != null && qualifyingType.isParameterizedType() && !currentOriginal.isStatic()) {
 						scope.problemReporter().parameterizedMemberTypeMissingArguments(this, scope.environment().createParameterizedType(currentOriginal, null, qualifyingType), i);
 						typeIsConsistent = false;
 					}

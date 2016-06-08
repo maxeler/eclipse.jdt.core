@@ -99,7 +99,7 @@ public void test0002() {
 	int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
 
 	String expectedCompletionNodeToString = "<CompleteOnName:fi>";
-	String expectedParentNodeToString = "System.out.print(<CompleteOnName:fi>)";
+	String expectedParentNodeToString = "<NONE>";
 	String completionIdentifier = "fi";
 	String expectedReplacedSource = "fi";
 	String expectedUnitDisplayString =
@@ -813,7 +813,7 @@ public void testBrokenMethodCall() {  // verify that completion works when the c
 }
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=424080, [1.8][completion] Workbench hanging on code completion with lambda expression containing anonymous class
 public void test424080() {
-	String string = 
+String string = 
 			"interface FI {\n" +
 			"	public static int val = 5;\n" +
 			"	default int run (String x) { return 1;};\n" +
@@ -826,7 +826,7 @@ public void test424080() {
 			String completeBehind = "val";
 			int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
 
-			String expectedCompletionNodeToString = "<CompleteOnName:val>";
+			String expectedCompletionNodeToString = "<NONE>";
 			String expectedParentNodeToString = "<NONE>";
 			String completionIdentifier = "val";
 			String expectedReplacedSource = "val";
@@ -840,7 +840,7 @@ public void test424080() {
 					"  public int run(int x);\n" + 
 					"}\n" + 
 					"public class X {\n" + 
-					"  FI fi = <CompleteOnName:val>;\n" + 
+					"  FI fi;\n" + 
 					"  public X() {\n" + 
 					"  }\n" + 
 					"}\n";
@@ -1097,6 +1097,8 @@ public void test427463() {
 					"    <CompleteOnException:Ex>;\n" + 
 					"  };\n" + 
 					"  Test() {\n" + 
+					"  }\n" + 
+					"  private void test() throws Exception {\n" + 
 					"  }\n" + 
 					"}\n";
 
@@ -1469,7 +1471,7 @@ public void test428735e() { // field
 			int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
 
 			String expectedCompletionNodeToString = "<CompleteOnName:y.get>";
-			String expectedParentNodeToString = "x.getLastName().compareTo(<CompleteOnName:y.get>)";
+			String expectedParentNodeToString = "<NONE>";
 			String completionIdentifier = "get";
 			String expectedReplacedSource = "y.get";
 			String expectedUnitDisplayString =
@@ -1650,5 +1652,630 @@ public void test402081() { // initializer block
 				completionIdentifier,
 				expectedReplacedSource,
 				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430656, [1.8][content assist] Content assist does not work for method reference argument
+public void test430656() {
+	String string = 
+			"import java.util.ArrayList;\n" +
+			"import java.util.Collections;\n" +
+			"import java.util.Comparator;\n" +
+			"import java.util.List;\n" +
+			"public class X {\n" +
+			"	public void bar() {\n" +
+		"		List<Person> people = new ArrayList<>();\n" +
+			"		Collections.sort(people, Comparator.comparing(Person::get)); \n" +
+			"	}\n" +
+			"}\n" +
+			"class Person {\n" +
+			"	String getLastName() {\n" +
+			"		return null;\n" +
+			"	}\n" +
+			"}\n";
+
+			String completeBehind = "get";
+			int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompletionOnReferenceExpressionName:Person::get>";
+			String expectedParentNodeToString = "Comparator.comparing(<CompletionOnReferenceExpressionName:Person::get>)";
+			String completionIdentifier = "get";
+			String expectedReplacedSource = "Person::get";
+			String expectedUnitDisplayString =
+					"import java.util.ArrayList;\n" + 
+					"import java.util.Collections;\n" + 
+					"import java.util.Comparator;\n" + 
+					"import java.util.List;\n" + 
+					"public class X {\n" + 
+					"  public X() {\n" + 
+					"  }\n" + 
+					"  public void bar() {\n" + 
+					"    List<Person> people;\n" + 
+					"    Comparator.comparing(<CompletionOnReferenceExpressionName:Person::get>);\n" + 
+					"  }\n" + 
+					"}\n" + 
+					"class Person {\n" + 
+					"  Person() {\n" + 
+					"  }\n" + 
+					"  String getLastName() {\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=438952, [1.8][content assist] StackOverflowError at org.eclipse.jdt.internal.compiler.ast.SingleTypeReference.traverse(SingleTypeReference.java:108) 
+public void test438952() {
+	String string = 
+			"import java.util.function.Supplier;\n" +
+			"class SO {\n" +
+			"	{\n" +
+			"		int\n" +
+			"		Supplier<SO> m6 = SO::new;\n" +
+			"		m6 = () -> new SO() {\n" +
+			"			void test() {\n" +
+			"				/* here */                            \n" +
+			"			}\n" +
+			"		};\n" +
+			"	}\n" +
+			"}\n";
+
+			String completeBehind = "/* here */";
+			int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnName:>";
+			String expectedParentNodeToString = "<NONE>";
+			String completionIdentifier = "";
+			String expectedReplacedSource = "";
+			String expectedUnitDisplayString =
+					"import java.util.function.Supplier;\n" + 
+					"class SO {\n" + 
+					"  {\n" + 
+					"    int Supplier;\n" + 
+					"    m6 = () -> new SO() {\n" + 
+					"  void test() {\n" + 
+					"    <CompleteOnName:>;\n" + 
+					"  }\n" + 
+					"};\n" + 
+					"  }\n" + 
+					"  SO() {\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435219, [1.8][content assist] No proposals for some closure cases 
+public void test435219() {
+			String string = 
+				"import java.util.Arrays;\n" +
+				"import java.util.List;\n" +
+				"public class X {\n" +
+				"	public static void main(String[] args) {\n" +
+				"		List<Integer> costBeforeTax = Arrays.asList(100, 200, 300);\n" +
+				"		   double bill = costBeforeTax.stream().map((cost) -> cost + 0.19 * cost)\n" +
+				"		        //                        .y                   .n             .y\n" +
+				"		      .reduce((sum, cost) -> sum.doubleValue() + cost.dou\n" +
+				"	}\n" +
+				"}\n";
+
+			String completeBehind = "dou";
+			int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnName:cost.dou>";
+			String expectedParentNodeToString = "(sum.doubleValue() + <CompleteOnName:cost.dou>)";
+			String completionIdentifier = "dou";
+			String expectedReplacedSource = "cost.dou";
+			String expectedUnitDisplayString =
+					"import java.util.Arrays;\n" + 
+					"import java.util.List;\n" + 
+					"public class X {\n" + 
+					"  public X() {\n" + 
+					"  }\n" + 
+					"  public static void main(String[] args) {\n" + 
+					"    List<Integer> costBeforeTax;\n" + 
+					"    double bill = costBeforeTax.stream().map((<no type> cost) -> (cost + (0.19 * cost))).reduce((<no type> sum, <no type> cost) -> (sum.doubleValue() + <CompleteOnName:cost.dou>));\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=435682, [1.8] content assist not working inside lambda expression
+public void test435682() {
+			String string = 
+					"import java.util.Arrays;\n" +
+					"import java.util.List;\n" +
+					"public class X {\n" +
+					"	public static void main(String[] args) {\n" +
+					"		List<String> words = Arrays.asList(\"hi\", \"hello\", \"hola\", \"bye\", \"goodbye\");\n" +
+					"		List<String> list1 = words.stream().map(so -> so.).collect(Collectors.toList());\n" +
+					"	}\n" +
+					"}\n";
+
+			String completeBehind = "so.";
+			int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnName:so.>";
+			String expectedParentNodeToString = "<NONE>";
+			String completionIdentifier = "";
+			String expectedReplacedSource = "so.";
+			String expectedUnitDisplayString =
+					"import java.util.Arrays;\n" + 
+					"import java.util.List;\n" + 
+					"public class X {\n" + 
+					"  public X() {\n" + 
+					"  }\n" + 
+					"  public static void main(String[] args) {\n" + 
+					"    List<String> words;\n" + 
+					"    List<String> list1 = words.stream().map((<no type> so) -> <CompleteOnName:so.>).collect(Collectors.toList());\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field
+public void test430667() {
+			String string = 
+					"interface D_FI {\n" +
+					"	void print(String value, int n);\n" +
+					"}\n" +
+					"class D_DemoRefactorings {\n" +
+					"	\n" +
+					"	D_FI fi1= (String value, int n) -> {\n" +
+					"		for (int j = 0; j < n; j++) {\n" +
+					"			System.out.println(value); 			\n" +
+					"		}\n" +
+					"	};\n" +
+					"	D_F\n" +
+					"}\n";
+
+			String completeBehind = "D_F";
+			int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnType:D_F>";
+			String expectedParentNodeToString = "<NONE>";
+			String completionIdentifier = "D_F";
+			String expectedReplacedSource = "D_F";
+			String expectedUnitDisplayString =
+					"interface D_FI {\n" + 
+					"  void print(String value, int n);\n" + 
+					"}\n" + 
+					"class D_DemoRefactorings {\n" + 
+					"  D_FI fi1;\n" + 
+					"  <CompleteOnType:D_F>;\n" + 
+					"  D_DemoRefactorings() {\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field
+public void test430667a() {
+			String string = 
+					"class D_DemoRefactorings {\n" +
+					"	\n" +
+					"	D_FI fi1= (String value, int n) -> {\n" +
+					"		for (int j = 0; j < n; j++) {\n" +
+					"			System.out.println(value); 			\n" +
+					"		}\n" +
+					"	};\n" +
+					"	/*HERE*/D_F\n" +
+					"}\n" +
+					"interface D_FI {\n" +
+					"	void print(String value, int n);\n" +
+					"}\n";
+					
+
+			String completeBehind = "/*HERE*/D_F";
+			int cursorLocation = string.lastIndexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnType:D_F>";
+			String expectedParentNodeToString = "<NONE>";
+			String completionIdentifier = "D_F";
+			String expectedReplacedSource = "D_F";
+			String expectedUnitDisplayString =
+					"class D_DemoRefactorings {\n" + 
+					"  D_FI fi1;\n" + 
+					"  <CompleteOnType:D_F>;\n" + 
+					"  D_DemoRefactorings() {\n" + 
+					"  }\n" + 
+					"}\n" + 
+					"interface D_FI {\n" + 
+					"  void print(String value, int n);\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field
+public void test430667b() {
+			String string = 
+					"public class D_DemoRefactorings {\n" +
+					"   D_F\n" +
+					"	D_FI fi1= (String value, int n) -> {\n" +
+					"		for (int j = 0; j < n; j++) {\n" +
+					"			System.out.println(value); 			\n" +
+					"		}\n" +
+					"	};\n" +
+					"}\n" +
+					"interface D_FI {\n" +
+					"	void print(String value, int n);\n" +
+					"}\n";
+					
+			String completeBehind = "D_F";
+			int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnType:D_F>;";
+			String expectedParentNodeToString = "<NONE>";
+			String completionIdentifier = "D_F";
+			String expectedReplacedSource = "D_F";
+			String expectedUnitDisplayString =
+					"public class D_DemoRefactorings {\n" + 
+					"  <CompleteOnType:D_F>;\n" + 
+					"  D_FI fi1;\n" + 
+					"  public D_DemoRefactorings() {\n" + 
+					"  }\n" + 
+					"}\n" + 
+					"interface D_FI {\n" + 
+					"  void print(String value, int n);\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field
+public void test430667c() {
+			String string = 
+					"public interface Foo {\n" +
+					"	int run(int s1, int s2);\n" +
+					"}\n" +
+					"interface B {\n" +
+					"	static Foo f = (int x5, int x2) -> anot\n" +
+					"	static int another = 3;\n" +
+					"  	static int two () { return 2; }\n" +
+					"}";
+					
+			String completeBehind = "(int x5, int x2) -> anot";
+			int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnName:anot>";
+			String expectedParentNodeToString = "<NONE>";
+			String completionIdentifier = "anot";
+			String expectedReplacedSource = "anot";
+			String expectedUnitDisplayString =
+					"public interface Foo {\n" + 
+					"  int run(int s1, int s2);\n" + 
+					"}\n" + 
+					"interface B {\n" + 
+					"  static Foo f = (int x5, int x2) -> <CompleteOnName:anot>;\n" + 
+					"  static int another;\n" + 
+					"  <clinit>() {\n" + 
+					"  }\n" + 
+					"  static int two() {\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=430667, [1.8][content assist] no proposals around lambda as a field
+public void test430667d() {
+			String string = 
+					"import java.util.Arrays;\n" +
+					"import java.util.List;\n" +
+					"public class X {\n" +
+					"		List<Integer> list = Arrays.asList(1, 2, 3);\n" +
+					"		Object o = list.stream().map((x) -> x * x.hashCode()).forEach(System.out::pri);\n" +
+					"}\n";
+					
+			String completeBehind = "pri";
+			int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompletionOnReferenceExpressionName:System.out::pri>";
+			String expectedParentNodeToString = "list.stream().map((<no type> x) -> (x * x.hashCode())).forEach(<CompletionOnReferenceExpressionName:System.out::pri>)";
+			String completionIdentifier = "pri";
+			String expectedReplacedSource = "System.out::pri";
+			String expectedUnitDisplayString =
+					"import java.util.Arrays;\n" + 
+					"import java.util.List;\n" + 
+					"public class X {\n" + 
+					"  List<Integer> list;\n" + 
+					"  Object o = list.stream().map((<no type> x) -> (x * x.hashCode())).forEach(<CompletionOnReferenceExpressionName:System.out::pri>);\n" + 
+					"  public X() {\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=446765, 
+public void test446765() {
+			String string = 
+					"class Stepper<T> {\n" +
+					"    public interface Step<T> {\n" +
+					"        void run();\n" +
+					"    }\n" +
+					"    public Stepper(Handler<AsyncResult<T>> handler) {}\n" +
+					"\n" +
+					"    @SafeVarargs\n" +
+					"    public final void run(Step<T> ... steps) {}\n" +
+					"}\n" +
+					"interface AsyncResult<T> {}\n" +
+					"interface Handler<E> {\n" +
+					"    void handle(E event);\n" +
+					"}\n" +
+					"class Z {\n" +
+					"    void foo() {}\n" +
+					"}\n" +
+					"interface I {\n" +
+					"    void foo(Z z);\n" +
+					"}\n" +
+					"class Y {\n" +
+					"    void request(I i) {}\n" +
+					"}\n" +
+					"public class X {\n" +
+					"    void test() {\n" +
+					"        new Stepper<Void>(r -> {}) {\n" +
+					"            private void step1() {\n" +
+					"                Y y = new Y();\n" +
+					"                y.request(response -> {\n" +
+					"                    if (response.)\n" +
+					"                });\n" +
+					"            }\n" +
+					"        }.run();        \n" +
+					"    }    \n" +
+					"}\n";
+					
+			String completeBehind = "response.";
+			int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+			String expectedCompletionNodeToString = "<CompleteOnName:response.>";
+			String expectedParentNodeToString = "if (<CompleteOnName:response.>)\n" + 
+												"    ;";
+			String completionIdentifier = "";
+			String expectedReplacedSource = "response.";
+			String expectedUnitDisplayString =
+					"class Stepper<T> {\n" + 
+					"  public interface Step<T> {\n" + 
+					"    void run();\n" + 
+					"  }\n" + 
+					"  public Stepper(Handler<AsyncResult<T>> handler) {\n" + 
+					"  }\n" + 
+					"  public final @SafeVarargs void run(Step<T>... steps) {\n" + 
+					"  }\n" + 
+					"}\n" + 
+					"interface AsyncResult<T> {\n" + 
+					"}\n" + 
+					"interface Handler<E> {\n" + 
+					"  void handle(E event);\n" + 
+					"}\n" + 
+					"class Z {\n" + 
+					"  Z() {\n" + 
+					"  }\n" + 
+					"  void foo() {\n" + 
+					"  }\n" + 
+					"}\n" + 
+					"interface I {\n" + 
+					"  void foo(Z z);\n" + 
+					"}\n" + 
+					"class Y {\n" + 
+					"  Y() {\n" + 
+					"  }\n" + 
+					"  void request(I i) {\n" + 
+					"  }\n" + 
+					"}\n" + 
+					"public class X {\n" + 
+					"  public X() {\n" + 
+					"  }\n" + 
+					"  void test() {\n" + 
+					"    new Stepper<Void>((<no type> r) -> {\n" + 
+					"}) {\n" + 
+					"      private void step1() {\n" + 
+					"        Y y;\n" + 
+					"        y.request((<no type> response) -> {\n" + 
+					"  <CompleteOnName:response.>;\n" + 
+					"});\n" + 
+					"      }\n" + 
+					"    };\n" + 
+					"  }\n" + 
+					"}\n";
+
+			checkMethodParse(
+				string.toCharArray(),
+				cursorLocation,
+				expectedCompletionNodeToString,
+				expectedParentNodeToString,
+				expectedUnitDisplayString,
+				completionIdentifier,
+				expectedReplacedSource,
+				"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=428735,  [1.8][assist] Missing completion proposals inside lambda body expression - other than first token
+public void test428735h()  {
+	String string = 
+			"import java.util.List;\n" +
+			"class Person {\n" +
+			"   String getLastName() { return null; }\n" +
+			"}\n" +
+			"public class X {\n" +
+			"   void test2(List<Person> people) {\n" +
+			"       people.sort((x,y) -> {\n" +
+			"              if (true) return \"\" + x.get); \n" +
+			"              else return \"\";\n" +
+			"   }\n" +
+			"}\n";
+			
+	String completeBehind = "x.get";
+	int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+	String expectedCompletionNodeToString = "<CompleteOnName:x.get>";
+	String expectedParentNodeToString = "(\"\" + <CompleteOnName:x.get>)";
+	String completionIdentifier = "get";
+	String expectedReplacedSource = "x.get";
+	String expectedUnitDisplayString =
+			"import java.util.List;\n" + 
+			"class Person {\n" + 
+			"  Person() {\n" + 
+			"  }\n" + 
+			"  String getLastName() {\n" + 
+			"  }\n" + 
+			"}\n" + 
+			"public class X {\n" + 
+			"  public X() {\n" + 
+			"  }\n" + 
+			"  void test2(List<Person> people) {\n" + 
+			"    people.sort((<no type> x, <no type> y) -> {\n" + 
+			"  if (true)\n" + 
+			"      return (\"\" + <CompleteOnName:x.get>);\n" + 
+			"  ;\n" + 
+			"  return \"\";\n" + 
+			"});\n" + 
+			"  }\n" + 
+			"}\n";
+
+	checkMethodParse(
+		string.toCharArray(),
+		cursorLocation,
+		expectedCompletionNodeToString,
+		expectedParentNodeToString,
+		expectedUnitDisplayString,
+		completionIdentifier,
+		expectedReplacedSource,
+		"diet ast");
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=422468, [1.8][assist] Code assist issues with type elided lambda parameters
+public void test422468() { // computing visible elements in lambda scope.
+	String string = 
+			"interface I {\n" +
+			"	void foo(X x);\n" +
+			"}\n" +
+			"public class X {\n" +
+			"	static X xField;\n" +
+			"	static X goo(String s) {\n" +
+			"       return null;\n" +
+			"	}\n" +
+			"	static void goo(I i) {\n" +
+			"	}\n" +
+			"	public static void main(String[] args) {\n" +
+			"       X xLocal = null;\n" +
+			"       args = null;\n" +
+			"       if (args != null) {\n" +
+			"           xField = null;\n" +
+			"       else \n" +
+			"           xField = null;\n" +
+			"       while (true);\n" +
+			"		goo((xyz) -> {\n" +
+			"           X xLambdaLocal = null;\n" +
+			"			System.out.println(xyz.)\n" +
+			"		});\n" +
+			"	}\n" +
+			"}\n";
+	String completeBehind = "xyz.";
+	int cursorLocation = string.indexOf(completeBehind) + completeBehind.length() - 1;
+
+	String expectedCompletionNodeToString = "<CompleteOnName:xyz.>";
+	String expectedParentNodeToString = "System.out.println(<CompleteOnName:xyz.>)";
+	String completionIdentifier = "";
+	String expectedReplacedSource = "xyz.";
+	String expectedUnitDisplayString =
+			"interface I {\n" + 
+			"  void foo(X x);\n" + 
+			"}\n" + 
+			"public class X {\n" + 
+			"  static X xField;\n" + 
+			"  public X() {\n" + 
+			"  }\n" + 
+			"  <clinit>() {\n" + 
+			"  }\n" + 
+			"  static X goo(String s) {\n" + 
+			"  }\n" + 
+			"  static void goo(I i) {\n" + 
+			"  }\n" + 
+			"  public static void main(String[] args) {\n" + 
+			"    X xLocal;\n" + 
+			"    {\n" + 
+			"      {\n" + 
+			"        goo((<no type> xyz) -> {\n" + 
+			"  X xLambdaLocal;\n" + 
+			"  System.out.println(<CompleteOnName:xyz.>);\n" + 
+			"});\n" + 
+			"      }\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"}\n";
+
+	checkMethodParse(
+		string.toCharArray(),
+		cursorLocation,
+		expectedCompletionNodeToString,
+		expectedParentNodeToString,
+		expectedUnitDisplayString,
+		completionIdentifier,
+		expectedReplacedSource,
+		"diet ast");
 }
 }

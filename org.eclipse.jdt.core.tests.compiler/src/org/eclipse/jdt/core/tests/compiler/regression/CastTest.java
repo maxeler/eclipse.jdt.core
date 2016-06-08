@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2003, 2014 IBM Corporation and others.
+ * Copyright (c) 2003, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.util.ClassFileBytesDisassembler;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class CastTest extends AbstractRegressionTest {
 
 public CastTest(String name) {
@@ -3093,6 +3094,177 @@ public void test428522c() throws Exception {
 	}
 }
 
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=441731 JDT reports unnecessary cast, using the Quickfix to remove it creates syntax error
+public void test441731() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_5)
+		return;
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_ReportUnnecessaryTypeCheck, CompilerOptions.ERROR);
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"interface MUIElement {}\n" + 
+			"interface MUIElementContainer<T extends MUIElement> extends MUIElement{}\n" + 
+			"interface MWindowElement extends MUIElement {}\n" + 
+			"interface MWindow extends MUIElementContainer<MWindowElement> {}\n" + 
+			"public class X {\n" + 
+			"	void test(MUIElementContainer<MUIElement> me) {\n" + 
+			"		if(((MUIElement) me) instanceof MWindow) return;\n" + 
+			"		MWindow mw = (MWindow)((MUIElement)me);\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=448112, [compiler] Compiler crash (ArrayIndexOutOfBoundsException at StackMapFrame.addStackItem()) with unused variable
+public void test448112() throws Exception {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7)
+		return;
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_PreserveUnusedLocal, CompilerOptions.OPTIMIZE_OUT);
+	this.runConformTest(
+		new String[] {
+			"X.java",
+			"public class X {\n" + 
+			"\n" + 
+			"  static class Y {\n" + 
+			"	  public Object getAttribute(String name) {\n" + 
+			"	  	return new Long(100L);\n" + 
+			"	  }\n" + 
+			"	}\n" + 
+			"	public static void foo2(Y y) {\n" + 
+			"\n" + 
+			"		try {\n" + 
+			"			long v1 = (Long) y.getAttribute(\"v1\");\n" + 
+			"			long v2 = (Long) y.getAttribute(\"v2\");\n" + 
+			"\n" + 
+			"			System.out.println(String.valueOf(v1));\n" + 
+			"\n" + 
+			"		} catch (java.lang.Throwable t) {}\n" + 
+			"	}\n" + 
+			"	\n" + 
+			"	public static void main(String args[]) {\n" + 
+			"		foo2(new Y());\n" + 
+			"  }\n" + 
+			"}",
+		},
+		"100", customOptions);
+	ClassFileBytesDisassembler disassembler = ToolFactory.createDefaultClassFileBytesDisassembler();
+	byte[] classFileBytes = org.eclipse.jdt.internal.compiler.util.Util.getFileByteContent(new File(OUTPUT_DIR + File.separator  +"X.class"));
+	String actualOutput =
+		disassembler.disassemble(
+			classFileBytes,
+			"\n",
+			ClassFileBytesDisassembler.DETAILED);
+
+	String expectedOutput =
+			"  public static void foo2(X.Y y);\n" + 
+			"     0  aload_0 [y]\n" + 
+			"     1  ldc <String \"v1\"> [16]\n" + 
+			"     3  invokevirtual X$Y.getAttribute(java.lang.String) : java.lang.Object [18]\n" + 
+			"     6  checkcast java.lang.Long [24]\n" + 
+			"     9  invokevirtual java.lang.Long.longValue() : long [26]\n" + 
+			"    12  lstore_1 [v1]\n" + 
+			"    13  aload_0 [y]\n" + 
+			"    14  ldc <String \"v2\"> [30]\n" + 
+			"    16  invokevirtual X$Y.getAttribute(java.lang.String) : java.lang.Object [18]\n" + 
+			"    19  checkcast java.lang.Long [24]\n" + 
+			"    22  pop\n" + 
+			"    23  getstatic java.lang.System.out : java.io.PrintStream [32]\n" + 
+			"    26  lload_1 [v1]\n" + 
+			"    27  invokestatic java.lang.String.valueOf(long) : java.lang.String [38]\n" + 
+			"    30  invokevirtual java.io.PrintStream.println(java.lang.String) : void [44]\n" + 
+			"    33  goto 37\n" + 
+			"    36  pop\n" + 
+			"    37  return\n";
+	int index = actualOutput.indexOf(expectedOutput);
+	if (index == -1 || expectedOutput.length() == 0) {
+		System.out.println(Util.displayString(actualOutput, 2));
+	}
+	if (index == -1) {
+		assertEquals("Wrong contents", expectedOutput, actualOutput);
+	}
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=461706 [1.8][compiler] "Unnecessary cast" problems for necessary cast in lambda expression
+public void test461706() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_8)
+		return;
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_ReportUnnecessaryTypeCheck, CompilerOptions.ERROR);
+	this.runConformTest(
+		new String[] {
+			"Bug.java",
+			"import java.util.ArrayList;\n" + 
+			"import java.util.List;\n" + 
+			"public class Bug {\n" + 
+			"	private static class AndCondition implements ICondition {\n" + 
+			"		public AndCondition(ICondition cond1, ICondition cond2) {\n" + 
+			"			// todo\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"	private static class SimpleCondition implements ICondition {\n" + 
+			"	}\n" + 
+			"	private static interface ICondition {\n" + 
+			"		ICondition TRUE = new SimpleCondition();\n" + 
+			"		default ICondition and(final ICondition cond) {\n" + 
+			"			return new AndCondition(this, cond);\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"	public static void main(final String[] args) {\n" + 
+			"		final List<SimpleCondition> conditions = new ArrayList<>();\n" + 
+			"		conditions.stream()\n" + 
+			"				.map(x -> (ICondition)x)\n" + 
+			"				.reduce((x, y) -> x.and(y))\n" + 
+			"				.orElse(ICondition.TRUE);\n" + 
+			"	}\n" + 
+			"}"
+		},
+		customOptions);
+}
+// https://bugs.eclipse.org/bugs/show_bug.cgi?id=461706 [1.8][compiler] "Unnecessary cast" problems for necessary cast in lambda expression
+public void test461706a() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_8)
+		return;
+	Map customOptions = getCompilerOptions();
+	customOptions.put(CompilerOptions.OPTION_ReportUnnecessaryTypeCheck, CompilerOptions.ERROR);
+	this.runNegativeTest(
+		new String[] {
+			"Bug.java",
+			"import java.util.ArrayList;\n" + 
+			"import java.util.List;\n" + 
+			"public class Bug {\n" + 
+			"	private static class AndCondition implements ICondition {\n" + 
+			"		public AndCondition(ICondition cond1, ICondition cond2) {\n" + 
+			"			// todo\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"	static class SimpleCondition implements ICondition {\n" + 
+			"	}\n" + 
+			"	private static interface ICondition {\n" + 
+			"		ICondition TRUE = new SimpleCondition();\n" + 
+			"		default ICondition and(final ICondition cond) {\n" + 
+			"			return new AndCondition(this, cond);\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"	public static void main(final String[] args) {\n" + 
+			"		final List<ICondition> conditions = new ArrayList<>();\n" + 
+			"		conditions.stream()\n" + 
+			"				.map(x -> (ICondition)x)\n" + 
+			"				.reduce((x, y) -> x.and(y))\n" + 
+			"				.orElse(ICondition.TRUE);\n" + 
+			"	}\n" + 
+			"}"
+		},
+		"----------\n" +
+		"1. ERROR in Bug.java (at line 20)\n" +
+		"	.map(x -> (ICondition)x)\n" +
+		"	          ^^^^^^^^^^^^^\n" +
+		"Unnecessary cast from Bug.ICondition to Bug.ICondition\n" +
+		"----------\n",
+		null,
+		true,
+		customOptions);
+}
 public static Class testClass() {
 	return CastTest.class;
 }

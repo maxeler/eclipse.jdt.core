@@ -80,7 +80,9 @@ public enum DefaultLocation {
 	
 	/**
 	 * Defines that a given {@link NonNullByDefault} annotation should affect all unannotated
-	 * explicit type bounds within the scope of the annotated declaration.
+	 * explicit type bounds within the scope of the annotated declaration. A type bound of
+	 * type {@link java.lang.Object} is <strong>never</strong> considered as an explicit bound,
+	 * i.e., <code>T extends Object</code> is never affected by {@link NonNullByDefault}.
 	 * 
 	 * <h2>Example</h2>
 	 * <pre> @NonNullByDefault(TYPE_BOUND)
@@ -122,8 +124,10 @@ public enum DefaultLocation {
 	 * }</pre>
 	 * <p>
 	 * These declarations are interpreted as:
+	 * </p>
 	 * <pre>    &#64;NonNull Number [] n1;
 	 *    &#64;NonNull Number [] @NonNull[] n2;</pre>
+	 * <p>
 	 * I.e., both fields can still be <code>null</code> (see the unannotated left-most pair
 	 * of brackets) but none of the <em>contents</em> of these arrays is allowed to be 
 	 * <code>null</code> (at any dimension).

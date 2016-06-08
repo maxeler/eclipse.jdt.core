@@ -25,6 +25,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class ResourceLeakTests extends AbstractRegressionTest {
 
 // well-known helper classes:
@@ -48,7 +49,7 @@ private static final String APACHE_DBUTILS_CONTENT = "package org.apache.commons
 	"}\n";
 
 static {
-//	TESTS_NAMES = new String[] { "testBug376053" };
+//	TESTS_NAMES = new String[] { "testBug462371_shouldWarn" };
 //	TESTS_NUMBERS = new int[] { 50 };
 //	TESTS_RANGE = new int[] { 11, -1 };
 }
@@ -4788,5 +4789,649 @@ public void testStream4() {
 		},
 		options
 		);
+}
+public void testBug415790_ex2() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_5)
+		return; // uses foreach
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"X.java",
+			"import java.io.*;\n" +
+			"public class X {\n" +
+			"    public void example2() throws IOException {\n" + 
+			"        for (final File file : new File[] { new File(\"/\") }) {\n" + 
+			"            BufferedReader reader = null;\n" + 
+			"            try {\n" + 
+			"                reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));\n" + 
+			"            }\n" + 
+			"            finally {\n" + 
+			"                try {\n" + 
+			"                    reader.close();\n" + 
+			"                }\n" + 
+			"                catch (IOException e) {\n" + 
+			"                }\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"" +
+			"}\n"
+		},
+		options);
+}
+public void testBug415790_ex4() {
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"X.java",
+			"import java.io.*;\n" +
+			"public class X {\n" +
+			"    public void example2(File[] files) throws IOException {\n" + 
+			"        for (int i = 0; i < files.length; i++) {\n" +
+			"            File file = files[i];\n" + 
+			"            BufferedReader reader = null;\n" + 
+			"            try {\n" + 
+			"                reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));\n" + 
+			"            }\n" + 
+			"            finally {\n" + 
+			"                try {\n" + 
+			"                    reader.close();\n" + 
+			"                }\n" + 
+			"                catch (IOException e) {\n" + 
+			"                }\n" + 
+			"            }\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"" +
+			"}\n"
+		},
+		options);
+}
+public void testBug371614_comment0() {
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runNegativeTest(
+		new String[] {
+			"C.java",
+			"import java.io.FileInputStream;\n" + 
+			"import java.io.IOException;\n" + 
+			"import java.io.InputStream;\n" + 
+			"\n" + 
+			"public class C {\n" + 
+			"	public static void main(String[] args) {\n" + 
+			"		FileInputStream fileInputStream= null;\n" + 
+			"		try {\n" + 
+			"			fileInputStream = new FileInputStream(args[0]);\n" + 
+			"			while (true) {\n" + 
+			"				if (fileInputStream.read() == -1) {\n" + 
+			"					System.out.println(\"done\");\n" + 
+			"// Resource leak: 'fileInputStream' is not closed at this location\n" + 
+			"					return;\n" + 
+			"				}\n" + 
+			"			}\n" + 
+			"		} catch (IOException e) {\n" + 
+			"			e.printStackTrace();\n" + 
+			"			return;\n" + 
+			"		} finally {\n" + 
+			"			closeStream(fileInputStream);\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"	\n" + 
+			"	private static void closeStream(InputStream stream) {\n" + 
+			"		if (stream != null) {\n" + 
+			"			try {\n" + 
+			"				stream.close();\n" + 
+			"			} catch (IOException e) {\n" + 
+			"				e.printStackTrace();\n" + 
+			"			}\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"}\n" + 
+			"\n"
+		},
+		"----------\n" + 
+		"1. ERROR in C.java (at line 14)\n" + 
+		"	return;\n" + 
+		"	^^^^^^^\n" + 
+		"Potential resource leak: \'fileInputStream\' may not be closed at this location\n" + 
+		"----------\n",
+		null,
+		true,
+		options);
+}
+public void testBug371614_comment2() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"ResourceLeak.java",
+			"import java.io.FileInputStream;\n" + 
+			"import java.io.IOException;\n" + 
+			"import java.io.InputStreamReader;\n" + 
+			"import java.io.Reader;\n" + 
+			"\n" + 
+			"public class ResourceLeak {\n" + 
+			"\n" + 
+			"  boolean check(final Reader r) throws IOException {\n" + 
+			"    final int i = r.read();\n" + 
+			"    return (i != -1);\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  public void test1() throws IOException {\n" + 
+			"    try (Reader r = new InputStreamReader(System.in);) {\n" + 
+			"      while (check(r)) {\n" + 
+			"        if (check(r))\n" + 
+			"          throw new IOException(\"fail\");\n" + 
+			"        if (!check(r))\n" + 
+			"          throw new IOException(\"fail\");\n" + 
+			"      }\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  public void test2() throws IOException {\n" + 
+			"    try (Reader r = new InputStreamReader(new FileInputStream(\"test.txt\"));) {\n" + 
+			"      while (check(r)) {\n" + 
+			"        if (check(r))\n" + 
+			"          throw new IOException(\"fail\");\n" + 
+			"        if (!check(r))\n" + 
+			"          throw new IOException(\"fail\");\n" + 
+			"      }\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"}\n"
+		},
+		options);
+}
+public void testBug371614_comment8() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"X.java",
+			"import java.io.*;\n" +
+			"import java.net.*;\n" +
+			"public class X {\n" +
+			"	Socket fSocket;\n" +
+			"	void test() {\n" +
+			"    try (InputStreamReader socketIn = new InputStreamReader(fSocket.getInputStream())) {\n" + 
+			"         while (true) {\n" + 
+			"             if (socketIn.read(new char[1024]) < 0)\n" + 
+			"                 throw new IOException(\"Error\");\n" + 
+			"         }           \n" + 
+			"     } catch (IOException e) {\n" + 
+			"     }" +
+			"	}\n" +
+			"}\n"
+		},
+		options);
+}
+public void testBug462371_orig() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"X.java",
+			"import java.io.*;\n" +
+			"interface IFile {\n" +
+			"	InputStream getContents();\n" +
+			"	boolean exists();\n" +
+			"}\n" +
+			"public class X {\n" +
+			"	public static String getAnnotatedSignature(String typeName, IFile file, String selector, String originalSignature) {\n" + 
+			"		if (file.exists()) {\n" + 
+			"			try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getContents()))) {\n" + 
+			"				reader.readLine();\n" + 
+			"				while (true) {\n" + 
+			"					String line = reader.readLine(); \n" + 
+			"					// selector:\n" + 
+			"					if (selector.equals(line)) {\n" + 
+			"						// original signature:\n" + 
+			"						line = reader.readLine();\n" + 
+			"						if (originalSignature.equals(\"\")) {\n" + 
+			"							// annotated signature:\n" + 
+			"							return reader.readLine();\n" + 
+			"						}\n" + 
+			"					}\n" + 
+			"					if (line == null)\n" + 
+			"						break;\n" + 
+			"				}\n" + 
+			"			} catch (IOException e) {\n" + 
+			"				return null;\n" + 
+			"			}\n" + 
+			"		}\n" + 
+			"		return null;\n" + 
+			"	}\n" +
+			"}\n"
+		},
+		options);
+}
+public void _testBug462371_shouldWarn() {
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runNegativeTest(
+		new String[] {
+			"X.java",
+			"import java.io.*;\n" +
+			"interface IFile {\n" +
+			"	InputStream getContents();\n" +
+			"	boolean exists();\n" +
+			"}\n" +
+			"public class X {\n" +
+			"	public static String getAnnotatedSignature(String typeName, IFile file, String selector, String originalSignature) {\n" + 
+			"		if (file.exists()) {\n" + 
+			"			try  {\n" + 
+			"				BufferedReader reader = new BufferedReader(new InputStreamReader(file.getContents())); \n" + 
+			"				reader.readLine();\n" + 
+			"				while (true) {\n" + 
+			"					String line = reader.readLine(); \n" + 
+			"					// selector:\n" + 
+			"					if (selector.equals(line)) {\n" + 
+			"						// original signature:\n" + 
+			"						line = reader.readLine();\n" + 
+			"						if (originalSignature.equals(\"\")) {\n" + 
+			"							// annotated signature:\n" + 
+			"							return reader.readLine();\n" + 
+			"						}\n" + 
+			"					}\n" + 
+			"					if (line == null)\n" + 
+			"						break;\n" + 
+			"				}\n" + 
+			"			} catch (IOException e) {\n" + 
+			"				return null;\n" + 
+			"			}\n" + 
+			"		}\n" + 
+			"		return null;\n" + 
+			"	}\n" +
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in C.java (at line 14)\n" + 
+		"	return;\n" + 
+		"	^^^^^^^\n" + 
+		"Potential resource leak: \'fileInputStream\' may not be closed at this location\n" + 
+		"----------\n",
+		null,
+		true,
+		options);
+}
+public void testBug421035() {
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"Test.java",
+			"import java.io.BufferedReader;\n" + 
+			"import java.io.FileNotFoundException;\n" + 
+			"import java.io.FileReader;\n" + 
+			"import java.io.IOException;\n" + 
+			"import java.io.Reader;\n" + 
+			"\n" + 
+			"public class Test {\n" + 
+			"  void test() throws FileNotFoundException {\n" + 
+			"    Reader a = (Reader)new BufferedReader(new FileReader(\"a\"));\n" + 
+			"    try {\n" + 
+			"		a.close();\n" + 
+			"	} catch (IOException e) {\n" + 
+			"		e.printStackTrace();\n" + 
+			"	}\n" + 
+			"  }\n" + 
+			"}\n"
+		},
+		options);
+}
+public void testBug444964() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"Bug444964.java",
+			"import java.io.*;\n" + 
+			"\n" + 
+			"public class Bug444964 {\n" + 
+			"  void wrong() {\n" + 
+			"    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {\n" + 
+			"      for (;;) {\n" + 
+			"        return;\n" + 
+			"      }\n" + 
+			"    } catch (Exception e) {\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"  void right() {\n" + 
+			"    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {\n" + 
+			"      while (true) {\n" + 
+			"        return;\n" + 
+			"      }\n" + 
+			"    } catch (Exception e) {\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"}\n"
+		},
+		options);
+}
+public void testBug397204() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"HostIdTest.java",
+			"import java.io.*;\n" + 
+			"import java.net.InetAddress;\n" + 
+			"import java.net.NetworkInterface;\n" + 
+			"import java.util.Enumeration;\n" + 
+			"import java.util.Formatter;\n" + 
+			"import java.util.Locale;\n" + 
+			"\n" + 
+			"\n" + 
+			"public class HostIdTest {\n" + 
+			"\n" + 
+			"    public final void primaryNetworkInterface() throws IOException {\n" + 
+			"        System.out.println(InetAddress.getLocalHost());\n" + 
+			"        System.out.println(InetAddress.getLocalHost().getHostName());\n" + 
+			"        System.out.println(hostId());\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    String hostId() throws IOException {\n" + 
+			"        try (StringWriter s = new StringWriter(); PrintWriter p = new PrintWriter(s)) {\n" + 
+			"            p.print(InetAddress.getLocalHost().getHostName());\n" + 
+			"            p.print('/');\n" + 
+			"            Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();\n" + 
+			"            while (e.hasMoreElements()) {\n" + 
+			"                NetworkInterface i = e.nextElement();\n" + 
+			"                System.out.println(i);\n" + 
+			"                if (i.getHardwareAddress() == null || i.getHardwareAddress().length == 0)\n" + 
+			"                    continue;\n" + 
+			"                for (byte b : i.getHardwareAddress())\n" + 
+			"                    p.printf(\"%02x\", b);\n" + 
+			"                return s.toString();\n" + 
+			"            }\n" + 
+			"            throw new RuntimeException(\"Unable to determine Host ID\");\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    public void otherHostId() throws Exception {\n" + 
+			"        InetAddress addr = InetAddress.getLocalHost();\n" + 
+			"        byte[] ipaddr = addr.getAddress();\n" + 
+			"        if (ipaddr.length == 4) {\n" + 
+			"            int hostid = ipaddr[1] << 24 | ipaddr[0] << 16 | ipaddr[3] << 8 | ipaddr[2];\n" + 
+			"            StringBuilder sb = new StringBuilder();\n" + 
+			"            try (Formatter formatter = new Formatter(sb, Locale.US)) {\n" + 
+			"                formatter.format(\"%08x\", hostid);\n" + 
+			"                System.out.println(sb.toString());\n" + 
+			"            }\n" + 
+			"        } else {\n" + 
+			"            throw new Exception(\"hostid for IPv6 addresses not implemented yet\");\n" + 
+			"        }\n" + 
+			"    }\n" + 
+			"    \n" + 
+			"}\n"
+		},
+		options);
+}
+public void testBug397204_comment4() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"HostIdTest.java",
+			"import java.io.*;\n" + 
+			"\n" + 
+			"public class HostIdTest {\n" + 
+			"\n" + 
+			"  void simple() throws Exception {\n" + 
+			"    try (InputStream x = new ByteArrayInputStream(null)) {\n" + 
+			"      while (Math.abs(1) == 1)\n" + 
+			"        if (Math.abs(1) == 1)\n" + 
+			"            return;\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"}\n"
+		},
+		options);
+}
+public void testBug433510() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_7) return; // t-w-r used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runConformTest(
+		new String[] {
+			"Bug433510.java",
+			"import java.io.*;\n" + 
+			"\n" + 
+			"public class Bug433510 {\n" + 
+			"\n" + 
+			"	void test() throws Exception {\n" + 
+			"		try (Reader r = new StringReader(\"Hello World!\")) {\n" + 
+			"			int c;\n" + 
+			"			while ((c = r.read()) != -1) {\n" + 
+			"				if (c == ' ')\n" + 
+			"					throw new IOException(\"Unexpected space\");\n" + 
+			"			}\n" + 
+			"		}\n" + 
+			"	}\n" + 
+			"}\n"
+		},
+		options);
+}
+public void testBug440282() {
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	runNegativeTest(
+		new String[] {
+			"ResourceLeakFalseNegative.java",
+			"import java.io.FileInputStream;\n" + 
+			"import java.io.IOException;\n" + 
+			"import java.io.InputStreamReader;\n" + 
+			"\n" + 
+			"public final class ResourceLeakFalseNegative {\n" + 
+			"\n" + 
+			"  private static final class Foo implements AutoCloseable {\n" + 
+			"    final InputStreamReader reader;\n" + 
+			"\n" + 
+			"    Foo(final InputStreamReader reader) {\n" + 
+			"      this.reader = reader;\n" + 
+			"    }\n" + 
+			"    \n" + 
+			"    public int read() throws IOException {\n" + 
+			"      return reader.read();\n" + 
+			"    }\n" + 
+			"\n" + 
+			"    public void close() throws IOException {\n" + 
+			"      reader.close();\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  private static final class Bar {\n" + 
+			"    final int read;\n" + 
+			"\n" + 
+			"    Bar(final InputStreamReader reader) throws IOException {\n" + 
+			"      read = reader.read();\n" + 
+			"    }\n" + 
+			"    \n" + 
+			"    public int read() {\n" + 
+			"      return read;\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  public final static int foo() throws IOException {\n" + 
+			"    final FileInputStream in = new FileInputStream(\"/dev/null\");\n" + 
+			"    final InputStreamReader reader = new InputStreamReader(in);\n" + 
+			"    try {\n" + 
+			"      return new Foo(reader).read();\n" + 
+			"    } finally {\n" + 
+			"      // even though Foo is not closed, no potential resource leak is reported.\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  public final static int bar() throws IOException {\n" + 
+			"    final FileInputStream in = new FileInputStream(\"/dev/null\");\n" + 
+			"    final InputStreamReader reader = new InputStreamReader(in);\n" + 
+			"    try {\n" + 
+			"      final Bar bar = new Bar(reader);\n" + 
+			"      return bar.read();\n" + 
+			"    } finally {\n" + 
+			"      // Removing the close correctly reports potential resource leak as a warning,\n" + 
+			"      // because Bar does not implement AutoCloseable.\n" + 
+			"      reader.close();\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"\n" + 
+			"  public static void main(String[] args) throws IOException {\n" + 
+			"    for (;;) {\n" + 
+			"      foo();\n" + 
+			"      bar();\n" + 
+			"    }\n" + 
+			"  }\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in ResourceLeakFalseNegative.java (at line 39)\n" + 
+		"	return new Foo(reader).read();\n" + 
+		"	       ^^^^^^^^^^^^^^^\n" + 
+		"Resource leak: \'<unassigned Closeable value>\' is never closed\n" + 
+		"----------\n",
+		null,
+		true,
+		options);
+}
+public void testBug390064() {
+	if (this.complianceLevel < ClassFileConstants.JDK1_5) return; // generics used
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportSyntheticAccessEmulation, CompilerOptions.IGNORE);
+	runNegativeTest(
+		new String[] {
+			"Redundant.java",
+			"public class Redundant\n" + 
+			"{\n" + 
+			"   private static class A<T> implements AutoCloseable\n" + 
+			"   {\n" + 
+			"      public void close()\n" + 
+			"      {\n" + 
+			"      }\n" + 
+			"   }\n" + 
+			"\n" + 
+			"   private static class B extends A<Object>\n" + 
+			"   {\n" + 
+			"      \n" + 
+			"   }\n" + 
+			"   \n" + 
+			"   private static class C implements AutoCloseable\n" + 
+			"   {\n" + 
+			"      public void close()\n" + 
+			"      {\n" + 
+			"      }\n" + 
+			"   }\n" + 
+			"   \n" + 
+			"   private static class D extends C\n" + 
+			"   {\n" + 
+			"      \n" + 
+			"   }\n" + 
+			"   \n" + 
+			"   public static void main(String[] args)\n" + 
+			"   {\n" + 
+			"      new B();\n" + 
+			"      \n" + 
+			"      new D();\n" + 
+			"   }\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in Redundant.java (at line 29)\n" + 
+		"	new B();\n" + 
+		"	^^^^^^^\n" + 
+		"Resource leak: \'<unassigned Closeable value>\' is never closed\n" + 
+		"----------\n" + 
+		"2. ERROR in Redundant.java (at line 31)\n" + 
+		"	new D();\n" + 
+		"	^^^^^^^\n" + 
+		"Resource leak: \'<unassigned Closeable value>\' is never closed\n" + 
+		"----------\n",
+		null,
+		true,
+		options);
+}
+public void testBug396575() {
+	Map options = getCompilerOptions();
+	options.put(CompilerOptions.OPTION_ReportPotentiallyUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportUnclosedCloseable, CompilerOptions.ERROR);
+	options.put(CompilerOptions.OPTION_ReportSyntheticAccessEmulation, CompilerOptions.IGNORE);
+	runNegativeTest(
+		new String[] {
+			"Bug396575.java",
+			"import java.io.*;\n" + 
+			"\n" + 
+			"public class Bug396575 {\n" + 
+			"  void test1(File myFile) {\n" + 
+			"   OutputStream out = null;\n" + 
+			"   BufferedWriter bw = null;\n" + 
+			"   try {\n" + 
+			"       // code...\n" + 
+			"       out = new FileOutputStream(myFile);\n" + 
+			"       OutputStreamWriter writer = new OutputStreamWriter(out);\n" + 
+			"       bw = new BufferedWriter(writer);\n" + 
+			"       // more code...\n" + 
+			"   } catch (Exception e) {\n" + 
+			"       try {\n" + 
+			"           bw.close(); // WARN: potential null pointer access\n" + 
+			"       } catch (Exception ignored) {}\n" + 
+			"       return;  // WARN: resource leak - bw may not be closed\n" + 
+			"   }\n" + 
+			"  }\n" + 
+			"  \n" + 
+			"  void test2(File myFile) {\n" + 
+			"       BufferedWriter bw = null;\n" + 
+			"   try {\n" + 
+			"       // code...\n" + 
+			"                                                       // declare \"out\" here inside try-catch as a temp variable\n" + 
+			"       OutputStream out = new FileOutputStream(myFile); // WARN: out is never closed.\n" + 
+			"       OutputStreamWriter writer = new OutputStreamWriter(out);\n" + 
+			"       bw = new BufferedWriter(writer);\n" + 
+			"       // more code...\n" + 
+			"   } catch (Exception e) {\n" + 
+			"       try {\n" + 
+			"           bw.close(); // WARN: potential null pointer access\n" + 
+			"       } catch (Exception ignored) {}\n" + 
+			"       return;  // WARN: resource leak - bw may not be closed\n" + 
+			"   }\n" + 
+			"  }\n" + 
+			"}\n"
+		},
+		"----------\n" + 
+		"1. ERROR in Bug396575.java (at line 11)\n" + 
+		"	bw = new BufferedWriter(writer);\n" + 
+		"	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Resource leak: \'bw\' is never closed\n" + 
+		"----------\n" + 
+		"2. ERROR in Bug396575.java (at line 28)\n" + 
+		"	bw = new BufferedWriter(writer);\n" + 
+		"	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" + 
+		"Resource leak: \'bw\' is never closed\n" + 
+		"----------\n",
+		null,
+		true,
+		options);
 }
 }

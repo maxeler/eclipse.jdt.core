@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2012 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -25,6 +25,7 @@ import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.util.ObjectVector;
 import org.eclipse.jdt.internal.core.JavaElement;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class CompletionTestsRequestor2 extends CompletionRequestor {
 	private final char[] NULL_LITERAL = "null".toCharArray();//$NON-NLS-1$
 
@@ -366,7 +367,7 @@ public class CompletionTestsRequestor2 extends CompletionRequestor {
 				buffer.append("POTENTIAL_METHOD_DECLARATION"); //$NON-NLS-1$
 				break;
 			case CompletionProposal.METHOD_NAME_REFERENCE :
-				buffer.append("METHOD_IMPORT"); //$NON-NLS-1$
+				buffer.append("METHOD_NAME_REFERENCE"); //$NON-NLS-1$
 				break;
 			case CompletionProposal.ANNOTATION_ATTRIBUTE_REF :
 				buffer.append("ANNOTATION_ATTRIBUTE_REF"); //$NON-NLS-1$

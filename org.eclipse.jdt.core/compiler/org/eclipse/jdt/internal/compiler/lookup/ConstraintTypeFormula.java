@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2014 GK Software AG.
+ * Copyright (c) 2013, 2015 GK Software AG.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,6 +13,7 @@ package org.eclipse.jdt.internal.compiler.lookup;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.internal.compiler.ast.Invocation;
 import org.eclipse.jdt.internal.compiler.ast.Wildcard;
 
 /**
@@ -60,9 +61,7 @@ class ConstraintTypeFormula extends ConstraintFormula {
 		case COMPATIBLE:
 			// 18.2.2:
 			if (this.left.isProperType(true) && this.right.isProperType(true)) {
-				if (isCompatibleWithInLooseInvocationContext(this.left, this.right, inferenceContext))
-					return TRUE;
-				return FALSE;
+				return this.left.isCompatibleWith(this.right, inferenceContext.scope) || this.left.isBoxingCompatibleWith(this.right, inferenceContext.scope) ? TRUE : FALSE;
 			}
 			if (this.left.isPrimitiveType()) {
 				TypeBinding sPrime = inferenceContext.environment.computeBoxingType(this.left);
@@ -96,6 +95,9 @@ class ConstraintTypeFormula extends ConstraintFormula {
 			// 18.2.3:
 			return reduceSubType(inferenceContext.scope, this.right, this.left);
 		case SAME:
+			if (inferenceContext.environment.globalOptions.isAnnotationBasedNullAnalysisEnabled)
+				if (!checkIVFreeTVmatch(this.left, this.right))
+					checkIVFreeTVmatch(this.right, this.left);
 			// 18.2.4:
 			return reduceTypeEquality(inferenceContext.object);
 		case TYPE_ARGUMENT_CONTAINED:
@@ -141,6 +143,16 @@ class ConstraintTypeFormula extends ConstraintFormula {
 			}
 		default: throw new IllegalStateException("Unexpected relation kind "+this.relation); //$NON-NLS-1$
 		}
+	}
+
+	/** Detect when we are equating an inference variable against a free type variable. */
+	boolean checkIVFreeTVmatch(TypeBinding one, TypeBinding two) {
+		if (one instanceof InferenceVariable && two.isTypeVariable() && (two.tagBits & TagBits.AnnotationNullMASK) == 0) {
+			// found match => avoid inferring any null annotation (by marking as contradiction):
+			((InferenceVariable)one).nullHints = TagBits.AnnotationNullMASK;
+			return true;
+		}
+		return false;
 	}
 
 	private Object reduceTypeEquality(TypeBinding object) {
@@ -304,13 +316,21 @@ class ConstraintTypeFormula extends ConstraintFormula {
 			case Binding.INTERSECTION_TYPE:
 				superCandidate = ((WildcardBinding) superCandidate).allBounds();
 				//$FALL-THROUGH$
-			case Binding.INTERSECTION_CAST_TYPE:
-				TypeBinding[] intersectingTypes = ((IntersectionCastTypeBinding) superCandidate).intersectingTypes;
+			case Binding.INTERSECTION_TYPE18:
+				TypeBinding[] intersectingTypes = ((IntersectionTypeBinding18) superCandidate).intersectingTypes;
 				ConstraintFormula[] result = new ConstraintFormula[intersectingTypes.length];
 				for (int i = 0; i < intersectingTypes.length; i++) {
 					result[i] = ConstraintTypeFormula.create(subCandidate, intersectingTypes[i], SUBTYPE, this.isSoft);
 				}
 				return result;
+			case Binding.POLY_TYPE:
+				PolyTypeBinding poly = (PolyTypeBinding) superCandidate;
+				Invocation invocation = (Invocation) poly.expression;
+				MethodBinding binding = invocation.binding();
+				if (binding == null || !binding.isValidBinding())
+					return FALSE;
+				TypeBinding returnType = binding.isConstructor() ? binding.declaringClass : binding.returnType;
+				return reduceSubType(scope, subCandidate, returnType.capture(scope, invocation.sourceStart(), invocation.sourceEnd()));
 		}
 		throw new IllegalStateException("Unexpected RHS "+superCandidate); //$NON-NLS-1$
 	}
@@ -347,7 +367,7 @@ class ConstraintTypeFormula extends ConstraintFormula {
 			return true;
 		if (!(cb instanceof ParameterizedTypeBinding)) {
 			// if C is parameterized with its own type variables, there're no more constraints to be created here, otherwise let's fail
-			return isInsignificantParameterized(ca);
+			return ca.isParameterizedWithOwnVariables();
 		}
 		TypeBinding[] bi = ((ParameterizedTypeBinding) cb).arguments;
 		if (cb.isRawType() || bi == null || bi.length == 0)
@@ -357,20 +377,11 @@ class ConstraintTypeFormula extends ConstraintFormula {
 		return true;
 	}
 
-	private boolean isInsignificantParameterized(ParameterizedTypeBinding ca) {
-		TypeVariableBinding[] typeVariables = ca.original().typeVariables();
-		TypeBinding[] typeArguments = ca.arguments;
-		if (typeVariables == null || typeArguments == null)
-			return typeVariables == typeArguments;
-		if (typeVariables.length != typeArguments.length)
-			return false;
-		for (int i = 0; i < typeArguments.length; i++) {
-			if (TypeBinding.notEquals(typeVariables[i], typeArguments[i]))
-				return false;
-		}
-		return true;
+	public boolean equalsEquals (ConstraintTypeFormula that) {
+		return (that != null && this.relation == that.relation && this.isSoft == that.isSoft && 
+					TypeBinding.equalsEquals(this.left, that.left) && TypeBinding.equalsEquals(this.right, that.right));
 	}
-
+	
 	public boolean applySubstitution(BoundSet solutionSet, InferenceVariable[] variables) {
 		super.applySubstitution(solutionSet, variables);
 		for (int i=0; i<variables.length; i++) {
