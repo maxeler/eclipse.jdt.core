@@ -453,8 +453,26 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope, Expression []
 			// TODO Auto-generated method stub
 			throw new RuntimeException("Implement this");
 //				return null;
-		}
-	};
+			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
+			}
+		};
 
 	String ms = getMethodName(put);
 	if ((tb_left == null) || (!tbRightValid)) return null;

@@ -220,9 +220,27 @@ public MethodBinding getMethodBindingForOverloadForCASE(BlockScope scope) {
 			// TODO Auto-generated method stub
 			throw new RuntimeException("Implement this");
 //			return null;
-		}
+			}
 
-	};
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
+			}
+
+		};
 
 	MethodBinding mb2 = scope.parent.getMethod(tb, ms.toCharArray(), tb_right,  fakeInvocationSite);
 	return mb2;

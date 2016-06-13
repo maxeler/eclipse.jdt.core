@@ -244,7 +244,6 @@ public class DefaultCodeFormatter extends CodeFormatter {
 						commentsPreparator.handleBlockComment(i);
 						int startPosition = this.tokenManager.findSourcePositionInLine(token.originalStart);
 						commentWrapper.wrapMultiLineComment(token, startPosition, false, false);
-			optionsMap.put(CompilerOptions.OPTION_ReportMaxelerAssertStatement, CompilerOptions.ERROR);
 					}
 				}
 				break;

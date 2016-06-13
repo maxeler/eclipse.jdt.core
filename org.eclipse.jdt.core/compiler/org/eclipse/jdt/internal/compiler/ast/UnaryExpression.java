@@ -100,6 +100,24 @@ public class UnaryExpression extends OperatorExpression {
 				throw new RuntimeException("Implement this");
 //				return null;
 			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
+			}
 		};
 
 		String ms = getMethodName();
