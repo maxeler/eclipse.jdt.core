@@ -362,6 +362,7 @@ public class SWITCHStatement extends Statement {
 		TypeBinding [] tb_right = new TypeBinding[] {this.expression.resolvedType};
 		tb = localScope.parent.classScope().referenceContext.binding;
 		InvocationSite fakeInvocationSite = new InvocationSite(){
+
 			public TypeBinding[] genericTypeArguments() { return null; }
 			public boolean isSuperAccess(){ return false; }
 			public boolean isTypeAccess() { return true; }
@@ -396,6 +397,24 @@ public class SWITCHStatement extends Statement {
 				// TODO Auto-generated method stub
 				throw new RuntimeException("Implement this");
 //				return null;
+			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
 			}
 		};
 
@@ -471,6 +490,24 @@ public class SWITCHStatement extends Statement {
 				// TODO Auto-generated method stub
 				throw new RuntimeException("Implement this");
 //				return null;
+			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
 			}
 		};
 

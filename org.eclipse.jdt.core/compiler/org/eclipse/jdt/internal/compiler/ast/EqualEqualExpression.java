@@ -80,6 +80,24 @@ public class EqualEqualExpression extends BinaryExpression{
 //				return null;
 			}
 
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
+			}
+
 		};
 
 		String ms = ""; //$NON-NLS-1$

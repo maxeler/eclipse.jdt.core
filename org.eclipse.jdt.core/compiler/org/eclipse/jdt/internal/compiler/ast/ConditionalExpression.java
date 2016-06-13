@@ -875,7 +875,7 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		TypeBinding tb_cond = null;
 		TypeBinding tb_right = null; 
 		TypeBinding tb_left = null;
-		
+
 		if(this.valueIfTrue.resolvedType == null)
 			tb_left = this.valueIfTrue.resolveType(scope);
 		else
@@ -930,6 +930,26 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 				// TODO Auto-generated method stub
 				throw new RuntimeException("Implement this");
 //				return null;
+			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+				// return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
+				// return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+				throw new RuntimeException("Implement this");
 			}
 		};
 
@@ -997,6 +1017,24 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 				throw new RuntimeException("Implement this");
 //				return null;
 			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
+			}
 		};
 
 		String ms = "eq"; //$NON-NLS-1$
@@ -1038,12 +1076,13 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 				else{
 					codeStream.invoke((original.declaringClass.isInterface()) ? Opcodes.OPC_invokeinterface : Opcodes.OPC_invokevirtual, original, original.declaringClass);
 				}
-				if (!this.appropriateMethodForOverload.returnType.isBaseType()) codeStream.checkcast(this.appropriateMethodForOverload.returnType);
+				if (!this.appropriateMethodForOverload.returnType.isBaseType())
+					codeStream.checkcast(this.appropriateMethodForOverload.returnType);
 
 			}
 			if (valueRequired) {
 				codeStream.generateImplicitConversion(this.implicitConversion);
 			}
 		}
-	}	
+	}
 }

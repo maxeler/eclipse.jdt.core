@@ -357,7 +357,7 @@ public TypeBinding resolveType(BlockScope scope, Expression expression) {
 			this.receiver.computeConversion(scope, arrayType, arrayType);
 			if (arrayType.isArrayType()) {
 				TypeBinding elementType = ((ArrayBinding) arrayType).elementsType();
-				this.resolvedType = ((this.bits & ASTNode.IsStrictlyAssigned) == 0) ? elementType.capture(scope, this.sourceEnd) : elementType;
+				this.resolvedType = ((this.bits & ASTNode.IsStrictlyAssigned) == 0) ? elementType.capture(scope, this.sourceStart, this.sourceEnd) : elementType;
 			} else {
 				scope.problemReporter().referenceMustBeArrayTypeAt(arrayType, this);
 			}
@@ -457,6 +457,24 @@ public TypeBinding resolveType(BlockScope scope, Expression expression) {
 				// TODO Auto-generated method stub
 				throw new RuntimeException("Implement this");
 //				return null;
+			}
+
+			@Override
+			public boolean isQualifiedSuper() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public boolean checkingPotentialCompatibility() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
+				// TODO Auto-generated method stub
+
 			}
 
 		};
