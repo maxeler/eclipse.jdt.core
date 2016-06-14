@@ -39,65 +39,36 @@ public class EqualEqualExpression extends BinaryExpression{
 		else
 			tb_right = this.right.resolvedType;
 
-		final TypeBinding expectedTypeLocal = this.expectedType;
+		final Expression[] arguments = new Expression[] { this.left, this.right };
+
 		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
 			public TypeBinding getExpectedType() {
-				return expectedTypeLocal;
-			}
-			public TypeBinding expectedType() {
-				return getExpectedType();
+				return EqualEqualExpression.this.expectedType();
 			}
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return this.getExpectedType();
 			}
 			@Override
 			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
+				return false;
 			}
 			@Override
 			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return new InferenceContext18(scope, null, this, null);
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return EqualEqualExpression.this.getExpressionContext();
 			}
-
 			@Override
 			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
+				return EqualEqualExpression.this.isQualifiedSuper();
 			}
-
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
+			public Expression[] arguments() {
+				return arguments;
 			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-
 		};
 
 		String ms = ""; //$NON-NLS-1$

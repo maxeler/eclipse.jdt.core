@@ -395,7 +395,7 @@ public TypeBinding resolveType(BlockScope scope, Expression expression) {
 		return getMethodBindingForOverload(scope, arguments, new TypeBinding[0], put);
 	}
 	
-	public MethodBinding getMethodBindingForOverload(BlockScope scope, Expression [] arguments, TypeBinding[] types, boolean put) {
+	public MethodBinding getMethodBindingForOverload(BlockScope scope, final Expression [] arguments, TypeBinding[] types, boolean put) {
 		TypeBinding [] tb_right = new TypeBinding[arguments.length + types.length]; 
 		TypeBinding tb_left = null;
 		
@@ -417,66 +417,28 @@ public TypeBinding resolveType(BlockScope scope, Expression expression) {
 			tb_right[arguments.length + i] = types[i];
 			tbRightValid = tbRightValid && (tb_right[arguments.length + i] != null);
 		}
-		
-		final TypeBinding expectedTypeLocal = this.expectedType;
+
+		final TypeBinding targetType = tb_left;
 		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
 			public TypeBinding getExpectedType() {
-				return expectedTypeLocal;
-			}
-			public TypeBinding expectedType() {
-				return getExpectedType();
+				return CompositeArrayReference.this.expectedType();
 			}
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return targetType;
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return CompositeArrayReference.this.getExpressionContext();
 			}
-
 			@Override
 			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
+				return CompositeArrayReference.this.isQualifiedSuper();
 			}
-
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
+			public Expression[] arguments() {
+				return arguments;
 			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-
 		};
 
 		String ms = getMethodName(put);

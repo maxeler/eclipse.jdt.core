@@ -172,65 +172,29 @@ public String getBindingMethodName() {
 	}
 		
 	
-	public MethodBinding getMethodBindingForOverload(BlockScope scope, TypeBinding left, TypeBinding right) {
-
-		final TypeBinding expectedTypeLocal = this.expectedType;
+	public MethodBinding getMethodBindingForOverload(final BlockScope scope, final TypeBinding left, final TypeBinding right) {
+		final TypeBinding[] tb_right =  new TypeBinding[]{right};
+		final Expression[] arguments = new Expression[] { this.expression };
 		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
 			public TypeBinding getExpectedType() {
-				return expectedTypeLocal;
-			}
-			public TypeBinding expectedType() {
-				return getExpectedType();
+				return ConnectCompoundAssignment.this.expectedType();
 			}
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return left;
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return ConnectCompoundAssignment.this.getExpressionContext();
 			}
-
 			@Override
 			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
+				return ConnectCompoundAssignment.this.isQualifiedSuper();
 			}
 
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
+			public Expression[] arguments() {
+				return arguments;
 			}
 		};
 
@@ -238,7 +202,7 @@ public String getBindingMethodName() {
 		MethodBinding mb2;
 		//right is class
 		if (!right.isBoxingType() && !right.isBaseType()){
-			mb2 = scope.getMethod(left, ms.toCharArray(), new TypeBinding[]{right},  fakeInvocationSite);
+			mb2 = scope.getMethod(left, ms.toCharArray(), tb_right,  fakeInvocationSite);
 			if(mb2 != null && mb2.isValidBinding()){
 				if((mb2.modifiers & ClassFileConstants.AccStatic) != 0) {
 					scope.problemReporter().overloadedOperatorMethodNotStatic(this, assignmentToString());
@@ -254,7 +218,7 @@ public String getBindingMethodName() {
 			return null;
 		}
 		if (right.isBoxingType() || right.isBaseType()){
-			mb2 = scope.getMethod(left, ms.toCharArray(), new TypeBinding[]{right}, fakeInvocationSite);
+			mb2 = scope.getMethod(left, ms.toCharArray(), tb_right, fakeInvocationSite);
 			if(mb2 != null && mb2.isValidBinding()){
 				if((mb2.modifiers & ClassFileConstants.AccStatic) != 0) {
 					scope.problemReporter().overloadedOperatorMethodNotStatic(this, assignmentToString());

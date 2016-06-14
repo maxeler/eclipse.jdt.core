@@ -381,8 +381,9 @@ public class InferenceContext18 {
 			// bullets 1&2: definitions only.
 			if (expectedType != null
 					&& expectedType != TypeBinding.VOID
-					&& invocationSite instanceof Expression
-					&& ((Expression)invocationSite).isPolyExpression(method)) 
+					&& ((invocationSite instanceof Expression && ((Expression)invocationSite).isPolyExpression(method))
+					|| (invocationSite instanceof OperatorOverloadInvocationSite
+					&& ((OperatorOverloadInvocationSite)invocationSite).isPolyExpression(method))))
 			{
 				// 3. bullet: special treatment for poly expressions
 				if (!ConstraintExpressionFormula.inferPolyInvocationType(this, invocationSite, expectedType, method)) {
