@@ -871,169 +871,71 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		return "ternaryIf"; //$NON-NLS-1$
 	}
 
-	public MethodBinding getMethodBindingForOverload(BlockScope scope) {
-		TypeBinding tb_cond = null;
-		TypeBinding tb_right = null; 
-		TypeBinding tb_left = null;
+	public MethodBinding getMethodBindingForOverload(final BlockScope scope) {
+		final TypeBinding tb_cond = this.condition.resolvedType == null ? this.condition.resolveType(scope) : this.condition.resolvedType;
+		final TypeBinding tb_right = this.valueIfFalse.resolvedType == null ? this.valueIfFalse.resolveType(scope) : this.valueIfFalse.resolvedType;
+		final TypeBinding tb_left = this.valueIfTrue.resolvedType == null ? this.valueIfTrue.resolveType(scope) : this.valueIfTrue.resolvedType;
+		final TypeBinding[] tb_args = new TypeBinding[] {tb_left, tb_right};
+		final Expression [] arguments = new Expression[] { this.valueIfTrue, this.valueIfFalse };
 
-		if(this.valueIfTrue.resolvedType == null)
-			tb_left = this.valueIfTrue.resolveType(scope);
-		else
-			tb_left = this.valueIfTrue.resolvedType;
-		
-		if(this.valueIfFalse.resolvedType == null)
-			tb_right = this.valueIfFalse.resolveType(scope);
-		else
-			tb_right = this.valueIfFalse.resolvedType;
-		
-		if(this.condition.resolvedType == null)
-			tb_cond = this.condition.resolveType(scope);
-		else
-			tb_cond = this.condition.resolvedType;
-
-		final TypeBinding expectedTypeLocal = this.expectedType;
-		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
-			public TypeBinding getExpectedType() {
-				return expectedTypeLocal;
-			}
-			public TypeBinding expectedType() {
-				return getExpectedType();
-			}
+		Invocation fakeInvocationSite = new OperatorOverloadInvocationSite(){
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return ConditionalExpression.this.expectedType();
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return ConditionalExpression.this.getExpressionContext();
 			}
-
 			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-				// return false;
+			public Expression[] arguments() {
+				return arguments;
 			}
-
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-				// return false;
+			public TypeBinding getExpectedType() {
+				return ConditionalExpression.this.expectedType();
 			}
-
 			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
+			public boolean receiverIsImplicitThis() {
+				return ConditionalExpression.this.receiverIsImplicitThis();
 			}
 		};
 
 		String ms = getMethodName();
 		
 		MethodBinding mb2 = null;
-		if ((tb_cond != null) && (tb_left!=null) && (tb_right!=null)) {
-			mb2 = scope.getMethod(tb_cond, ms.toCharArray(), new TypeBinding[]{tb_left, tb_right},  fakeInvocationSite);
+		if ((tb_cond != null) && (tb_left != null) && (tb_right != null)) {
+			mb2 = scope.getMethod(tb_cond, ms.toCharArray(), tb_args, fakeInvocationSite);
 		}
 		return mb2;
 	}
 
 	
-	private MethodBinding existEqFunction(BlockScope scope, EqualExpression localCondition) {
-		TypeBinding tb_right = null; 
-		TypeBinding tb_left = null;
+	private MethodBinding existEqFunction(final BlockScope scope, EqualExpression localCondition) {
+		final TypeBinding tb_right = localCondition.right.resolvedType == null ? localCondition.right.resolveType(scope) : localCondition.right.resolvedType;
+		final TypeBinding tb_left = localCondition.left.resolvedType == null ? localCondition.left.resolveType(scope) : localCondition.left.resolvedType;
+		final TypeBinding[] tb_args = new TypeBinding[] { tb_right };
+		final Expression[] arguments = new Expression[] { localCondition.left, localCondition.right };
 		
-		if(localCondition.left.resolvedType == null)
-			tb_left = localCondition.left.resolveType(scope);
-		else
-			tb_left = localCondition.left.resolvedType;
-		
-		if(localCondition.right.resolvedType == null)
-			tb_right = localCondition.right.resolveType(scope);
-		else
-			tb_right = localCondition.right.resolvedType;
-		
-		final TypeBinding expectedTypeLocal = this.expectedType;
-		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
+		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite() {
 			public TypeBinding getExpectedType() {
-				return expectedTypeLocal;
-			}
-			public TypeBinding expectedType() {
-				return getExpectedType();
+				return ConditionalExpression.this.expectedType();
 			}
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return this.getExpectedType();
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return ConditionalExpression.this.getExpressionContext();
 			}
-
 			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
+			public Expression[] arguments() {
+				return arguments;
 			}
-
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
+			public boolean receiverIsImplicitThis() {
+				return ConditionalExpression.this.receiverIsImplicitThis();
 			}
 		};
 
@@ -1041,7 +943,7 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 		
 		MethodBinding mb2 = null;
 		if ((tb_left!=null) && (tb_right!=null) /*&& (tb_left.id == tb_right.id)*/) {
-			mb2 = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right},  fakeInvocationSite);
+			mb2 = scope.getMethod(tb_left, ms.toCharArray(), tb_args,  fakeInvocationSite);
 			if(mb2 == null || !mb2.isValidBinding() || tb_left.id != mb2.returnType.id){
 				return null;
 			}

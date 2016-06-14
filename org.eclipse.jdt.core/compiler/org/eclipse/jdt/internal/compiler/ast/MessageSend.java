@@ -470,13 +470,16 @@ public void generateCode(BlockScope currentScope, CodeStream codeStream, boolean
 /**
  * @see org.eclipse.jdt.internal.compiler.lookup.InvocationSite#genericTypeArguments()
  */
+@Override
 public TypeBinding[] genericTypeArguments() {
 	return this.genericTypeArguments;
 }
 
+@Override
 public boolean isSuperAccess() {
 	return this.receiver.isSuper();
 }
+@Override
 public boolean isTypeAccess() {
 	return this.receiver != null && this.receiver.isTypeReference();
 }

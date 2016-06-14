@@ -7,10 +7,8 @@ import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import org.eclipse.jdt.internal.compiler.lookup.OperatorOverloadInvocationSite;
 import org.eclipse.jdt.internal.compiler.lookup.ProblemMethodBinding;
 import org.eclipse.jdt.internal.compiler.lookup.ProblemReasons;
-import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
 import org.eclipse.jdt.internal.compiler.lookup.Scope;
-import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
-
+import org.eclipse.jdt.internal.compiler.lookup.TypeBinding; 
 /**
  *
  * @author milan
@@ -24,6 +22,37 @@ public class EqualEqualExpression extends BinaryExpression{
 		 * Add custom '===', '!==' code
 		 */
 	}
+
+	class EqualEqualInvocationSite extends OperatorOverloadInvocationSite {
+		public Expression [] siteArguments = new Expression[] { null };
+
+		public EqualEqualInvocationSite(Expression arg) {
+			siteArguments[0] = arg;
+		}
+		public TypeBinding getExpectedType() {
+			return EqualEqualExpression.this.expectedType();
+		}
+		@Override
+		public TypeBinding invocationTargetType() {
+			return this.getExpectedType();
+		}
+		@Override
+		public boolean receiverIsImplicitThis() {
+			return EqualEqualExpression.this.receiverIsImplicitThis();
+		}
+		@Override
+		public InferenceContext18 freshInferenceContext(Scope scope) {
+			return new InferenceContext18(scope, null, this);
+		}
+		@Override
+		public ExpressionContext getExpressionContext() {
+			return EqualEqualExpression.this.getExpressionContext();
+		}
+		@Override
+		public Expression[] arguments() {
+			return siteArguments;
+		}
+	};
 
 	public MethodBinding getMethodBindingForOverload(BlockScope scope) {
 		TypeBinding tb_right = null;
@@ -39,66 +68,6 @@ public class EqualEqualExpression extends BinaryExpression{
 		else
 			tb_right = this.right.resolvedType;
 
-		final TypeBinding expectedTypeLocal = this.expectedType;
-		OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
-			public TypeBinding getExpectedType() {
-				return expectedTypeLocal;
-			}
-			public TypeBinding expectedType() {
-				return getExpectedType();
-			}
-			@Override
-			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-
-		};
 
 		String ms = ""; //$NON-NLS-1$
 		String rms = ""; //$NON-NLS-1$
@@ -113,13 +82,13 @@ public class EqualEqualExpression extends BinaryExpression{
 
 		//Object <op> Object
 		if (!tb_left.isBoxingType() && !tb_left.isBaseType() && !tb_right.isBoxingType() && !tb_right.isBaseType()){
-			MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right},  fakeInvocationSite);
-			MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left},  fakeInvocationSite); //$NON-NLS-1$
+			MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right}, new EqualEqualInvocationSite(this.right));
+			MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, new EqualEqualInvocationSite(this.left)); //$NON-NLS-1$
 			/**
 			 * Check for required counter method
 			 */
-			MethodBinding mbCounterLeft = scope.getMethod(tb_left, rms.toCharArray(), new TypeBinding[]{tb_right},  fakeInvocationSite);
-			MethodBinding mbCounterRight = scope.getMethod(tb_right, (rms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left},  fakeInvocationSite); //$NON-NLS-1$
+			MethodBinding mbCounterLeft = scope.getMethod(tb_left, rms.toCharArray(), new TypeBinding[]{tb_right}, new EqualEqualInvocationSite(this.right));
+			MethodBinding mbCounterRight = scope.getMethod(tb_right, (rms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, new EqualEqualInvocationSite(this.left)); //$NON-NLS-1$
 
 			if(mbLeft.isValidBinding() && mbRight.isValidBinding()){
 				if(((mbLeft.modifiers & ClassFileConstants.AccStatic) != 0) && ((mbRight.modifiers & ClassFileConstants.AccStatic) != 0)) {
@@ -169,8 +138,8 @@ public class EqualEqualExpression extends BinaryExpression{
 
 		//Object <op> type or type <op> Object
 		if(!tb_left.isBoxingType() && !tb_left.isBaseType() && (tb_right.isBoxingType() || tb_right.isBaseType())){
-			MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right}, fakeInvocationSite);
-			MethodBinding mbCounterLeft = scope.getMethod(tb_left, rms.toCharArray(), new TypeBinding[]{tb_right}, fakeInvocationSite);
+			MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right}, new EqualEqualInvocationSite(this.right));
+			MethodBinding mbCounterLeft = scope.getMethod(tb_left, rms.toCharArray(), new TypeBinding[]{tb_right}, new EqualEqualInvocationSite(this.right));
 			if(mbLeft.isValidBinding() && isAnnotationSet(mbLeft)){
 				if(!mbCounterLeft.isValidBinding())
 					scope.problemReporter().invalidOrMissingOverloadedOperator(this, rms, this.right.resolvedType);
@@ -189,8 +158,8 @@ public class EqualEqualExpression extends BinaryExpression{
 			return null;
 		}
 		if(!tb_right.isBoxingType() && !tb_right.isBaseType() && (tb_left.isBoxingType() || tb_left.isBaseType())){
-			MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, fakeInvocationSite); //$NON-NLS-1$
-			MethodBinding mbCounterRight = scope.getMethod(tb_right, (rms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, fakeInvocationSite); //$NON-NLS-1$
+			MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, new EqualEqualInvocationSite(this.left)); //$NON-NLS-1$
+			MethodBinding mbCounterRight = scope.getMethod(tb_right, (rms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, new EqualEqualInvocationSite(this.left)); //$NON-NLS-1$
 			if(mbRight.isValidBinding()){
 				if(!mbCounterRight.isValidBinding())
 					scope.problemReporter().invalidOrMissingOverloadedOperator(this, rms + "AsRHS", this.right.resolvedType);//$NON-NLS-1$

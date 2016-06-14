@@ -357,64 +357,30 @@ public class SWITCHStatement extends Statement {
 		return "_END_SWITCH"; //$NON-NLS-1$
 	}
 
-	public MethodBinding getMethodBindingForOverloadForSWITCH(BlockScope localScope) {
-		TypeBinding tb = null; 
-		TypeBinding [] tb_right = new TypeBinding[] {this.expression.resolvedType};
-		tb = localScope.parent.classScope().referenceContext.binding;
-		InvocationSite fakeInvocationSite = new InvocationSite(){
-
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
-			public TypeBinding expectedType() {
-				return null;
-			}
+	public MethodBinding getMethodBindingForOverloadForSWITCH(final BlockScope localScope) {
+		final TypeBinding [] tb_right = new TypeBinding[] {this.expression.resolvedType};
+		final TypeBinding tb = localScope.parent.classScope().referenceContext.binding;
+		final Expression[] arguments = new Expression[] { this.expression };
+		InvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return SWITCHStatement.this.expectedType();
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return SWITCHStatement.this.getExpressionContext();
 			}
-
 			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
+			public Expression[] arguments() {
+				return arguments;
 			}
-
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
+			public TypeBinding getExpectedType() {
+				return SWITCHStatement.this.expectedType();
 			}
-
 			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
+			public boolean receiverIsImplicitThis() {
+				return SWITCHStatement.this.receiverIsImplicitThis();
 			}
 		};
 
@@ -451,63 +417,29 @@ public class SWITCHStatement extends Statement {
 	/**
 	 * endswitch
 	 */
-	public MethodBinding getMethodBindingForOverloadForENDSWITCH(BlockScope localScope) {
-		TypeBinding tb = null; 
-		TypeBinding [] tb_right = new TypeBinding[] {};
-		tb = localScope.parent.classScope().referenceContext.binding;
-		InvocationSite fakeInvocationSite = new InvocationSite(){
-			public TypeBinding[] genericTypeArguments() { return null; }
-			public boolean isSuperAccess(){ return false; }
-			public boolean isTypeAccess() { return true; }
-			public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-			public void setDepth(int depth) { /* ignore */}
-			public void setFieldIndex(int depth){ /* ignore */}
-			public int sourceStart() { return 0; }
-			public int sourceEnd() { return 0; }
-			public TypeBinding expectedType() {
-				return null;
-			}
+	public MethodBinding getMethodBindingForOverloadForENDSWITCH(final BlockScope localScope) {
+		final TypeBinding [] tb_right = new TypeBinding[] {};
+		final TypeBinding tb = localScope.parent.classScope().referenceContext.binding;
+		InvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
 			@Override
 			public TypeBinding invocationTargetType() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
-			}
-			@Override
-			public boolean receiverIsImplicitThis() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return false;
-			}
-			@Override
-			public InferenceContext18 freshInferenceContext(Scope scope) {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return tb;
 			}
 			@Override
 			public ExpressionContext getExpressionContext() {
-				// TODO Auto-generated method stub
-				throw new RuntimeException("Implement this");
-//				return null;
+				return SWITCHStatement.this.getExpressionContext();
 			}
-
 			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
+			public Expression[] arguments() {
+				return null;
 			}
-
 			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
+			public TypeBinding getExpectedType() {
+				return tb;
 			}
-
 			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
+			public boolean receiverIsImplicitThis() {
+				return SWITCHStatement.this.receiverIsImplicitThis();
 			}
 		};
 

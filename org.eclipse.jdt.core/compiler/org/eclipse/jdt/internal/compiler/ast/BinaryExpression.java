@@ -2103,9 +2103,39 @@ public String getMethodName() {
 	return ""; //$NON-NLS-1$
 }
 
+class BinaryExpressionSite extends OperatorOverloadInvocationSite {
+	protected Expression [] siteArguments = new Expression[1];
+
+	public BinaryExpressionSite(Expression rhs) {
+		siteArguments[0] = rhs;
+	}
+
+	public TypeBinding getExpectedType() {
+		return BinaryExpression.this.expectedType();
+	}
+	@Override
+	public TypeBinding invocationTargetType() {
+		return getExpectedType();
+	}
+	@Override
+	public ExpressionContext getExpressionContext() {
+		return BinaryExpression.this.getExpressionContext();
+	}
+	@Override
+	public Expression[] arguments() {
+		return siteArguments;
+	}
+	@Override
+	public boolean receiverIsImplicitThis() {
+		return BinaryExpression.this.receiverIsImplicitThis();
+	}
+};
+
+
 public MethodBinding getMethodBindingForOverload(BlockScope scope) {
 	TypeBinding tb_right = null;
 	TypeBinding tb_left = null;
+
 
 	if(this.left.resolvedType == null)
 		tb_left = this.left.resolveType(scope);
@@ -2117,72 +2147,12 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope) {
 	else
 		tb_right = this.right.resolvedType;
 
-	final TypeBinding expectedTypeLocal = this.expectedType;
-	OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite() {
-		public TypeBinding[] genericTypeArguments() { return null; }
-		public boolean isSuperAccess(){ return false; }
-		public boolean isTypeAccess() { return true; }
-		public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-		public void setDepth(int depth) { /* ignore */}
-		public void setFieldIndex(int depth){ /* ignore */}
-		public int sourceStart() { return 0; }
-		public int sourceEnd() { return 0; }
-		public TypeBinding getExpectedType() {
-			return expectedTypeLocal;
-		}
-		public TypeBinding expectedType() {
-			return getExpectedType();
-		}
-		@Override
-		public TypeBinding invocationTargetType() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-		}
-		@Override
-		public boolean receiverIsImplicitThis() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return false;
-		}
-		@Override
-		public InferenceContext18 freshInferenceContext(Scope scope) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-		}
-		@Override
-		public ExpressionContext getExpressionContext() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-		};
-
 	String ms = getMethodName();
 
 	//Object <op> Object
 	if (!tb_left.isBoxingType() && !tb_left.isBaseType() && !tb_right.isBoxingType() && !tb_right.isBaseType()) {
-		MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right},  fakeInvocationSite);
-		MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left},  fakeInvocationSite); //$NON-NLS-1$
+		MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right}, new BinaryExpressionSite(this.right));
+		MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, new BinaryExpressionSite(this.left)); //$NON-NLS-1$
 		if(mbLeft.isValidBinding() && mbRight.isValidBinding()){
 			if(((mbLeft.modifiers & ClassFileConstants.AccStatic) != 0) && ((mbRight.modifiers & ClassFileConstants.AccStatic) != 0)) {
 				scope.problemReporter().overloadedOperatorMethodNotStatic(this, getMethodName());
@@ -2214,7 +2184,7 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope) {
 
 	//Object <op> type or type <op> Object
 	if(!tb_left.isBoxingType() && !tb_left.isBaseType() && (tb_right.isBoxingType() || tb_right.isBaseType())){
-		MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right}, fakeInvocationSite);
+		MethodBinding mbLeft = scope.getMethod(tb_left, ms.toCharArray(), new TypeBinding[]{tb_right}, new BinaryExpressionSite(this.right));
 		if(mbLeft.isValidBinding() && isAnnotationSet(mbLeft)){
 			if((mbLeft.modifiers & ClassFileConstants.AccStatic) != 0) {
 				scope.problemReporter().overloadedOperatorMethodNotStatic(this, getMethodName());
@@ -2226,7 +2196,7 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope) {
 		return null;
 	}
 	if(!tb_right.isBoxingType() && !tb_right.isBaseType() && (tb_left.isBoxingType() || tb_left.isBaseType())){
-		MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, fakeInvocationSite); //$NON-NLS-1$
+		MethodBinding mbRight = scope.getMethod(tb_right, (ms + "AsRHS").toCharArray(), new TypeBinding[]{tb_left}, new BinaryExpressionSite(this.left)); //$NON-NLS-1$
 		if(mbRight.isValidBinding()){
 			if((mbRight.modifiers & ClassFileConstants.AccStatic) != 0) {
 				scope.problemReporter().overloadedOperatorMethodNotStatic(this, getMethodName());
@@ -2339,7 +2309,7 @@ public TypeBinding resolveType(BlockScope scope) {
 				return null;
 			}
 
-		}else{
+		} else {
 			//Left is object and right isn't string or Right is object and left isn't string
 			if((!leftType.isBoxingType() && !leftType.isBaseType() && !leftType.isStringType() && !rightType.isStringType()) ||
 					(!rightType.isBoxingType() && !rightType.isBaseType() && !rightType.isStringType() && !leftType.isStringType())){

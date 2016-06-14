@@ -254,64 +254,31 @@ public String getMethodNameForENDIF() {
  */
 
 public MethodBinding getMethodBindingForOverloadForIF(BlockScope scope) {
-	TypeBinding tb = null; 
 	TypeBinding [] tb_right = new TypeBinding[] {this.condition.resolvedType};
-	tb = scope.parent.classScope().referenceContext.binding;
-	InvocationSite fakeInvocationSite = new InvocationSite(){
-		public TypeBinding[] genericTypeArguments() { return null; }
-		public boolean isSuperAccess(){ return false; }
-		public boolean isTypeAccess() { return true; }
-		public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-		public void setDepth(int depth) { /* ignore */}
-		public void setFieldIndex(int depth){ /* ignore */}
-		public int sourceStart() { return 0; }
-		public int sourceEnd() { return 0; }
-		public TypeBinding expectedType() {
-			return null;
-		}
+	final TypeBinding tb = scope.parent.classScope().referenceContext.binding;
+	InvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite() {
 		@Override
 		public TypeBinding invocationTargetType() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-		}
-		@Override
-		public boolean receiverIsImplicitThis() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return false;
-		}
-		@Override
-		public InferenceContext18 freshInferenceContext(Scope scope) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
+			return tb;
 		}
 		@Override
 		public ExpressionContext getExpressionContext() {
+			return IFStatement.this.getExpressionContext();
+		}
+		@Override
+		public Expression[] arguments() {
 			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-		};
+			return null;
+		}
+		@Override
+		public TypeBinding getExpectedType() {
+			return tb;
+		}
+		@Override
+		public boolean receiverIsImplicitThis() {
+			return IFStatement.this.receiverIsImplicitThis();
+		}
+	};
 
 	String ms = getMethodNameForIF();
 	
@@ -347,66 +314,31 @@ public void generateOperatorOverloadCodeForIF(MethodBinding mb2, BlockScope curr
  * method overloading ELSE 
  */
 public MethodBinding getMethodBindingForOverloadForELSE(BlockScope scope) {
-	TypeBinding tb = null; 
 	TypeBinding [] tb_right = new TypeBinding[] {};
 
-	tb = scope.parent.classScope().referenceContext.binding;
-	InvocationSite fakeInvocationSite = new InvocationSite(){
-		public TypeBinding[] genericTypeArguments() { return null; }
-		public boolean isSuperAccess(){ return false; }
-		public boolean isTypeAccess() { return true; }
-		public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-		public void setDepth(int depth) { /* ignore */}
-		public void setFieldIndex(int depth){ /* ignore */}
-		public int sourceStart() { return 0; }
-		public int sourceEnd() { return 0; }
-		public TypeBinding expectedType() {
-			return null;
-		}
+	final TypeBinding tb = scope.parent.classScope().referenceContext.binding;
+	InvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite() {
 		@Override
 		public TypeBinding invocationTargetType() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-		}
-		@Override
-		public boolean receiverIsImplicitThis() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return false;
-		}
-		@Override
-		public InferenceContext18 freshInferenceContext(Scope scope) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
+			return tb;
 		}
 		@Override
 		public ExpressionContext getExpressionContext() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-
-		};
+			return IFStatement.this.getExpressionContext();
+		}
+		@Override
+		public Expression[] arguments() {
+			return null;
+		}
+		@Override
+		public TypeBinding getExpectedType() {
+			return tb;
+		}
+		@Override
+		public boolean receiverIsImplicitThis() {
+			return IFStatement.this.receiverIsImplicitThis();
+		}
+	};
 
 	String ms = getMethodNameForELSE();
 	
@@ -440,66 +372,33 @@ public void generateOperatorOverloadCodeForELSE(MethodBinding mb2, BlockScope cu
  * method overloading ENDIF 
  */
 public MethodBinding getMethodBindingForOverloadForENDIF(BlockScope scope) {
-	TypeBinding tb = null; 
 	TypeBinding [] tb_right = new TypeBinding[] {};
 
-	tb = scope.parent.classScope().referenceContext.binding;
-	InvocationSite fakeInvocationSite = new InvocationSite(){
-		public TypeBinding[] genericTypeArguments() { return null; }
-		public boolean isSuperAccess(){ return false; }
-		public boolean isTypeAccess() { return true; }
-		public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-		public void setDepth(int depth) { /* ignore */}
-		public void setFieldIndex(int depth){ /* ignore */}
-		public int sourceStart() { return 0; }
-		public int sourceEnd() { return 0; }
-		public TypeBinding expectedType() {
-			return null;
-		}
+	final TypeBinding tb = scope.parent.classScope().referenceContext.binding;
+	InvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite() {
 		@Override
 		public TypeBinding invocationTargetType() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-		}
-		@Override
-		public boolean receiverIsImplicitThis() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return false;
-		}
-		@Override
-		public InferenceContext18 freshInferenceContext(Scope scope) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
+			return tb;
 		}
 		@Override
 		public ExpressionContext getExpressionContext() {
+			return IFStatement.this.getExpressionContext();
+		}
+		@Override
+		public Expression[] arguments() {
 			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-
-		};
+			return null;
+		}
+		@Override
+		public TypeBinding getExpectedType() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+		@Override
+		public boolean receiverIsImplicitThis() {
+			return IFStatement.this.receiverIsImplicitThis();
+		}
+	};
 
 	String ms = getMethodNameForENDIF();
 	

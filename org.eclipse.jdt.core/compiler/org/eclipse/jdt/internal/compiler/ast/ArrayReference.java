@@ -24,11 +24,9 @@ import org.eclipse.jdt.internal.compiler.flow.FlowInfo;
 import org.eclipse.jdt.internal.compiler.impl.Constant;
 import org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
 import org.eclipse.jdt.internal.compiler.lookup.BlockScope;
-import org.eclipse.jdt.internal.compiler.lookup.InferenceContext18;
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import org.eclipse.jdt.internal.compiler.lookup.OperatorOverloadInvocationSite;
-import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
-import org.eclipse.jdt.internal.compiler.lookup.Scope;
+import org.eclipse.jdt.internal.compiler.lookup.ParameterizedGenericMethodBinding;
 import org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.TagBits;
 import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
@@ -393,7 +391,7 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope, Expression []
 	return getMethodBindingForOverload(scope, arguments, new TypeBinding[0], put);
 }
 
-public MethodBinding getMethodBindingForOverload(BlockScope scope, Expression [] arguments, TypeBinding[] types, boolean put) {
+public MethodBinding getMethodBindingForOverload(BlockScope scope, final Expression [] arguments, TypeBinding[] types, boolean put) {
 	TypeBinding [] tb_right = new TypeBinding[types.length + arguments.length];
 	TypeBinding tb_left = null;
 
@@ -414,69 +412,49 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope, Expression []
 		tb_right[arguments.length + i] = types[i];
 		tbRightValid = tbRightValid && (tb_right[arguments.length + i] != null);
 	}
-	final TypeBinding expectedTypeLocal = this.expectedType;
+
+	if ((tb_left == null) || (!tbRightValid)) return null;
+
 	OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
-		public TypeBinding[] genericTypeArguments() { return null; }
-		public boolean isSuperAccess(){ return false; }
-		public boolean isTypeAccess() { return true; }
-		public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-		public void setDepth(int depth) { /* ignore */}
-		public void setFieldIndex(int depth){ /* ignore */}
-		public int sourceStart() { return 0; }
-		public int sourceEnd() { return 0; }
 		public TypeBinding getExpectedType() {
-			return expectedTypeLocal;
-		}
-		public TypeBinding expectedType() {
-			return getExpectedType();
+			return ArrayReference.this.expectedType;
 		}
 		@Override
 		public TypeBinding invocationTargetType() {
-			// TODO Auto-generated method stub
-//				throw new RuntimeException("Implement this");
-			return null;
-		}
-		@Override
-		public boolean receiverIsImplicitThis() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//				return false;
-		}
-		@Override
-		public InferenceContext18 freshInferenceContext(Scope scope) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//				return null;
+			return this.getExpectedType();
 		}
 		@Override
 		public ExpressionContext getExpressionContext() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//				return null;
+			return ArrayReference.this.getExpressionContext();
+		}
+		@Override
+		public Expression[] arguments() {
+			return arguments;
+		}
+		@Override
+		public boolean receiverIsImplicitThis() {
+			return ArrayReference.this.receiverIsImplicitThis();
+		}
+		@Override
+		public boolean isPolyExpression(MethodBinding resolutionCandidate) {
+			if (resolutionCandidate != null) {
+				if (resolutionCandidate instanceof ParameterizedGenericMethodBinding) {
+					ParameterizedGenericMethodBinding pgmb = (ParameterizedGenericMethodBinding) resolutionCandidate;
+					if (pgmb.inferredReturnType)
+						return true; // if already determined
+				}
+				if (resolutionCandidate.returnType != null) {
+					// resolution may have prematurely instantiated the generic method, we need the original, though:
+					MethodBinding candidateOriginal = resolutionCandidate.original();
+					return candidateOriginal.returnType.mentionsAny(candidateOriginal.typeVariables(), -1);
+				}
 			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-		};
+			return false;
+		}
+	};
 
 	String ms = getMethodName(put);
-	if ((tb_left == null) || (!tbRightValid)) return null;
-	MethodBinding mb2 = scope.getMethod(tb_left, ms.toCharArray(), tb_right,  fakeInvocationSite);
+	MethodBinding mb2 = scope.getMethod(tb_left, ms.toCharArray(), tb_right, fakeInvocationSite);
 	return mb2;
 }
 

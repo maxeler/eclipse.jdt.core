@@ -9,11 +9,9 @@ import org.eclipse.jdt.internal.compiler.flow.FlowContext;
 import org.eclipse.jdt.internal.compiler.flow.FlowInfo;
 import org.eclipse.jdt.internal.compiler.impl.Constant;
 import org.eclipse.jdt.internal.compiler.lookup.BlockScope;
-import org.eclipse.jdt.internal.compiler.lookup.InferenceContext18;
 import org.eclipse.jdt.internal.compiler.lookup.InvocationSite;
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
-import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
-import org.eclipse.jdt.internal.compiler.lookup.Scope;
+import org.eclipse.jdt.internal.compiler.lookup.OperatorOverloadInvocationSite;
 import org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 
@@ -122,7 +120,7 @@ public Constant resolveCase(BlockScope scope, TypeBinding switchExpressionType, 
 			if(this.thisReference.resolvedType == null)
 				this.thisReference.resolveType(scope);
 			this.thisReference.computeConversion(scope, this.thisReference.resolvedType, this.thisReference.resolvedType);
-		}else{
+		} else {
 			if(this.constantExpression == null)
 				scope.problemReporter().invalidOrMissingOverloadedOperator(this, getMethodName(), TypeBinding.VOID);
 			else
@@ -131,9 +129,9 @@ public Constant resolveCase(BlockScope scope, TypeBinding switchExpressionType, 
 		}
 		return Constant.NotAConstant;
 	}
-	switchStatement.cases[switchStatement.caseCount++] = this;		
 	// add into the collection of cases of the associated switch statement
-	if(this.constantExpression.resolvedType == null){
+	switchStatement.cases[switchStatement.caseCount++] = this;
+	if(this.constantExpression.resolvedType == null) {
 		this.constantExpression.resolveType(scope);
 		if(this.constantExpression.resolvedType == null)
 			return Constant.NotAConstant;
@@ -155,14 +153,14 @@ public Constant resolveCase(BlockScope scope, TypeBinding switchExpressionType, 
 			this.thisReference.resolveType(scope);
 		this.thisReference.computeConversion(scope, this.thisReference.resolvedType, this.thisReference.resolvedType);
 		this.constantExpression.computeConversion(scope, this.appropriateMethodForOverload.parameters[0], this.constantExpression.resolvedType);
-	}else{
+	} else {
 		scope.problemReporter().invalidOrMissingOverloadedOperator(this, getMethodName(), this.constantExpression.resolvedType);
 		return Constant.NotAConstant;
 	}	
 	return Constant.NotAConstant;
 }
 
-public void traverse(ASTVisitor visitor, 	BlockScope blockScope) {
+public void traverse(ASTVisitor visitor, BlockScope blockScope) {
 	if (visitor.visit(this, blockScope)) {
 		if (this.constantExpression != null) this.constantExpression.traverse(visitor, blockScope);
 	}
@@ -173,74 +171,41 @@ public void traverse(ASTVisitor visitor, 	BlockScope blockScope) {
  * new Milan: CASE
  */
 
-public MethodBinding getMethodBindingForOverloadForCASE(BlockScope scope) {
-	TypeBinding tb = null; 
+public MethodBinding getMethodBindingForOverloadForCASE(final BlockScope scope) {
 	TypeBinding [] tb_right;
 	String ms;
 	if(this.defaultStatement)
-		tb_right= new TypeBinding[] {};	
+		tb_right= new TypeBinding[] {};
 	else
 		tb_right= new TypeBinding[] {this.constantExpression.resolvedType};
 	
 	ms = getMethodName();
 	
-	tb = scope.parent.classScope().referenceContext.binding;
-	InvocationSite fakeInvocationSite = new InvocationSite(){
-		public TypeBinding[] genericTypeArguments() { return null; }
-		public boolean isSuperAccess(){ return false; }
-		public boolean isTypeAccess() { return true; }
-		public void setActualReceiverType(ReferenceBinding actualReceiverType) { /* ignore */}
-		public void setDepth(int depth) { /* ignore */}
-		public void setFieldIndex(int depth){ /* ignore */}
-		public int sourceStart() { return 0; }
-		public int sourceEnd() { return 0; }
-		public TypeBinding expectedType() {
-			return null;
-		}
+	final TypeBinding tb = scope.parent.classScope().referenceContext.binding;
+	final Expression [] arguments = new Expression[] { CASEStatement.this.constantExpression };
+
+	InvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite() {
 		@Override
 		public TypeBinding invocationTargetType() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-		}
-		@Override
-		public boolean receiverIsImplicitThis() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return false;
-		}
-		@Override
-		public InferenceContext18 freshInferenceContext(Scope scope) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
+			return CASEStatement.this.expectedType();
 		}
 		@Override
 		public ExpressionContext getExpressionContext() {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Implement this");
-//			return null;
-			}
-
-			@Override
-			public boolean isQualifiedSuper() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public boolean checkingPotentialCompatibility() {
-				// TODO Auto-generated method stub
-				return false;
-			}
-
-			@Override
-			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {
-				// TODO Auto-generated method stub
-
-			}
-
-		};
+			return CASEStatement.this.getExpressionContext();
+		}
+		@Override
+		public Expression[] arguments() {
+			return arguments;
+		}
+		@Override
+		public TypeBinding getExpectedType() {
+			return CASEStatement.this.expectedType();
+		}
+		@Override
+		public boolean receiverIsImplicitThis() {
+			return CASEStatement.this.receiverIsImplicitThis();
+		}
+	};
 
 	MethodBinding mb2 = scope.parent.getMethod(tb, ms.toCharArray(), tb_right,  fakeInvocationSite);
 	return mb2;
@@ -250,7 +215,7 @@ public void generateOperatorOverloadCodeForCASE(MethodBinding mb2, BlockScope cu
 	this.thisReference.generateCode(currentScope, codeStream, true);
 	if(!this.defaultStatement)
 		this.constantExpression.generateCode(currentScope, codeStream, true);
-	if (mb2.hasSubstitutedParameters() || mb2.hasSubstitutedReturnType()) {			
+	if (mb2.hasSubstitutedParameters() || mb2.hasSubstitutedReturnType()) {
 		TypeBinding tbo = mb2.returnType;
 		MethodBinding mb3 = mb2.original(); 
 		MethodBinding final_mb = mb3;
