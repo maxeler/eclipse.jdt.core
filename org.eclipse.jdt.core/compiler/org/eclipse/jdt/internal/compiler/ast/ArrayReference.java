@@ -279,21 +279,22 @@ public StringBuffer printExpression(int indent, StringBuffer output) {
 }
 
 
-public TypeBinding resolveType(BlockScope scope,Expression expression) {
+public TypeBinding resolveType(BlockScope scope, Expression expression) {
 	//Only valid for Assignment
 	Assignment assignment;
 	try{
 		assignment = (Assignment)expression;
-	}catch(ClassCastException cce){
+	} catch (ClassCastException cce) {
 		return resolveType(scope);
 	}
+
 	MethodBinding mb2 = this.getMethodBindingForOverload(scope, new Expression [] {this.position, assignment.expression}, true);
-	if ((mb2 !=null) && (mb2.isValidBinding())) {
+	if ((mb2 != null) && (mb2.isValidBinding())) {
 		this.resolvedType = TypeBinding.VOID;
 		this.setExpectedType(this.resolvedType);
-		if(this.position.resolvedType == null)
+		if (this.position.resolvedType == null)
 			this.position.resolveType(scope);
-		if(assignment.expression == null)
+		if (assignment.expression == null)
 			assignment.expression.resolveType(scope);
 		this.receiver.computeConversion(scope, this.receiver.resolvedType, this.receiver.resolvedType);
 		this.position.computeConversion(scope, mb2.parameters[0], this.position.resolvedType);
@@ -304,12 +305,12 @@ public TypeBinding resolveType(BlockScope scope,Expression expression) {
 		return this.resolvedType;
 	}
 
-	if(this.receiver == null || this.receiver.resolvedType == null ||  this.position == null || this.position.resolvedType == null
-			|| assignment.expression == null || assignment.expression.resolvedType == null){
+	if (this.receiver == null || this.receiver.resolvedType == null ||  this.position == null || this.position.resolvedType == null
+			|| assignment.expression == null || assignment.expression.resolvedType == null) {
 		return null;
 	}
 
-	if(!this.receiver.resolvedType.isArrayType()){
+	if (!this.receiver.resolvedType.isArrayType()) {
 		scope.problemReporter().referenceMustBeArrayTypeAt(this.receiver.resolvedType, this);
 		return null;
 	}
@@ -400,18 +401,34 @@ public MethodBinding getMethodBindingForOverload(BlockScope scope, final Express
 	else
 		tb_left = this.receiver.resolvedType;
 
-	boolean tbRightValid = true;
+	if (tb_left == null) return null;
+
 	for(int i=0; i<arguments.length; i++){
 		if(arguments[i].resolvedType == null)
 			tb_right[i] = arguments[i].resolveType(scope);
 		else
 			tb_right[i] = arguments[i].resolvedType;
-		tbRightValid = tbRightValid && (tb_right[i] != null);
+
+		if (tb_right[i] == null) {
+			/**
+			 * This is a hack.
+			 * In the code for the assignemnt statement the resolving of this argument
+			 * will be tried again, and it needs to fail, so we need to "reset" the
+			 * object state such that it tries to resolve again and fails.
+			 * Proper solution would probably report the issue and propagate upwards.
+			 *
+			 * TODO: Fix the hack
+			 */
+			arguments[i].constant = null;
+			return null;
+		}
 	}
+
 	for(int i=0; i<types.length; i++){
+		if (types[i] == null) return null;
 		tb_right[arguments.length + i] = types[i];
-		tbRightValid = tbRightValid && (tb_right[arguments.length + i] != null);
 	}
+
 	OperatorOverloadInvocationSite fakeInvocationSite = new OperatorOverloadInvocationSite(){
 		public TypeBinding getExpectedType() {
 			return ArrayReference.this.expectedType;
