@@ -313,7 +313,7 @@ public abstract class JavaElement extends PlatformObject implements IJavaElement
 		JavaModelManager manager = JavaModelManager.getJavaModelManager();
 		Object info = manager.getInfo(this);
 		if (info != null) return info;
-		return openWhenClosed(createElementInfo(), monitor);
+		return openWhenClosed(createElementInfo(), false, monitor);
 	}
 	/**
 	 * @see IAdaptable
@@ -571,7 +571,7 @@ public abstract class JavaElement extends PlatformObject implements IJavaElement
 	 * Opens an <code>Openable</code> that is known to be closed (no check for <code>isOpen()</code>).
 	 * Returns the created element info.
 	 */
-	protected Object openWhenClosed(Object info, IProgressMonitor monitor) throws JavaModelException {
+	protected Object openWhenClosed(Object info, boolean forceAdd, IProgressMonitor monitor) throws JavaModelException {
 		JavaModelManager manager = JavaModelManager.getJavaModelManager();
 		boolean hadTemporaryCache = manager.hasTemporaryCache();
 		try {
