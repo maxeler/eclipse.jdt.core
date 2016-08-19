@@ -590,7 +590,7 @@ public abstract class JavaElement extends PlatformObject implements IJavaElement
 				throw newNotPresentException();
 			}
 			if (!hadTemporaryCache) {
-				manager.putInfos(this, newElements);
+				manager.putInfos(this, info, forceAdd, newElements);
 			}
 		} finally {
 			if (!hadTemporaryCache) {
