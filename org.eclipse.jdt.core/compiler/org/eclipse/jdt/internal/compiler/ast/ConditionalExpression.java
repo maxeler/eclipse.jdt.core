@@ -791,6 +791,15 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext,
 			targetType = targetType.uncapture(this.polyExpressionScope);
 			this.originalValueIfTrueType = this.valueIfTrue.checkAgainstFinalTargetType(targetType, scope);
 			this.originalValueIfFalseType = this.valueIfFalse.checkAgainstFinalTargetType(targetType, scope);
+			if(this.polyExpressionScope == null){
+				do{
+					if(scope instanceof BlockScope){
+						this.polyExpressionScope = (BlockScope) scope;
+						break;
+					}
+					scope = scope.parent;
+				} while(scope != null);
+			}
 			computeConversions(this.polyExpressionScope, targetType);
 			this.resolvedType = targetType;
 		}
