@@ -1361,6 +1361,7 @@ public class Main implements ProblemSeverities, SuffixConstants {
 	public long startTime;
 	public ArrayList pendingErrors;
 	public boolean systemExitWhenFinished = true;
+	public boolean forceMAXJ = false;
 
 	public static final int TIMING_DISABLED = 0;
 	public static final int TIMING_ENABLED = 1;
@@ -1936,7 +1937,7 @@ public void configure(String[] argv) {
 					}
 				}
 
-				if (currentArg.endsWith(SuffixConstants.SUFFIX_STRING_java)) {
+				if (currentArg.endsWith(SuffixConstants.SUFFIX_STRING_java) || currentArg.endsWith(SuffixConstants.SUFFIX_STRING_maxjava)) {
 					if (this.filenames == null) {
 						this.filenames = new String[argCount - index];
 						this.encodings = new String[argCount - index];
@@ -1967,6 +1968,14 @@ public void configure(String[] argv) {
 					// destination path cannot be specified upon an individual file
 					customEncoding = null;
 					mode = DEFAULT;
+					continue;
+				}
+				if (currentArg.equals("-forceMAXJ")) { //$NON-NLS-1$
+					if (this.forceMAXJ == true)
+						throw new IllegalArgumentException(
+							this.bind("configure.duplicateLog", currentArg)); //$NON-NLS-1$
+					this.forceMAXJ = true;
+					this.options.put(CompilerOptions.OPTION_ForceMAXJ, CompilerOptions.ENABLED);
 					continue;
 				}
 				if (currentArg.equals("-log")) { //$NON-NLS-1$
@@ -2709,7 +2718,11 @@ public void configure(String[] argv) {
 			throw new IllegalArgumentException(
 				this.bind("configure.unrecognizedOption", currentSourceDirectory)); //$NON-NLS-1$
 		}
-		String[] result = FileFinder.find(dir, SuffixConstants.SUFFIX_STRING_JAVA);
+		String[] resultJava = FileFinder.find(dir, SuffixConstants.SUFFIX_STRING_JAVA);
+		String[] resultMaxJ = FileFinder.find(dir, SuffixConstants.SUFFIX_STRING_MAXJAVA);
+		String[] result = new String[resultJava.length + resultMaxJ.length];
+		System.arraycopy(resultJava, 0, result, 0, resultJava.length);
+		System.arraycopy(resultMaxJ, 0, result, resultJava.length, resultMaxJ.length);
 		if (NONE.equals(customDestinationPath)) {
 			customDestinationPath = NONE; // ensure == comparison
 		}
@@ -3370,6 +3383,9 @@ private void handleErrorOrWarningToken(String token, boolean isEnabling, int sev
 				return;
 			} else if (token.equals("assertIdentifier")) { //$NON-NLS-1$
 				setSeverity(CompilerOptions.OPTION_ReportAssertIdentifier, severity, isEnabling);
+				return;
+			} else if (token.equals("assertStatement")) { //$NON-NLS-1$
+				setSeverity(CompilerOptions.OPTION_ReportMaxelerAssertStatement, severity, isEnabling);
 				return;
 			} else if (token.equals("allDeadCode")) { //$NON-NLS-1$
 				setSeverity(CompilerOptions.OPTION_ReportDeadCode, severity, isEnabling);

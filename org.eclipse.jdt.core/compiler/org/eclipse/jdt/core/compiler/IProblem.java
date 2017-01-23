@@ -113,9 +113,9 @@
  *                                 InvalidUsageOfTypeParametersForEnumDeclaration
  *     IBM Corporation - added the following constants
  *								   RedundantSuperinterface
- *		Benjamin Muskalla - added the following constants
+ *     Benjamin Muskalla - added the following constants
  *									MissingSynchronizedModifierInInheritedMethod
- *		Stephan Herrmann  - added the following constants
+ *	   Stephan Herrmann - added the following constants
  *									UnusedObjectAllocation
  *									PotentiallyUnclosedCloseable
  *									PotentiallyUnclosedCloseableAtExit
@@ -196,7 +196,7 @@
  *									IllegalParameterNullityRedefinition
  *									ContradictoryNullAnnotationsInferredFunctionType
  *									IllegalReturnNullityRedefinitionFreeTypeVariable
- *      Jesper S Moller  - added the following constants
+ *      Jesper S Moller - added the following constants
  *									TargetTypeNotAFunctionalInterface
  *									OuterLocalMustBeEffectivelyFinal
  *									IllegalModifiersForPackage
@@ -212,6 +212,16 @@
  *									RepeatableAnnotationIsDocumented
  *									RepeatableAnnotationIsInherited
  *									RepeatableAnnotationWithRepeatingContainerAnnotation
+ *         Ivan Kulezic - added the following constants
+ *									AmbigousOperator
+ *									InvalidOrMissingOverloadedOperator2P
+ *									InvalidOrMissingOverloadedOperator3P
+ *									InvalidOrMissingOverloadedOperator4P
+ *									OverloadedOperatorMethodNotStatic
+ *									WrongTernaryIfEqualityExpression
+ *									InvalidReturnTypeForOverloadedOperator
+ *									MaxelerAssertStatement
+ *									MaxelerInvalidOverloadedPut
 *******************************************************************************/
 package org.eclipse.jdt.core.compiler;
 
@@ -1878,4 +1888,67 @@ void setSourceStart(int sourceStart);
 	/** @deprecated - problem is no longer generated (implementation issue has been resolved)
 	 * @since 3.10 */
 	int LambdaShapeComputationError = 1101;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80000 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int AmbigousOperator = MethodRelated + 80000;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80001 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int InvalidOrMissingOverloadedOperator2P = MethodRelated + 80001;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80002 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int InvalidOrMissingOverloadedOperator3P = MethodRelated + 80002;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80003 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int InvalidOrMissingOverloadedOperator4P = MethodRelated + 80003;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80004 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int OverloadedOperatorMethodNotStatic = MethodRelated + 80004;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80005 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int WrongTernaryIfEqualityExpression = MethodRelated + Internal + 80005;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80006 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int InvalidReturnTypeForOverloadedOperator = MethodRelated + Internal + 80006;
+
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80007 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int MaxelerAssertStatement = MethodRelated + Internal + 80007;
+	
+	/**
+	 *  MAXJ overloaded operators.
+	 *  NOTE: 80008 from messages.properties is chosen semi-arbitrary.
+	 *  In the future changes may be required, because of possible conflicts between sums.
+	 */
+	int MaxelerInvalidOverloadedPut = MethodRelated + 80008;
 }

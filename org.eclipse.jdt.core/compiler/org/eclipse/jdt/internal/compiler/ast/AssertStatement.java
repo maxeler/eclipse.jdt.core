@@ -45,6 +45,7 @@ public AssertStatement(Expression assertExpression, int startPosition) {
 }
 
 public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo) {
+	currentScope.problemReporter().maxelerAssertStatement(this);
 	this.preAssertInitStateIndex = currentScope.methodScope().recordInitializationStates(flowInfo);
 
 	Constant cst = this.assertExpression.optimizedBooleanConstant();

@@ -226,6 +226,10 @@ public static void setMethodBindings(ReferenceBinding type, ElementValuePair[] p
 	}
 }
 
+public char[] getAnnotationName() {
+ 	return this.type.sourceName;
+}
+
 public String toString() {
 	StringBuffer buffer = new StringBuffer(5);
 	buffer.append('@').append(this.type.sourceName);

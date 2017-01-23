@@ -54,6 +54,7 @@ public class InternalCompletionProposal extends CompletionProposal {
 	protected char[] typeName;
 	protected char[][] parameterPackageNames;
 	protected char[][] parameterTypeNames;
+	protected char[][] annotationsTypes;
 
 	protected char[] originalSignature;
 
@@ -184,6 +185,13 @@ public class InternalCompletionProposal extends CompletionProposal {
 	 * Defaults to <code>null</code>.
 	 */
 	private char[][] parameterNames = null;
+
+	/**
+	 * Annotations (for method completions), or
+	 * <code>null</code> if none. Lazily computed.
+	 * Defaults to <code>null</code>.
+	 */
+	private char[][] annotations = null;
 
 	/**
 	 * Indicates whether parameter names have been computed.
@@ -425,6 +433,11 @@ public class InternalCompletionProposal extends CompletionProposal {
 	protected void setIsContructor(boolean isConstructor) {
 		this.isConstructor = isConstructor;
 	}
+
+	protected void setAnnotationTypes(char[][] annotationTypes) {
+		this.annotationsTypes = annotationTypes;
+	}
+
 	public void setOriginalSignature(char[] originalSignature) {
 		this.originalSignature = originalSignature;
 	}
@@ -1555,6 +1568,36 @@ public class InternalCompletionProposal extends CompletionProposal {
 		this.parameterNames = parameterNames;
 		this.parameterNamesComputed = true;
 	}
+
+ 	/**
+ 	 * Sets annotations linked to individual fields and
+ 	 * methods inside a class.
+ 	 * <p>
+ 	 * Extension of the CompletionProposal class to simplify
+ 	 * the extraction of annotations linked to individual fields and
+ 	 * methods inside a class.
+ 	 *  </p>
+ 	 *  
+ 	 * @param annotations the annotations, or <code>null</code> if none
+ 	 */
+ 	public void setAnnotations(char[][] annotations) {
+ 		this.annotations = annotations;
+ 	}
+ 
+ 	/**
+ 	 * Returns annotations linked to individual fields and
+ 	 * methods inside a class.
+ 	 * <p>
+ 	 * Extension of the CompletionProposal class to simplify
+ 	 * the extraction of annotations linked to individual fields and
+ 	 * methods inside a class.
+ 	 * </p>
+ 	 *  
+ 	 * @return annotations or <code>null</code> if none
+ 	 */
+ 	public char[][] getAnnotations(){
+ 		return this.annotations;
+ 	}
 
 	/**
 	 * Returns the accessibility of the proposal.

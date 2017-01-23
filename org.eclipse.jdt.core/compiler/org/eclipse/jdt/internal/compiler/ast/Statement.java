@@ -441,4 +441,9 @@ protected MethodBinding findConstructorBinding(BlockScope scope, Invocation site
 	resolvePolyExpressionArguments(site, ctorBinding, argumentTypes, scope);
 	return ctorBinding;
 }
+public Constant resolveCase(BlockScope scope, TypeBinding testType, SWITCHStatement switchStatement) {
+	// statement within a switch that are not case are treated as normal statement....
+	resolve(scope);
+	return Constant.NotAConstant;
+}
 }

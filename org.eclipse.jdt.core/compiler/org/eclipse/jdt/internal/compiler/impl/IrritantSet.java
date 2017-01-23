@@ -30,14 +30,14 @@ public class IrritantSet {
 	// Reserve two high bits for selecting the right bit pattern
 	public final static int GROUP_MASK = ASTNode.Bit32 | ASTNode.Bit31 | ASTNode.Bit30;
 	public final static int GROUP_SHIFT = 29;
-	public final static int GROUP_MAX = 3; // can be increased up to 8
+	public final static int GROUP_MAX = 4; // can be increased up to 8
 
 	// Group prefix for irritants
 	public final static int GROUP0 = 0 << GROUP_SHIFT;
 	public final static int GROUP1 = 1 << GROUP_SHIFT;
 	public final static int GROUP2 = 2 << GROUP_SHIFT;
 	// reveal subsequent groups as needed
-	// public final static int GROUP3 = 3 << GROUP_SHIFT;
+	public final static int GROUP3 = 3 << GROUP_SHIFT;
 	// public final static int GROUP4 = 4 << GROUP_SHIFT;
 	// public final static int GROUP5 = 5 << GROUP_SHIFT;
 	// public final static int GROUP6 = 6 << GROUP_SHIFT;
@@ -66,10 +66,16 @@ public class IrritantSet {
 	public static final IrritantSet UNUSED = new IrritantSet(CompilerOptions.UnusedLocalVariable);
 	public static final IrritantSet UNCHECKED = new IrritantSet(CompilerOptions.UncheckedTypeOperation);
 	public static final IrritantSet UNQUALIFIED_FIELD_ACCESS = new IrritantSet(CompilerOptions.UnqualifiedFieldAccess);
+	public static final IrritantSet MAXELER_ASSERT_STATEMENT = new IrritantSet(CompilerOptions.MaxelerAssertStatement);
+ 	public static final IrritantSet MAXELER_OVERLOADED_PUT = new IrritantSet(CompilerOptions.MaxelerOverloadedPut);
 	public static final IrritantSet RESOURCE = new IrritantSet(CompilerOptions.UnclosedCloseable);
 
 	public static final IrritantSet JAVADOC = new IrritantSet(CompilerOptions.InvalidJavadoc);
-	public static final IrritantSet COMPILER_DEFAULT_ERRORS = new IrritantSet(0); // no optional error by default	
+	public static final IrritantSet COMPILER_DEFAULT_ERRORS = new IrritantSet(0); // no optional error by default
+	static {
+ 		COMPILER_DEFAULT_ERRORS
+ 			.set(CompilerOptions.MaxelerAssertStatement);		
+ 	}		
 	public static final IrritantSet COMPILER_DEFAULT_WARNINGS = new IrritantSet(0); // see static initializer below
 	public static final IrritantSet COMPILER_DEFAULT_INFOS = new IrritantSet(0); // As of now, no default values
 	static {
@@ -117,7 +123,10 @@ public class IrritantSet {
 				|CompilerOptions.RedundantNullAnnotation
 				|CompilerOptions.NonnullParameterAnnotationDropped
 				|CompilerOptions.PessimisticNullAnalysisForFreeTypeVariables
-				|CompilerOptions.NonNullTypeVariableFromLegacyInvocation);
+				|CompilerOptions.NonNullTypeVariableFromLegacyInvocation)
+			// group-3 maxeler
+ 			.set(
+ 				CompilerOptions.MaxelerOverloadedPut);
 		// default errors IF AnnotationBasedNullAnalysis is enabled:
 		COMPILER_DEFAULT_ERRORS.set(
 				CompilerOptions.NullSpecViolation
