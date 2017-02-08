@@ -132,6 +132,9 @@ class DefaultASTVisitor extends ASTVisitor {
 	public void endVisit(IfStatement node) {
 		endVisitNode(node);
 	}
+	public void endVisit(IFStatement node) {
+ 		endVisitNode(node);
+ 	}
 	public void endVisit(ImportDeclaration node) {
 		endVisitNode(node);
 	}
@@ -256,6 +259,12 @@ class DefaultASTVisitor extends ASTVisitor {
 	public void endVisit(SwitchStatement node) {
 		endVisitNode(node);
 	}
+	public void endVisit(SWITCHCASE node) {
+ 		endVisitNode(node);
+ 	}
+ 	public void endVisit(SWITCHStatement node) {
+ 		endVisitNode(node);
+ 	}
 	public void endVisit(SynchronizedStatement node) {
 		endVisitNode(node);
 	}
@@ -416,6 +425,9 @@ class DefaultASTVisitor extends ASTVisitor {
 	public boolean visit(IfStatement node) {
 		return visitNode(node);
 	}
+	public boolean visit(IFStatement node) {
+ 		return visitNode(node);
+ 	}
 	public boolean visit(ImportDeclaration node) {
 		return visitNode(node);
 	}
@@ -541,15 +553,19 @@ class DefaultASTVisitor extends ASTVisitor {
 		return visitNode(node);
 	}
 
-	public boolean visit(SuperMethodReference node) {
-		return visitNode(node);
-	}
-
 	public boolean visit(SwitchCase node) {
 		return visitNode(node);
 	}
 
 	public boolean visit(SwitchStatement node) {
+		return visitNode(node);
+	}
+
+	public boolean visit(SWITCHCASE node) {
+ 		return visitNode(node);
+ 	}
+ 
+ 	public boolean visit(SWITCHStatement node) {
 		return visitNode(node);
 	}
 

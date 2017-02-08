@@ -76,6 +76,8 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 		IJavaElement[] children;
 		ZipFile jar = null;
 		try {
+			IJavaProject project = getJavaProject();
+ 			String sourceLevel = project.getOption(JavaCore.COMPILER_SOURCE, true);
 			Object file = JavaModel.getTarget(getPath(), true);
 			long level = Util.getJdkLevel(file);
 			String compliance = CompilerOptions.versionFromJdkLevel(level);
@@ -86,7 +88,7 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 
 			for (Enumeration e= jar.entries(); e.hasMoreElements();) {
 				ZipEntry member= (ZipEntry) e.nextElement();
-				initRawPackageInfo(rawPackageInfo, member.getName(), member.isDirectory(), compliance);
+				initRawPackageInfo(rawPackageInfo, member.getName(), member.isDirectory(), sourceLevel, compliance);
 			}
 
 			// loop through all of referenced packages, creating package fragments if necessary
@@ -213,7 +215,7 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 	public int hashCode() {
 		return this.jarPath.hashCode();
 	}
-	private void initRawPackageInfo(HashtableOfArrayToObject rawPackageInfo, String entryName, boolean isDirectory, String compliance) {
+	private void initRawPackageInfo(HashtableOfArrayToObject rawPackageInfo, String entryName, boolean isDirectory, String sourceLevel, String compliance) {
 		int lastSeparator = isDirectory ? entryName.length()-1 : entryName.lastIndexOf('/');
 		String[] pkgName = Util.splitOn('/', entryName, 0, lastSeparator);
 		String[] existing = null;
@@ -227,7 +229,7 @@ public class JarPackageFragmentRoot extends PackageFragmentRoot {
 		JavaModelManager manager = JavaModelManager.getJavaModelManager();
 		for (int i = existingLength; i < length; i++) {
 			// sourceLevel must be null because we know nothing about it based on a jar file
-			if (Util.isValidFolderNameForPackage(pkgName[i], null, compliance)) {
+			if (Util.isValidFolderNameForPackage(pkgName[i], sourceLevel, compliance)) {
 				System.arraycopy(existing, 0, existing = new String[i+1], 0, i);
 				existing[i] = manager.intern(pkgName[i]);
 				rawPackageInfo.put(existing, new ArrayList[] { EMPTY_LIST, EMPTY_LIST });

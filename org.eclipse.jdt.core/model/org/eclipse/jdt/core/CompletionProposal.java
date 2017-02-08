@@ -1637,6 +1637,35 @@ public class CompletionProposal {
 	}
 
 	/**
+ 	 * Added by: Milan
+ 	 * 
+ 	 * <p>
+ 	 * Extension of the CompletionProposal class to simplify
+ 	 * the extraction of annotations linked to individual fields and
+ 	 * methods inside a class.
+ 	 * </p>
+ 	 *  
+ 	 * @return annotations if present or <code>null</code> if none
+ 	 */
+ 	public char[][] getAnnotations() {
+ 		return null; // default overridden by concrete implementation
+ 	}
+  	/**
+ 	 * Added by: Milan
+ 	 * 
+ 	 * <p>
+ 	 * Extension of the CompletionProposal class to simplify
+ 	 * the extraction of annotations linked to individual fields and
+ 	 * methods inside a class.
+ 	 *  </p>
+ 	 *  
+ 	 * @param annotations
+ 	 */
+ 	public void setAnnotations(char [][] annotations){
+ 		// default overridden by concrete implementation
+ 	}
+
+	/**
 	 * Returns the accessibility of the proposal.
 	 * <p>
 	 * This field is available for the following kinds of

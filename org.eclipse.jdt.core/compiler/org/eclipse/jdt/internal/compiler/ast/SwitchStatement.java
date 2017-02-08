@@ -550,6 +550,7 @@ public class SwitchStatement extends Statement {
 				if ((this.bits & UndocumentedEmptyBlock) != 0) {
 					upperScope.problemReporter().undocumentedEmptyBlock(this.blockStart, this.sourceEnd);
 				}
+				this.scope = new BlockScope(upperScope);
 			}
 			// check default case for all kinds of switch:
 			if (this.defaultCase == null) {

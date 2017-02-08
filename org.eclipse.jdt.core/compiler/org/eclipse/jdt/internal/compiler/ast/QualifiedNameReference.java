@@ -77,6 +77,7 @@ public QualifiedNameReference(char[][] tokens, long[] positions, int sourceStart
 }
 
 public FlowInfo analyseAssignment(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo, Assignment assignment, boolean isCompound) {
+	boolean operatorOverloading = (assignment instanceof ConnectCompoundAssignment && ((ConnectCompoundAssignment)assignment).appropriateMethodForOverload != null);
 	// determine the rank until which we now we do not need any actual value for the field access
 	int otherBindingsCount = this.otherBindings == null ? 0 : this.otherBindings.length;
 	boolean needValue = otherBindingsCount == 0 || !this.otherBindings[0].isStatic();
@@ -159,16 +160,18 @@ public FlowInfo analyseAssignment(BlockScope currentScope, FlowContext flowConte
 				&& lastFieldBinding.isBlankFinal()
 				&& !isCompound
 				&& currentScope.allowBlankFinalFieldAssignment(lastFieldBinding)) {
-			if (flowInfo.isPotentiallyAssigned(lastFieldBinding)) {
+			if (flowInfo.isPotentiallyAssigned(lastFieldBinding) && !operatorOverloading) {
 				currentScope.problemReporter().duplicateInitializationOfBlankFinalField(lastFieldBinding, this);
 			} else {
 				flowContext.recordSettingFinal(lastFieldBinding, this, flowInfo);
 			}
 			flowInfo.markAsDefinitelyAssigned(lastFieldBinding);
 		} else {
-			currentScope.problemReporter().cannotAssignToFinalField(lastFieldBinding, this);
-			if (otherBindingsCount == 0 && currentScope.allowBlankFinalFieldAssignment(lastFieldBinding)) { // pretend it got assigned
-				flowInfo.markAsDefinitelyAssigned(lastFieldBinding);
+			if(!operatorOverloading){
+ 				currentScope.problemReporter().cannotAssignToFinalField(lastFieldBinding, this);
+ 				if (otherBindingsCount == 0 && currentScope.allowBlankFinalFieldAssignment(lastFieldBinding)) { // pretend it got assigned
+ 					flowInfo.markAsDefinitelyAssigned(lastFieldBinding);
+ 				}
 			}
 		}
 	}
@@ -335,6 +338,19 @@ public void generateAssignment(BlockScope currentScope, CodeStream codeStream, A
 	if (valueRequired) {
 		codeStream.generateImplicitConversion(assignment.implicitConversion);
 	}
+}
+
+private FieldBinding overloadLastFieldBinding = null;
+ 
+public void generatePreOverloadAssignment(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+ 	int pc = codeStream.position;
+ 	this.overloadLastFieldBinding = generateReadSequence(currentScope, codeStream);
+ 	codeStream.recordPositionsFrom(pc , this.sourceStart);
+}
+ 
+public void generatePostOverloadAssignment(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+ 	fieldStore(currentScope, codeStream, this.overloadLastFieldBinding, this.syntheticWriteAccessor, getFinalReceiverType(), false /*implicit this*/, valueRequired);
+ 	// equivalent to valuesRequired[maxOtherBindings]	
 }
 
 public void generateCode(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
@@ -1162,4 +1178,9 @@ public VariableBinding nullAnnotatedVariableBinding(boolean supportTypeAnnotatio
 	}
 	return null;
 }
+
+public TypeBinding resolveTypeCompundOverloadOperator(BlockScope scope, TypeBinding type) {
+ 	return null;
+}
+
 }

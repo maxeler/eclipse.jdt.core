@@ -151,6 +151,20 @@ public class JavaProject
 	 */
 	private static final IClasspathEntry[] RESOLUTION_IN_PROGRESS = new IClasspathEntry[0];
 
+	/**
+ 	 * Strings for MaxCompiler lib checks
+ 	 */
+ 	
+ 	public static final String MAXCOMPILER_PATH = "MAXCOMPILERDIR"; //$NON-NLS-1$
+ 	public static final String MAXGENFD_PATH = "MAXGENFDDIR"; //$NON-NLS-1$
+ 	public static final String MAXCOMPILER_JAR = "MaxCompiler.jar"; //$NON-NLS-1$
+ 	public static final String MAXGENFD_JAR = "MaxGenFD.jar"; //$NON-NLS-1$
+ 	public static final String MAXBLOX_JAR = "MaxBlox.jar"; //$NON-NLS-1$
+ 	public static final String LIB_PATH = "/lib/"; //$NON-NLS-1$
+ 	public static final String DOCSPATH= "/docs/MaxCompiler-API/"; //$NON-NLS-1$
+ 	public static final String DOCSPATHFD= "/docs/MaxGenFD-API/"; //$NON-NLS-1$
+ 	public static final String FILEPREFIX= "file:"; //$NON-NLS-1$
+
 	/*
 	 * For testing purpose only
 	 */
@@ -434,7 +448,7 @@ public class JavaProject
 							new JavaModelStatus(IJavaModelStatusConstants.CLASSPATH_CYCLE, project, cycleString));
 					}
 				} else {
-					project.flushClasspathProblemMarkers(true, false, false);
+					project.flushClasspathProblemMarkers(true, false);
 				}
 			}
 		}
@@ -804,7 +818,7 @@ public class JavaProject
 		IMarker marker = null;
 		int severity;
 		String[] arguments = CharOperation.NO_STRINGS;
-		boolean isCycleProblem = false, isClasspathFileFormatProblem = false, isOutputOverlapping = false;
+		boolean isCycleProblem = false, isClasspathFileFormatProblem = false;
 		switch (status.getCode()) {
 
 			case  IJavaModelStatusConstants.CLASSPATH_CYCLE :
@@ -823,17 +837,6 @@ public class JavaProject
 
 			case  IJavaModelStatusConstants.INCOMPATIBLE_JDK_LEVEL :
 				String setting = getOption(JavaCore.CORE_INCOMPATIBLE_JDK_LEVEL, true);
-				if (JavaCore.ERROR.equals(setting)) {
-					severity = IMarker.SEVERITY_ERROR;
-				} else if (JavaCore.WARNING.equals(setting)) {
-					severity = IMarker.SEVERITY_WARNING;
-				} else {
-					return; // setting == IGNORE
-				}
-				break;
-			case IJavaModelStatusConstants.OUTPUT_LOCATION_OVERLAPPING_ANOTHER_SOURCE :
-				isOutputOverlapping = true;
-				setting = getOption(JavaCore.CORE_OUTPUT_LOCATION_OVERLAPPING_ANOTHER_SOURCE, true);
 				if (JavaCore.ERROR.equals(setting)) {
 					severity = IMarker.SEVERITY_ERROR;
 				} else if (JavaCore.WARNING.equals(setting)) {
@@ -863,7 +866,6 @@ public class JavaProject
 					IMarker.LOCATION,
 					IJavaModelMarker.CYCLE_DETECTED,
 					IJavaModelMarker.CLASSPATH_FILE_FORMAT,
-					IJavaModelMarker.OUTPUT_OVERLAPPING_SOURCE,
 					IJavaModelMarker.ID,
 					IJavaModelMarker.ARGUMENTS ,
 					IJavaModelMarker.CATEGORY_ID,
@@ -875,7 +877,6 @@ public class JavaProject
 					Messages.classpath_buildPath,
 					isCycleProblem ? "true" : "false",//$NON-NLS-1$ //$NON-NLS-2$
 					isClasspathFileFormatProblem ? "true" : "false",//$NON-NLS-1$ //$NON-NLS-2$
-					isOutputOverlapping ? "true" : "false", //$NON-NLS-1$ //$NON-NLS-2$
 					Integer.valueOf(status.getCode()),
 					Util.getProblemArgumentsForMarker(arguments) ,
 					Integer.valueOf(CategorizedProblem.CAT_BUILDPATH),
@@ -909,6 +910,7 @@ public class JavaProject
 		IClasspathEntry defaultOutput = null;
 		StringReader reader = new StringReader(xmlClasspath);
 		Element cpElement;
+		IProjectDescription desc;
 		try {
 			DocumentBuilder parser = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			cpElement = parser.parse(new InputSource(reader)).getDocumentElement();
@@ -930,6 +932,68 @@ public class JavaProject
 			Node node = list.item(i);
 			if (node.getNodeType() == Node.ELEMENT_NODE) {
 				IClasspathEntry entry = ClasspathEntry.elementDecode((Element)node, this, unknownElements);
+				/**
+ 				 * 
+ 				 */
+ 				IPath path = entry.getPath();
+ 				try {
+ 					desc = getProject().getDescription();
+ 					/**
+ 					 * Check MaxCompiler.jar path
+ 					 */
+ 					if(desc != null) {
+ 						if(path.lastSegment().equals(MAXCOMPILER_JAR) /*&& desc.manageMaxCompiler()*/){
+ 							String maxCompilerVariable = System.getenv(MAXCOMPILER_PATH);
+ 							if(maxCompilerVariable == null){
+ 								/**
+ 								 * Handle if environment variable is not set
+ 								 */
+ 							}else{
+ 								IPath currentMaxCompilerPath = new Path(maxCompilerVariable).makeAbsolute();
+ 								IPath storedMaxCompilerPath = path.removeLastSegments(2);
+ 								if(!storedMaxCompilerPath.equals(currentMaxCompilerPath)){
+ 								entry = replaceMaxCompilerPath(entry, currentMaxCompilerPath);
+ 								}							
+ 							}
+ 						}
+ 						/**
+ 						 * Check MaxGenFD.jar path
+ 						 */
+ 						if(path.lastSegment().equals(MAXGENFD_JAR) /*&& desc.manageMaxGenFD()*/){
+ 							String maxGenFDVariable = System.getenv(MAXGENFD_PATH);
+ 							if(maxGenFDVariable == null){
+ 								/**
+ 								 * Handle if environment variable is not set
+ 								 */
+ 							}else{
+ 								IPath currentMaxGenFDPath = new Path(maxGenFDVariable).makeAbsolute();
+ 								IPath storedMaxGenFDPath = path.removeLastSegments(2);
+ 								if(!storedMaxGenFDPath.equals(currentMaxGenFDPath)){
+ 									entry = replaceMaxGenFDPath(entry, currentMaxGenFDPath);
+ 								}							
+ 							}
+ 						}
+ 						/**
+ 						 * Check MaxBlox.jar path
+ 						 */
+ 						if(path.lastSegment().equals(MAXBLOX_JAR) /*&& desc.manageMaxBlox()*/){
+ 							String maxBloxVariable = System.getenv(MAXGENFD_PATH);
+ 							if(maxBloxVariable == null){
+ 								/**
+ 								 * Handle if environment variable is not set
+ 								 */
+ 							}else{
+ 								IPath currentMaxBloxPath = new Path(maxBloxVariable).makeAbsolute();
+ 								IPath storedMaxBloxPath = path.removeLastSegments(2);
+ 								if(!storedMaxBloxPath.equals(currentMaxBloxPath)){
+ 									entry = replaceMaxBloxPath(entry, currentMaxBloxPath);
+ 								}							
+ 							}
+ 						}
+ 				}
+ 				} catch (CoreException e) {
+ 					e.printStackTrace();
+ 				}
 				if (entry != null){
 					if (entry.getContentKind() == ClasspathEntry.K_OUTPUT) {
 						defaultOutput = entry; // separate output
@@ -1369,20 +1433,18 @@ public class JavaProject
 	/**
 	 * Remove all markers denoting classpath problems
 	 */ //TODO (philippe) should improve to use a bitmask instead of booleans (CYCLE, FORMAT, VALID)
-	protected void flushClasspathProblemMarkers(boolean flushCycleMarkers, boolean flushClasspathFormatMarkers, boolean flushOverlappingOutputMarkers) {
+	protected void flushClasspathProblemMarkers(boolean flushCycleMarkers, boolean flushClasspathFormatMarkers) {
 		try {
 			if (this.project.isAccessible()) {
 				IMarker[] markers = this.project.findMarkers(IJavaModelMarker.BUILDPATH_PROBLEM_MARKER, false, IResource.DEPTH_ZERO);
 				for (int i = 0, length = markers.length; i < length; i++) {
 					IMarker marker = markers[i];
-					if (flushCycleMarkers && flushClasspathFormatMarkers && flushOverlappingOutputMarkers) {
+					if (flushCycleMarkers && flushClasspathFormatMarkers) {
 						marker.delete();
 					} else {
 						String cycleAttr = (String)marker.getAttribute(IJavaModelMarker.CYCLE_DETECTED);
 						String classpathFileFormatAttr =  (String)marker.getAttribute(IJavaModelMarker.CLASSPATH_FILE_FORMAT);
-						String overlappingOutputAttr = (String) marker.getAttribute(IJavaModelMarker.OUTPUT_OVERLAPPING_SOURCE);
 						if ((flushCycleMarkers == (cycleAttr != null && cycleAttr.equals("true"))) //$NON-NLS-1$
-							&& (flushOverlappingOutputMarkers == (overlappingOutputAttr != null && overlappingOutputAttr.equals("true"))) //$NON-NLS-1$
 							&& (flushClasspathFormatMarkers == (classpathFileFormatAttr != null && classpathFileFormatAttr.equals("true")))){ //$NON-NLS-1$
 							marker.delete();
 						}
@@ -1528,9 +1590,7 @@ public class JavaProject
 						propertyName.equals(JavaCore.CORE_ENABLE_CLASSPATH_MULTIPLE_OUTPUT_LOCATIONS) ||
 						propertyName.equals(JavaCore.CORE_INCOMPLETE_CLASSPATH) ||
 						propertyName.equals(JavaCore.CORE_CIRCULAR_CLASSPATH) ||
-						propertyName.equals(JavaCore.CORE_OUTPUT_LOCATION_OVERLAPPING_ANOTHER_SOURCE) ||
-						propertyName.equals(JavaCore.CORE_INCOMPATIBLE_JDK_LEVEL) ||
-						propertyName.equals(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM))
+						propertyName.equals(JavaCore.CORE_INCOMPATIBLE_JDK_LEVEL))
 					{
 						manager.deltaState.addClasspathValidation(JavaProject.this);
 					}
@@ -2784,13 +2844,7 @@ public class JavaProject
 			}
 		}
 		if (resolvedEntry.getEntryKind() == IClasspathEntry.CPE_LIBRARY && ExternalFoldersManager.isExternalFolderPath(resolvedPath)) {
-			externalFoldersManager.addFolder(resolvedPath, true/*scheduleForCreation*/); // no-op if not an external folder or if already registered
-		}
-		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=336046
-		// The source attachment path could be external too and in which case, must be added.
-		IPath sourcePath = resolvedEntry.getSourceAttachmentPath();
-		if (sourcePath != null && driveExists(sourcePath, knownDrives) && ExternalFoldersManager.isExternalFolderPath(sourcePath)) {
-			externalFoldersManager.addFolder(sourcePath, true);
+			externalFoldersManager.addFolder(resolvedPath); // no-op if not an external folder or if already registered
 		}
 	}
 
@@ -3203,6 +3257,45 @@ public class JavaProject
 		}
 		prereqChain.remove(path);
 	}
+
+	/**
+ 	 * Replaces the current MaxCompiler.lib path, extracted
+ 	 * from MAXCOMPILERDIR environment variable
+ 	 * 
+ 	 * @param oldentry, current environment variable entry
+ 	 */
+ 	private IClasspathEntry replaceMaxCompilerPath(IClasspathEntry oldEntry, IPath currentMaxCompilerPath){
+ 		List cpAttributes = new ArrayList();
+ 		IPath javadocPath = currentMaxCompilerPath.append(DOCSPATH).makeAbsolute();
+ 		cpAttributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, FILEPREFIX + javadocPath.toOSString()));								
+ 		IClasspathAttribute[] attributes = (IClasspathAttribute[]) cpAttributes.toArray(new IClasspathAttribute[cpAttributes.size()]);									
+ 		return JavaCore.newLibraryEntry(currentMaxCompilerPath.append(LIB_PATH).append(MAXCOMPILER_JAR), 
+ 										null, 
+ 										null, 
+ 										null, 
+ 										attributes, 
+ 										false);
+ 	}
+ 
+ 	private IClasspathEntry replaceMaxGenFDPath(IClasspathEntry oldEntry, IPath currentMaxGenFDPath){
+ 		List cpAttributes = new ArrayList();
+ 		IPath javadocPath = currentMaxGenFDPath.append(DOCSPATHFD).makeAbsolute();
+ 		cpAttributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, FILEPREFIX + javadocPath.toOSString()));
+ 		IClasspathAttribute[] attributes = (IClasspathAttribute[]) cpAttributes.toArray(new IClasspathAttribute[cpAttributes.size()]);
+ 		return JavaCore.newLibraryEntry(currentMaxGenFDPath.append(LIB_PATH).append(MAXGENFD_JAR), 
+ 										null, 
+ 										null,
+ 										null,
+ 										attributes,
+ 										false);
+ 	}
+ 
+ 	private IClasspathEntry replaceMaxBloxPath(IClasspathEntry oldEntry, IPath currentMaxBloxPath){
+ 		return JavaCore.newLibraryEntry(currentMaxBloxPath.append(LIB_PATH).append(MAXBLOX_JAR), 
+ 										null, 
+ 										null, 
+ 										false);
+ 	}
 
 	/*
 	 * Update eclipse preferences from old preferences.

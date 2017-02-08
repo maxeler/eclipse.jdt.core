@@ -82,6 +82,14 @@ public class ThisReference extends Reference {
 		 // this cannot be assigned
 	}
 
+	public void generatePostOverloadAssignment(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+ 		 // this cannot be assigned
+ 	}
+ 
+ 	public void generatePreOverloadAssignment(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
+ 		 // this cannot be assigned
+ 	}
+
 	public void generateCode(BlockScope currentScope, CodeStream codeStream, boolean valueRequired) {
 
 		int pc = codeStream.position;
@@ -154,4 +162,8 @@ public class ThisReference extends Reference {
 		visitor.visit(this, blockScope);
 		visitor.endVisit(this, blockScope);
 	}
+
+	public TypeBinding resolveTypeCompundOverloadOperator(BlockScope scope, TypeBinding type) {
+ 		return null;
+ 	}
 }

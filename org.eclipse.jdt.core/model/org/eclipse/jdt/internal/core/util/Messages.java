@@ -167,6 +167,7 @@ public final class Messages extends NLS {
 	public static String classpath_mustEndWithSlash;
 	public static String classpath_unboundContainerPath;
 	public static String classpath_unboundLibrary;
+	public static String classpath_missingMaxCompilerDirPath;
 	public static String classpath_userLibraryInfo;
 	public static String classpath_containerInfo;
 	public static String classpath_unboundLibraryInContainer;

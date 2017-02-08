@@ -23,7 +23,11 @@ MethodInfoWithParameterAnnotations(MethodInfo methodInfo, AnnotationInfo[] annot
 }
 public IBinaryAnnotation[] getParameterAnnotations(int index, char[] classFileName) {
 	try {
-		return this.parameterAnnotations == null ? null : this.parameterAnnotations[index];
+		try {
+ 		return this.parameterAnnotations[index];
+ 	} catch(Exception e) {
+ 		return new IBinaryAnnotation[]{};
+ 	}
 	} catch (ArrayIndexOutOfBoundsException aioobe) {
 		// detailed reporting to track down https://bugs.eclipse.org/474081
 		StringBuffer message = new StringBuffer("Mismatching number of parameter annotations, "); //$NON-NLS-1$

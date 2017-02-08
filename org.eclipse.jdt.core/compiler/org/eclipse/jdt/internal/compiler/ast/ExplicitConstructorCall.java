@@ -57,6 +57,7 @@ import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.TypeConstants;
 import org.eclipse.jdt.internal.compiler.lookup.TypeIds;
 import org.eclipse.jdt.internal.compiler.lookup.VariableBinding;
+import org.eclipse.jdt.internal.compiler.util.SimpleLookupTable;
 
 public class ExplicitConstructorCall extends Statement implements Invocation {
 
@@ -72,6 +73,9 @@ public class ExplicitConstructorCall extends Statement implements Invocation {
 	public final static int Super = 2;
 	public final static int This = 3;
 
+	private SimpleLookupTable inferenceContexts = null;
+	private InnerInferenceHelper innerInferenceHelper;
+
 	public VariableBinding[][] implicitArguments;
 
 	// TODO Remove once DOMParser is activated
@@ -80,6 +84,51 @@ public class ExplicitConstructorCall extends Statement implements Invocation {
 	public ExplicitConstructorCall(int accessMode) {
 		this.accessMode = accessMode;
 	}
+
+	@Override
+ 	public MethodBinding binding(TypeBinding targetType, boolean reportErrors, Scope scope) {
+ 		if (reportErrors) {
+ 			if (this.binding == null)
+ 				scope.problemReporter().genericInferenceError("mthod is unexpectedly unresolved", this);
+ 		}
+ 		return this.binding;
+ 	}
+
+ 	@Override
+ 	public boolean usesInference() {
+ 		return (this.binding instanceof ParameterizedGenericMethodBinding) 
+ 			&& getInferenceContext((ParameterizedGenericMethodBinding)this.binding) != null;
+ 	}
+
+ 	@Override
+ 	public boolean updateBindings(MethodBinding updatedBinding, TypeBinding targetType) {
+ 		boolean hasUpdate = this.binding != updatedBinding;
+ 		if (this.inferenceContexts != null) {
+ 			InferenceContext18 ctx = (InferenceContext18)this.inferenceContexts.removeKey(this.binding);
+ 			if (ctx != null && updatedBinding instanceof ParameterizedGenericMethodBinding) {
+ 				this.inferenceContexts.put(updatedBinding, ctx);
+ 				hasUpdate |= ctx.registerSolution(targetType, updatedBinding);
+ 			}
+ 		}
+ 		this.binding = updatedBinding;
+ 
+ 		return hasUpdate;
+ 	}
+
+ 	@Override
+ 	public boolean innersNeedUpdate() {
+ 		return this.innerInferenceHelper != null;
+ 	}
+
+ 	@Override
+ 	public void innerUpdateDone() {
+ 		this.innerInferenceHelper = null;
+ 	}
+
+ 	@Override
+ 	public InnerInferenceHelper innerInferenceHelper() {
+ 		return this.innerInferenceHelper;
+ 	}
 
 	public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo) {
 		// must verify that exceptions potentially thrown by this expression are caught in the method.
@@ -499,7 +548,6 @@ public class ExplicitConstructorCall extends Statement implements Invocation {
 		// Nothing to do.
 	}
 	
-	@Override
 	public void registerResult(TypeBinding targetType, MethodBinding method) {
 		// Nothing to do.
 	}
@@ -508,7 +556,6 @@ public class ExplicitConstructorCall extends Statement implements Invocation {
 		return null;
 	}
 	
-	@Override
 	public void cleanUpInferenceContexts() {
 		// Nothing to do.
 	}

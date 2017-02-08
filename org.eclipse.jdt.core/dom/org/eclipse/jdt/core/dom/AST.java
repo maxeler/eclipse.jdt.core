@@ -1585,6 +1585,17 @@ public final class AST {
 		return new IfStatement(this);
 	}
 
+ 	/**
+ 	 * Creates a new unparented IF statement node owned by this AST.
+ 	 * By default, the expression is unspecified (but legal),
+ 	 * the then statement is an empty block, and there is no else statement.
+ 	 *
+ 	 * @return a new unparented IF statement node
+ 	 */
+ 	public IFStatement newIFStatement() {
+ 		return new IFStatement(this);
+ 	}
+
 	/**
 	 * Creates an unparented import declaration node owned by this AST.
 	 * The import declaration initially contains a single-type import
@@ -2320,6 +2331,17 @@ public final class AST {
 		return result;
 	}
 
+ 	/**
+ 	 * Creates a new unparented switch statement node owned by this AST.
+ 	 * By default, the expression is unspecified, but legal, and there are
+ 	 * no statements or switch cases.
+ 	 *
+ 	 * @return a new unparented labeled statement node
+ 	 */
+ 	public SwitchStatement newSwitchStatement() {
+ 		return new SwitchStatement(this);
+ 	}
+
 	/**
 	 * Creates a new unparented switch case statement node owned by
 	 * this AST. By default, the expression is unspecified, but legal.
@@ -2330,17 +2352,26 @@ public final class AST {
 		return new SwitchCase(this);
 	}
 
-
 	/**
-	 * Creates a new unparented switch statement node owned by this AST.
+	 * Creates a new unparented SWITCH statement node owned by this AST.
 	 * By default, the expression is unspecified, but legal, and there are
 	 * no statements or switch cases.
 	 *
 	 * @return a new unparented labeled statement node
 	 */
-	public SwitchStatement newSwitchStatement() {
-		return new SwitchStatement(this);
+	public SWITCHStatement newSWITCHStatement() {
+		return new SWITCHStatement(this);
 	}
+
+	/**
+ 	 * Creates a new unparented SWITCH CASE statement node owned by
+ 	 * this AST. By default, the expression is unspecified, but legal.
+ 	 *
+ 	 * @return a new unparented switch case node
+ 	 */
+ 	public SWITCHCASE newSWITCHCASE() {
+ 		return new SWITCHCASE(this);
+  	}
 
 	/**
 	 * Creates a new unparented synchronized statement node owned by this AST.

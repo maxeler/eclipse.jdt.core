@@ -59,7 +59,7 @@ public class InfixExpression extends Expression {
 		/**
 		 * The token for the operator.
 		 */
-		private String token;
+		private final String token;
 
 		/**
 		 * Creates a new infix operator with the given token.
@@ -110,14 +110,20 @@ public class InfixExpression extends Expression {
 		public static final Operator GREATER_EQUALS = new Operator(">=");//$NON-NLS-1$
 		/** Equals "==" operator. */
 		public static final Operator EQUALS = new Operator("==");//$NON-NLS-1$
+		/** Equals "===" operator. */
+ 		public static final Operator MAXELER_EQUALS = new Operator("===");//$NON-NLS-1$
 		/** Not equals "!=" operator. */
 		public static final Operator NOT_EQUALS = new Operator("!=");//$NON-NLS-1$
+		/** Not equals "!==" operator. */
+ 		public static final Operator MAXELER_NOT_EQUALS = new Operator("!==");//$NON-NLS-1$
 		/** Exclusive OR "^" operator. */
 		public static final Operator XOR = new Operator("^");//$NON-NLS-1$
 		/** Inclusive OR "|" operator. */
 		public static final Operator OR = new Operator("|");//$NON-NLS-1$
 		/** AND "&amp;" operator. */
 		public static final Operator AND = new Operator("&");//$NON-NLS-1$
+		/** CAT "#" operator. */
+ 		public static final Operator CAT = new Operator("#");//$NON-NLS-1$
 		/** Conditional OR "||" operator. */
 		public static final Operator CONDITIONAL_OR = new Operator("||");//$NON-NLS-1$
 		/** Conditional AND "&amp;&amp;" operator. */
@@ -129,7 +135,7 @@ public class InfixExpression extends Expression {
 		 */
 		private static final Map CODES;
 		static {
-			CODES = new HashMap(20);
+			CODES = new HashMap(23);
 			Operator[] ops = {
 					TIMES,
 					DIVIDE,
@@ -144,10 +150,13 @@ public class InfixExpression extends Expression {
 					LESS_EQUALS,
 					GREATER_EQUALS,
 					EQUALS,
+					MAXELER_EQUALS,
 					NOT_EQUALS,
+					MAXELER_NOT_EQUALS,
 					XOR,
 					OR,
 					AND,
+					CAT,
 					CONDITIONAL_OR,
 					CONDITIONAL_AND,
 				};

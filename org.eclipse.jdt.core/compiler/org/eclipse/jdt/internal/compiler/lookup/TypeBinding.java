@@ -187,6 +187,13 @@ public TypeBinding capture(Scope scope, int start, int end) {
 }
 
 /**
+ * Perform capture conversion on a given type (only effective on parameterized type with wildcards)
+ */
+public TypeBinding capture(Scope scope, int position) {
+	return this;
+}
+
+/**
  * Perform capture "deconversion" on a given type
  */
 public TypeBinding uncapture(Scope scope) {

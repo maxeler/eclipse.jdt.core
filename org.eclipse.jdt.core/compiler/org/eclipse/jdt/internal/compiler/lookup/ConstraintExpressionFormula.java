@@ -81,7 +81,7 @@ class ConstraintExpressionFormula extends ConstraintFormula {
 			// - parenthesized expression : these are transparent in our AST
 			if (this.left instanceof Invocation) {
 				Invocation invocation = (Invocation) this.left;
-				MethodBinding previousMethod = invocation.binding();
+				MethodBinding previousMethod = invocation.binding(null ,true,inferenceContext.scope);
 				if (previousMethod == null)  	// can happen, e.g., if inside a copied lambda with ignored errors
 					return null; 				// -> proceed with no new constraints
 				MethodBinding method = previousMethod;

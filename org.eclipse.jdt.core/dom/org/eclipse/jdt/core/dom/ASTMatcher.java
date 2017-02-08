@@ -268,6 +268,17 @@ public class ASTMatcher {
 				&& safeSubtreeMatch(node.getIndex(), o.getIndex()));
 	}
 
+	public boolean match(CompositeArrayAccess node, Object other) {
+ 		if (!(other instanceof CompositeArrayAccess)) {
+ 			return false;
+ 		}
+ 		CompositeArrayAccess o = (CompositeArrayAccess) other;
+ 		return (
+ 			safeSubtreeMatch(node.getArray(), o.getArray())
+ 				&& safeSubtreeMatch(node.getIndexOne(), o.getIndexOne())
+ 				&& safeSubtreeMatch(node.getIndexTwo(), o.getIndexTwo()));
+ 	}
+
 	/**
 	 * Returns whether the given node and the other object object match.
 	 * <p>
@@ -1047,6 +1058,31 @@ public class ASTMatcher {
 	 *   <code>false</code> if they do not match or the other object has a
 	 *   different node type or is <code>null</code>
 	 */
+	public boolean match(IFStatement node, Object other) {
+ 		if (!(other instanceof IFStatement)) {
+ 			return false;
+ 		}
+ 		IFStatement o = (IFStatement) other;
+ 		return (
+ 			safeSubtreeMatch(node.getExpression(), o.getExpression())
+ 				&& safeSubtreeMatch(node.getThenStatement(), o.getThenStatement())
+ 				&& safeSubtreeMatch(node.getElseStatement(), o.getElseStatement()));
+ 	}
+ 
+ 	/**
+ 	 * Returns whether the given node and the other object match.
+ 	 * <p>
+ 	 * The default implementation provided by this class tests whether the
+ 	 * other object is a node of the same type with structurally isomorphic
+ 	 * child subtrees. Subclasses may override this method as needed.
+ 	 * </p>
+ 	 *
+ 	 * @param node the node
+ 	 * @param other the other object, or <code>null</code>
+ 	 * @return <code>true</code> if the subtree matches, or
+ 	 *   <code>false</code> if they do not match or the other object has a
+ 	 *   different node type or is <code>null</code>
+ 	 */
 	public boolean match(ImportDeclaration node, Object other) {
 		if (!(other instanceof ImportDeclaration)) {
 			return false;
@@ -2129,6 +2165,28 @@ public class ASTMatcher {
 	 *   <code>false</code> if they do not match or the other object has a
 	 *   different node type or is <code>null</code>
 	 */
+	public boolean match(SWITCHCASE node, Object other) {
+ 		if (!(other instanceof SWITCHCASE)) {
+ 			return false;
+ 		}
+ 		SWITCHCASE o = (SWITCHCASE) other;
+ 		return safeSubtreeMatch(node.getExpression(), o.getExpression());
+ 	}
+ 
+ 	/**
+ 	 * Returns whether the given node and the other object match.
+ 	 * <p>
+ 	 * The default implementation provided by this class tests whether the
+ 	 * other object is a node of the same type with structurally isomorphic
+ 	 * child subtrees. Subclasses may override this method as needed.
+ 	 * </p>
+ 	 *
+ 	 * @param node the node
+ 	 * @param other the other object, or <code>null</code>
+ 	 * @return <code>true</code> if the subtree matches, or
+ 	 *   <code>false</code> if they do not match or the other object has a
+ 	 *   different node type or is <code>null</code>
+ 	 */
 	public boolean match(SwitchStatement node, Object other) {
 		if (!(other instanceof SwitchStatement)) {
 			return false;
@@ -2153,6 +2211,29 @@ public class ASTMatcher {
 	 *   <code>false</code> if they do not match or the other object has a
 	 *   different node type or is <code>null</code>
 	 */
+	public boolean match(SWITCHStatement node, Object other) {
+ 		if (!(other instanceof SWITCHStatement)) {
+ 			return false;
+ 		}
+ 		SWITCHStatement o = (SWITCHStatement) other;
+ 		return (
+ 			safeSubtreeMatch(node.getExpression(), o.getExpression())
+ 				&& safeSubtreeListMatch(node.statements(), o.statements()));
+ 	}
+ 	/**
+ 	 * Returns whether the given node and the other object match.
+ 	 * <p>
+ 	 * The default implementation provided by this class tests whether the
+ 	 * other object is a node of the same type with structurally isomorphic
+ 	 * child subtrees. Subclasses may override this method as needed.
+ 	 * </p>
+ 	 *
+ 	 * @param node the node
+ 	 * @param other the other object, or <code>null</code>
+ 	 * @return <code>true</code> if the subtree matches, or
+ 	 *   <code>false</code> if they do not match or the other object has a
+ 	 *   different node type or is <code>null</code>
+ 	 */
 	public boolean match(SynchronizedStatement node, Object other) {
 		if (!(other instanceof SynchronizedStatement)) {
 			return false;

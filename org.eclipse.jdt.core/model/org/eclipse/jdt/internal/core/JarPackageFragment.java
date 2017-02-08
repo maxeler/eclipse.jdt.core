@@ -197,9 +197,6 @@ public Object[] getNonJavaResources() throws JavaModelException {
 		return storedNonJavaResources();
 	}
 }
-protected boolean internalIsValidPackageName() {
-	return true;
-}
 /**
  * Jars and jar entries are all read only
  */

@@ -179,8 +179,7 @@ public class DeltaProcessingState implements IResourceChangeListener {
 		return deltaProcessor;
 	}
 
-	public ClasspathChange addClasspathChange(IProject project, IClasspathEntry[] oldRawClasspath, IPath oldOutputLocation, IClasspathEntry[] oldResolvedClasspath) {
-		synchronized (this.classpathChanges) {
+	public synchronized ClasspathChange addClasspathChange(IProject project, IClasspathEntry[] oldRawClasspath, IPath oldOutputLocation, IClasspathEntry[] oldResolvedClasspath) {
 			ClasspathChange change = (ClasspathChange) this.classpathChanges.get(project);
 			if (change == null) {
 				change = new ClasspathChange((JavaProject) JavaModelManager.getJavaModelManager().getJavaModel().getJavaProject(project), oldRawClasspath, oldOutputLocation, oldResolvedClasspath);
@@ -194,21 +193,16 @@ public class DeltaProcessingState implements IResourceChangeListener {
 					change.oldResolvedClasspath = oldResolvedClasspath;
 			}
 			return change;
-		}
 	}
 	
-	public ClasspathChange getClasspathChange(IProject project) {
-		synchronized (this.classpathChanges) {
+	public synchronized ClasspathChange getClasspathChange(IProject project) {
 			return (ClasspathChange) this.classpathChanges.get(project);
-		}
 	}
 	
-	public HashMap removeAllClasspathChanges() {
-		synchronized (this.classpathChanges) {
+	public synchronized HashMap removeAllClasspathChanges() {
 			HashMap result = this.classpathChanges;
 			this.classpathChanges = new HashMap(result.size());
 			return result;
-		}
 	}
 
 	public synchronized ClasspathValidation addClasspathValidation(JavaProject project) {

@@ -1510,6 +1510,19 @@ public class DefaultCodeFormatterConstants {
 	 * @see #FALSE
 	 * @since 3.0
 	 */
+	public static final String FORMATTER_INDENT_SWITCH_STATEMENTS_COMPARE_TO_SWITCH = JavaCore.PLUGIN_ID + ".formatter.indent_SWITCHstatements_compare_to_SWITCH";	//$NON-NLS-1$
+	
+ 	/**
+ 	 * <pre>
+ 	 * FORMATTER / Option to indent switch statements compare to switch
+ 	 *     - option id:         "org.eclipse.jdt.core.formatter.indent_switchstatements_compare_to_switch"
+ 	 *     - possible values:   { TRUE, FALSE }
+ 	 *     - default:           TRUE
+ 	 * </pre>
+ 	 * @see #TRUE
+ 	 * @see #FALSE
+ 	 * @since 3.0
+ 	 */
 	public static final String FORMATTER_INDENT_SWITCHSTATEMENTS_COMPARE_TO_SWITCH = JavaCore.PLUGIN_ID + ".formatter.indent_switchstatements_compare_to_switch";	//$NON-NLS-1$
 
 	/**

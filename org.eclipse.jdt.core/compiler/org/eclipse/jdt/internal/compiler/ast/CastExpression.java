@@ -153,7 +153,7 @@ public static void checkNeedForArgumentCast(BlockScope scope, int operator, int 
 	} else {
 		TypeBinding alternateLeftType = ((CastExpression)expression).expression.resolvedType;
 		if (alternateLeftType == null) return; // cannot do better
-		if (alternateLeftType.id == expressionTypeId) { // obvious identity cast
+		if (alternateLeftType.id == expressionTypeId && expressionTypeId != TypeIds.NoId) { // obvious identity cast
 			scope.problemReporter().unnecessaryCast((CastExpression)expression);
 			return;
 		}
@@ -285,9 +285,10 @@ private static void checkAlternateBinding(BlockScope scope, Expression receiver,
 			public boolean receiverIsImplicitThis() { return invocationSite.receiverIsImplicitThis();}
 			public InferenceContext18 freshInferenceContext(Scope someScope) { return invocationSite.freshInferenceContext(someScope); }
 			public ExpressionContext getExpressionContext() { return invocationSite.getExpressionContext(); }
-			public boolean isQualifiedSuper() { return invocationSite.isQualifiedSuper(); }
 			public boolean checkingPotentialCompatibility() { return false; }
 			public void acceptPotentiallyCompatibleMethods(MethodBinding[] methods) {/* ignore */}
+			@Override
+ 			public boolean isQualifiedSuper() { return false; }
 		};
 		MethodBinding bindingIfNoCast;
 		if (binding.isConstructor()) {
