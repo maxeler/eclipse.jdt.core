@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
+Main-Class: org.eclipse.jdt.internal.compiler.batch.Main
 Bundle-ManifestVersion: 2
 Bundle-Name: %pluginName
-Bundle-SymbolicName: org.eclipse.jdt.core;singleton:=true
+Bundle-SymbolicName: org.eclipse.jdt.core; singleton:=true
 Bundle-Version: 3.10.2.qualifier
-Bundle-ClassPath: org.eclipse.jdt.core
 Bundle-Activator: org.eclipse.jdt.core.JavaCore
 Bundle-Vendor: %providerName
 Bundle-Localization: plugin
@@ -14,10 +14,10 @@ Export-Package: org.eclipse.jdt.core,
  org.eclipse.jdt.core.dom.rewrite,
  org.eclipse.jdt.core.eval,
  org.eclipse.jdt.core.formatter,
- org.eclipse.jdt.core.index,
  org.eclipse.jdt.core.jdom,
  org.eclipse.jdt.core.search,
  org.eclipse.jdt.core.util,
+ org.eclipse.jdt.core.index,
  org.eclipse.jdt.internal.codeassist;x-internal:=true,
  org.eclipse.jdt.internal.codeassist.complete;x-internal:=true,
  org.eclipse.jdt.internal.codeassist.impl;x-internal:=true,
@@ -59,6 +59,5 @@ Require-Bundle: org.eclipse.core.resources;bundle-version="[3.3.0,4.0.0)",
  org.eclipse.text;bundle-version="[3.1.0,4.0.0)",
  org.eclipse.team.core;bundle-version="[3.1.0,4.0.0)";resolution:=optional
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
-Bundle-ActivationPolicy: lazy
-Main-Class: org.eclipse.jdt.internal.compiler.batch.Main
 Eclipse-ExtensibleAPI: true
+Bundle-ActivationPolicy: lazy
