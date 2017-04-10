@@ -151,20 +151,6 @@ public class JavaProject
 	 */
 	private static final IClasspathEntry[] RESOLUTION_IN_PROGRESS = new IClasspathEntry[0];
 
-	/**
-	 * Strings for MaxCompiler lib checks
-	 */
-	
-	public static final String MAXCOMPILER_PATH = "MAXCOMPILERDIR"; //$NON-NLS-1$
-	public static final String MAXGENFD_PATH = "MAXGENFDDIR"; //$NON-NLS-1$
-	public static final String MAXCOMPILER_JAR = "MaxCompiler.jar"; //$NON-NLS-1$
-	public static final String MAXGENFD_JAR = "MaxGenFD.jar"; //$NON-NLS-1$
-	public static final String MAXBLOX_JAR = "MaxBlox.jar"; //$NON-NLS-1$
-	public static final String LIB_PATH = "/lib/"; //$NON-NLS-1$
-	public static final String DOCSPATH= "/docs/MaxCompiler-API/"; //$NON-NLS-1$
-	public static final String DOCSPATHFD= "/docs/MaxGenFD-API/"; //$NON-NLS-1$
-	public static final String FILEPREFIX= "file:"; //$NON-NLS-1$
-
 	/*
 	 * For testing purpose only
 	 */
@@ -911,7 +897,6 @@ public class JavaProject
 		IClasspathEntry defaultOutput = null;
 		StringReader reader = new StringReader(xmlClasspath);
 		Element cpElement;
-		IProjectDescription desc;
 		try {
 			DocumentBuilder parser = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			cpElement = parser.parse(new InputSource(reader)).getDocumentElement();
@@ -933,68 +918,6 @@ public class JavaProject
 			Node node = list.item(i);
 			if (node.getNodeType() == Node.ELEMENT_NODE) {
 				IClasspathEntry entry = ClasspathEntry.elementDecode((Element)node, this, unknownElements);
-				/**
-				 * 
-				 */
-				IPath path = entry.getPath();
-				try {
-					desc = getProject().getDescription();
-					/**
-					 * Check MaxCompiler.jar path
-					 */
-					if(desc != null) {
-						if(path.lastSegment().equals(MAXCOMPILER_JAR) /*&& desc.manageMaxCompiler()*/){
-							String maxCompilerVariable = System.getenv(MAXCOMPILER_PATH);
-							if(maxCompilerVariable == null){
-								/**
-								 * Handle if environment variable is not set
-								 */
-							}else{
-								IPath currentMaxCompilerPath = new Path(maxCompilerVariable).makeAbsolute();
-								IPath storedMaxCompilerPath = path.removeLastSegments(2);
-								if(!storedMaxCompilerPath.equals(currentMaxCompilerPath)){
-									entry = replaceMaxCompilerPath(entry, currentMaxCompilerPath);
-								}							
-							}
-						}
-						/**
-						 * Check MaxGenFD.jar path
-						 */
-						if(path.lastSegment().equals(MAXGENFD_JAR) /*&& desc.manageMaxGenFD()*/){
-							String maxGenFDVariable = System.getenv(MAXGENFD_PATH);
-							if(maxGenFDVariable == null){
-								/**
-								 * Handle if environment variable is not set
-								 */
-							}else{
-								IPath currentMaxGenFDPath = new Path(maxGenFDVariable).makeAbsolute();
-								IPath storedMaxGenFDPath = path.removeLastSegments(2);
-								if(!storedMaxGenFDPath.equals(currentMaxGenFDPath)){
-									entry = replaceMaxGenFDPath(entry, currentMaxGenFDPath);
-								}							
-							}
-						}
-						/**
-						 * Check MaxBlox.jar path
-						 */
-						if(path.lastSegment().equals(MAXBLOX_JAR) /*&& desc.manageMaxBlox()*/){
-							String maxBloxVariable = System.getenv(MAXGENFD_PATH);
-							if(maxBloxVariable == null){
-								/**
-								 * Handle if environment variable is not set
-								 */
-							}else{
-								IPath currentMaxBloxPath = new Path(maxBloxVariable).makeAbsolute();
-								IPath storedMaxBloxPath = path.removeLastSegments(2);
-								if(!storedMaxBloxPath.equals(currentMaxBloxPath)){
-									entry = replaceMaxBloxPath(entry, currentMaxBloxPath);
-								}							
-							}
-						}
-					}
-				} catch (CoreException e) {
-					e.printStackTrace();
-				}
 				if (entry != null){
 					if (entry.getContentKind() == ClasspathEntry.K_OUTPUT) {
 						defaultOutput = entry; // separate output
@@ -3257,45 +3180,6 @@ public class JavaProject
 			// project doesn't exist: ignore
 		}
 		prereqChain.remove(path);
-	}
-
-	/**
-	 * Replaces the current MaxCompiler.lib path, extracted
-	 * from MAXCOMPILERDIR environment variable
-	 * 
-	 * @param oldentry, current environment variable entry
-	 */
-	private IClasspathEntry replaceMaxCompilerPath(IClasspathEntry oldEntry, IPath currentMaxCompilerPath){
-		List cpAttributes = new ArrayList();
-		IPath javadocPath = currentMaxCompilerPath.append(DOCSPATH).makeAbsolute();
-		cpAttributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, FILEPREFIX + javadocPath.toOSString()));								
-		IClasspathAttribute[] attributes = (IClasspathAttribute[]) cpAttributes.toArray(new IClasspathAttribute[cpAttributes.size()]);									
-		return JavaCore.newLibraryEntry(currentMaxCompilerPath.append(LIB_PATH).append(MAXCOMPILER_JAR), 
-										null, 
-										null, 
-										null, 
-										attributes, 
-										false);
-	}
-
-	private IClasspathEntry replaceMaxGenFDPath(IClasspathEntry oldEntry, IPath currentMaxGenFDPath){
-		List cpAttributes = new ArrayList();
-		IPath javadocPath = currentMaxGenFDPath.append(DOCSPATHFD).makeAbsolute();
-		cpAttributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, FILEPREFIX + javadocPath.toOSString()));
-		IClasspathAttribute[] attributes = (IClasspathAttribute[]) cpAttributes.toArray(new IClasspathAttribute[cpAttributes.size()]);
-		return JavaCore.newLibraryEntry(currentMaxGenFDPath.append(LIB_PATH).append(MAXGENFD_JAR), 
-										null, 
-										null,
-										null,
-										attributes,
-										false);
-	}
-
-	private IClasspathEntry replaceMaxBloxPath(IClasspathEntry oldEntry, IPath currentMaxBloxPath){
-		return JavaCore.newLibraryEntry(currentMaxBloxPath.append(LIB_PATH).append(MAXBLOX_JAR), 
-										null, 
-										null, 
-										false);
 	}
 	
 	/*

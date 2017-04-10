@@ -345,11 +345,4 @@ public interface IJavaModelStatusConstants {
 	 * @since 3.7
 	 */
 	public static final int CANNOT_RETRIEVE_ATTACHED_JAVADOC_TIMEOUT = 1012;
-	
-	/**
-	 * <p>Status constant indicating that the default or specific output folder is overlapping
-	 * with another source location. </p>
-	 * @since 3.6.4
-	 */
-	public static final int MISSING_MAXCOMPILERDIR = 1012;
 }
